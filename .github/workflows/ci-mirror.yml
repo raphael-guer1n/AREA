@@ -1,28 +1,35 @@
-name: Mirror to Epitech Git
+name: CI - Push to Official Main
 
 on:
-  workflow_run:
-    workflows: ["Format Check"]
-    types: [completed]
+  push:
+    branches:
+      - main
+      - dev
 
 jobs:
-  mirror:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    name: Push to mirror
+  push-to-official-main:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
-      - name: Checkout full history
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Start SSH agent
+      - name: Set up SSH
         uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Push repository mirror
-        run: git push --mirror ${{ secrets.MIRROR_URL }}
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions CI"
+          git config --global user.email "github-actions-ci[bot]@users.noreply.github.com"
+          git remote remove official_main || true
+          git remote add official_main git@github.com:EpitechPGE3-2025/G-DEV-500-PAR-5-2-area-3.git
+          git remote -v
+
+      - name: Push to Official Main Repository
+        run: |
+          git fetch official_main
+          git push official_main HEAD:main
