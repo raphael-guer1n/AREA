@@ -1,35 +1,27 @@
-name: CI - Push to Official Main
+name: CI - Mirror to Official Epitech Repo
 
 on:
   push:
-    branches:
-      - main
-      - dev
+    branches: [ main, dev ]
 
 jobs:
-  push-to-official-main:
+  mirror:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout full history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up SSH
+      - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Configure Git
+      - name: Push mirror
         run: |
-          git config --global user.name "GitHub Actions CI"
-          git config --global user.email "github-actions-ci[bot]@users.noreply.github.com"
-          git remote remove official_main || true
-          git remote add official_main git@github.com:EpitechPGE3-2025/G-DEV-500-PAR-5-2-area-3.git
+          git remote remove mirror 2>/dev/null || true
+          git remote add mirror "${{ secrets.MIRROR_URL }}"
           git remote -v
-
-      - name: Push to Official Main Repository
-        run: |
-          git fetch official_main
-          git push official_main HEAD:main
+          git push --mirror mirror
