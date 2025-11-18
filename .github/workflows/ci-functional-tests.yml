@@ -25,7 +25,7 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions CI"
           git config --global user.email "github-actions-ci[bot]@users.noreply.github.com"
-          git remote add official_main git@github.com:EpitechPGE3-2025/G-CPP-500-PAR-5-1-rtype-3.git
+          git remote add official_main git@github.com:EpitechPGE3-2025/G-DEV-500-PAR-5-2-area-3.git
 
       - name: Push to Official Main Repository
         run: |
