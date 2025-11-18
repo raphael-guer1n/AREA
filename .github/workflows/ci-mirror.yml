@@ -1,0 +1,28 @@
+name: Mirror to Epitech Git
+
+on:
+  workflow_run:
+    workflows: ["Format Check"]
+    types: [completed]
+
+jobs:
+  mirror:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Push to mirror
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Push repository mirror
+        run: git push --mirror ${{ secrets.MIRROR_URL }}
