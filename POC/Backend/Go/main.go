@@ -1,7 +1,7 @@
 package main
 
 import (
-	"Backend/controllers"
+	"Go/controllers"
 
 	"github.com/gin-gonic/gin"
 )

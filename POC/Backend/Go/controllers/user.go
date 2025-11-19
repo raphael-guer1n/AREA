@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"Backend/models"
+	"Go/models"
 	"net/http"
 	"strconv"
 
