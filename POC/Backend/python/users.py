@@ -1,18 +1,20 @@
 from pydantic import BaseModel
 
-class User(BaseModel):
-    userId: int = 0
+class UserCreate(BaseModel):
     name: str = ""
     email: str = ""
     password: str = ""
 
+class User(UserCreate):
+    userId: int = 0
+
 class UserDB:
-    users : dict[int, User]
-    counter : int
+    users: dict[int, User]
+    counter: int
 
     def __init__(self):
         self.users = {}
-        self.counter = 1
+        self.counter = 0
 
         self.users[self.counter] = User(
             userId=self.counter,
@@ -21,16 +23,23 @@ class UserDB:
             password="password",
         )
 
-    def get_users(self, userId : int) -> User:
+    def get_users(self, userId: int) -> User:
         return self.users[userId]
 
-    def add_user(self, user : User) -> int:
+    def add_user(self, user: UserCreate) -> int:
         self.counter += 1
-        self.users[self.counter] = user
+        new_user = User(userId=self.counter, **user.model_dump())
+        self.users[self.counter] = new_user
         return self.counter
 
-    def delete_user(self, userId : int) -> None:
+    def delete_user(self, userId: int) -> None:
         del self.users[userId]
 
-    def update_user(self, userId : int, user : User) -> None:
-        self.users[userId] = user
+    def update_user(self, userId: int, user: UserCreate) -> None:
+        if userId not in self.users:
+            raise KeyError
+        updated = User(
+            userId=userId,
+            **user.model_dump(),
+        )
+        self.users[userId] = updated
