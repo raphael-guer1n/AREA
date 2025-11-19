@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 import users
 
 app = FastAPI()
-userDB : users.UserDB
+userDB : users.UserDB = users.UserDB()
 
 @app.get("/user/{userId}")
 def get_user(userId: int):
@@ -13,7 +13,7 @@ def get_user(userId: int):
         raise HTTPException(status_code=404, detail="User not found")
 
 @app.post("/user")
-def add_user(user: users.User):
+def add_user(user: users.UserCreate):
     try:
         newUserId = userDB.add_user(user)
         return {"userId": newUserId}
@@ -30,9 +30,9 @@ def delete_user(userId: int):
 
 
 @app.put("/user/{userId}")
-def update_user(userId: int, user: users.User):
+def update_user(userId: int, user: users.UserCreate):
     try:
         userDB.update_user(userId, user)
         return {"userId": userId}
-    except:
+    except KeyError:
         raise HTTPException(status_code=404, detail="User not found")
