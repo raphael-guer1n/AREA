@@ -34,6 +34,14 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXMvSG9tZS5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
+[/home/clement-alexisfournier/Desktop/Semestre_05/DEV/AREA/Web_POC/Web_Blazor/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvTG9naW4ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/home/clement-alexisfournier/Desktop/Semestre_05/DEV/AREA/Web_POC/Web_Blazor/Pages/Profile.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXMvUHJvZmlsZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/home/clement-alexisfournier/Desktop/Semestre_05/DEV/AREA/Web_POC/Web_Blazor/Pages/Weather.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXMvV2VhdGhlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 

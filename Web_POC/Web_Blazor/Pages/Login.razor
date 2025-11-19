@@ -1,0 +1,64 @@
+@page "/login"
+
+<PageTitle>Login</PageTitle>
+
+<h1>Login</h1>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+
+<EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label for="emailInput" class="form-label">Email</label>
+        <InputText id="emailInput" class="form-control" @bind-Value="loginModel.Email" />
+        <ValidationMessage For="@(() => loginModel.Email)" />
+    </div>
+    <div class="mb-3">
+        <label for="passwordInput" class="form-label">Mot de passe</label>
+        <InputText id="passwordInput" type="password" class="form-control" @bind-Value="loginModel.Password" />
+        <ValidationMessage For="@(() => loginModel.Password)" />
+    </div>
+    <button class="btn btn-success" type="submit">Se connecter</button>
+</EditForm>
+
+@code {
+    private readonly LoginModel loginModel = new();
+    private string? ErrorMessage;
+
+    [Inject] private AuthState AuthState { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        if (AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/profile", replace: true);
+        }
+    }
+
+    private void HandleLogin()
+    {
+        if (AuthState.TryLogin(loginModel.Email, loginModel.Password))
+        {
+            ErrorMessage = null;
+            Navigation.NavigateTo("/profile", replace: true);
+        }
+        else
+        {
+            ErrorMessage = "Identifiants invalides (test@test.com / 0000).";
+        }
+    }
+
+    private class LoginModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}
