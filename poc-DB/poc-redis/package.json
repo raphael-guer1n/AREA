@@ -1,0 +1,10 @@
+{
+  "name": "poc-redis",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "redis": "^4.6.7",
+    "dotenv": "^16.0.0"
+  }
+}
