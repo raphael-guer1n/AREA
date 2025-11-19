@@ -2,7 +2,7 @@ name: CI - Mirror to Official Epitech Repo
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
 
 jobs:
   mirror:
@@ -19,9 +19,9 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Push mirror
+      - name: Push main and dev to Epitech mirror
         run: |
           git remote remove mirror 2>/dev/null || true
           git remote add mirror "${{ secrets.MIRROR_URL }}"
-          git remote -v
-          git push --mirror mirror
+          git push mirror main
+          git push mirror dev
