@@ -1,0 +1,29 @@
+name: Automatic releases on merge from dev to main
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  create_release:
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release ${{ github.run_number }} (merge dev → main)
+          body: |
+            PR: #${{ github.event.pull_request.number }}
+            Merge commit: ${{ github.event.pull_request.merge_commit_sha }}
+          draft: false
+          prerelease: false
+          target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
