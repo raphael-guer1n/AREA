@@ -121,6 +121,15 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const HomePage(),
         '/login': (context) => const LoginPage(),
+        '/profile': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
+
+          return ProfilePage(
+            email: args?['email'] ?? 'test@test.com',
+            password: args?['password'] ?? '0000',
+          );
+        },
       },
     );
   }
@@ -223,9 +232,26 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _submit() {
-    setState(() {
-      _status = 'Tentative de connexion pour ${_emailController.text.trim()}';
-    });
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email == 'test@test.com' && password == '0000') {
+      setState(() {
+        _status = null;
+      });
+      Navigator.pushNamed(
+        context,
+        '/profile',
+        arguments: {
+          'email': email,
+          'password': password,
+        },
+      );
+    } else {
+      setState(() {
+        _status = 'Identifiants invalides';
+      });
+    }
   }
 
   @override
@@ -344,6 +370,99 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({
+    super.key,
+    required this.email,
+    required this.password,
+  });
+
+  final String email;
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.popUntil(
+              context,
+              (route) => route.settings.name == '/',
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: colorScheme.secondary,
+            ),
+            child: const Text('Accueil'),
+          ),
+        ],
+      ),
+      body: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Profil utilisateur',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Email',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: mutedColor(context)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                email,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Mot de passe',
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: mutedColor(context)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                password,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ),
       ),
