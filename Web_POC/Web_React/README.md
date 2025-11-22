@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AREA – React + Next.js Frontend POC
 
-## Getting Started
+## POC Introduction
+A lightweight prototype to validate an initial Area user experience using React/Next.js: homepage, login form, and redirection to a profile displaying submitted credentials.
 
-First, run the development server:
+## Objectives
+- Verify App Router routing and navigation between pages.
+- Illustrate client-side form handling and local state.
+- Prepare for future integration of server-side authentication.
+- Test a light/dark theme based on CSS variables.
+
+## Implemented Features
+- Minimal homepage with a test CTA and login link.
+- Login page with basic validation and authentication simulation (email `test@test.com`, password `0000`).
+- Redirection to the profile page with credentials passed in the URL.
+- Profile page displaying the received email/password or a message indicating no data.
+- Clean styling using CSS variables, Tailwind 4, and Geist fonts.
+
+## Installation Instructions
+1. Prerequisites: Node.js 18.18+ and npm.
+2. Install the dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Commands to launch the project
+- Development: `npm run dev` then open http://localhost:3000
+- Lint: `npm run lint`
+- Production build: `npm run build`
+- Production start: `npm run start`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Technologies used
+- Next.js 16 (App Router)
+- React 19 + React DOM
+- TypeScript
+- Tailwind CSS v4 + PostCSS
+- Fonts Geist (Next Font)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Strengths of React/Next.js
+* Simple and intuitive file tree-based routing.
+* Hybrid rendering (SSR/CSR) with hot refresh for rapid development.
+* Built-in optimizations (bundling, TypeScript, font and image handling).
+* Mature ecosystem, numerous complementary libraries (e.g., Tailwind for styling).
 
-## Learn More
+## Limitations observed (specific to the POC)
+* Intentionally simplified authentication: hard-coded credentials on the client side only for demonstration purposes.
+* No API calls or backend in this POC: all logic is executed on the front end.
+* No global state management solution or automated tests yet (these can be added later).
+* Accessibility and client-side validation aspects will be explored further in a production version.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Quick conclusion
+The POC validates navigation, form handling, and the presentation of a basic theme using Next.js. The next key steps are connecting to an authentication backend, securing data transport (sessions/tokens), and adding automated tests.
