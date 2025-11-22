@@ -1,16 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState<string | null>(null);
+    const router = useRouter();
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setStatus(`Tentative de connexion pour ${email}`);
+        if (email === "test@test.com" && password === "0000") {
+            setStatus("Connexion réussie, redirection vers le profil...");
+            const query = new URLSearchParams({ email, password }).toString();
+            router.push(`/profil?${query}`);
+        } else {
+            setStatus("Identifiants incorrects");
+        }
     };
 
     return (
