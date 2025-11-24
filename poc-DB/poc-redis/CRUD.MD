@@ -1,20 +1,28 @@
---- CREATE ---
+## CREATE
 
+```redis
 HSET user:quandale.dingle@example.com \
   firs_tname "Quandale" \
   last_name "Dingle" \
   email "quandale.dingle@example.com"
+```
 
---- READ ---
+## READ
 
+```redis
 HGETALL user:quandale.dingle@example.com
+```
 
---- UPDATE ---
+## UPDATE
 
+```redis
 HSET user:quandale.dingle@example.com \
   first_name "updated firs_tname" \
   last_name "updated last_name"
+```
 
---- DELETE ---
+## DELETE
 
+```redis
 DEL user:quandale.dingle@example.com
+```
