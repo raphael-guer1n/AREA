@@ -1,0 +1,15 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h1>Bienvenue !</h1>
+
+<p>Connecte-toi pour accéder à ton profil.</p>
+
+<button class="btn btn-primary" @onclick="GoToLogin">Login</button>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private void GoToLogin() => Navigation.NavigateTo("/login");
+}
