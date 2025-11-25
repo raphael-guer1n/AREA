@@ -146,21 +146,3 @@ Flutter was selected as the primary mobile technology for **AREA** because it pr
 While **React Native** offered strong developer familiarity and fast setup, and **Kotlin** provided native efficiency, **Flutter surpassed both** by delivering consistent cross-platform UX, modern tooling, and near-native performance — all within a single maintainable codebase.
 
 For a modular, API-driven platform like **AREA**, demanding scalability and UI reliability across devices, **Flutter is the optimal choice** for the mobile stack.
-
-## How to use
-
-to start the project flutter:
-
-flutter emulators --launch Pixel_6 
-flutter run
-
-to start the project kotlin:
-
-flutter emulators --launch Pixel_6 
-./gradlew clean assembleDebug installDebug
-
-to start the project react:
-
-flutter emulators --launch Pixel_6 
-npx react-native start
-npx react-native run-android
