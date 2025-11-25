@@ -11,7 +11,7 @@ The concept is simple: **if an Action occurs in one service, then a REAction is 
 
 <br>
 
-## 🧩 Project Objective
+## Project Objective
 
 The goal of this project is to build a software suite composed of three main components:
 
@@ -51,7 +51,7 @@ Just like the web client, no business logic is executed on the mobile app.
 
 <br>
 
-## 🔄 What is an AREA?
+## What is an AREA?
 
 An **AREA** is an automation composed of two elements:
 
@@ -62,14 +62,33 @@ This system allows users to connect multiple services and automate digital tasks
 
 <br>
 
-## 🪝 The Role of the Hook
+## The Role of the Hook
 
 The server uses a system of *Hooks* to detect when user-defined Actions occur.  
 When a Hook identifies that an Action has been triggered, it automatically launches the associated REAction using the server API.
 
 <br>
 
-## 🎯 Educational Objectives
+## Documentation & Ressources
+
+Cette section regroupe toutes les documentations, schémas et outils utilisés pour concevoir et structurer le projet AREA.
+
+### Documents Techniques
+- Documentation officielle du projet (PDF) — [`G-DEV-500_AREA.pdf`][Area-Subject]
+
+### Design & UX
+- Maquettes Figma — [Template][figma-template]
+
+### Diagrammes & Architecture
+- Schémas Mermaid (Architecture, Séquence, Classes) — [Diagrammes Mermaid][mermaid-diagrams]
+
+[figma-template]: https://www.figma.com/make/hAuXyYuX12okDvawHiHnPX/Template-for-IFTTT-App?node-id=0-4&t=sbehe7KY4mvlfYbj-1
+[mermaid-diagrams]: https://www.mermaidchart.com/app/projects/d32e2d39-2142-4e20-84c5-20cbb151cc1d/diagrams/e0382344-f52b-4dc9-8ced-bdec15998fb4/share/invite/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkb2N1bWVudElEIjoiZTAzODIzNDQtZjUyYi00ZGM5LThjZWQtYmRlYzE1OTk4ZmI0IiwiYWNjZXNzIjoiVmlldyIsImlhdCI6MTc2NDA5OTEzNH0.eFtTAe5t2KfZcl2UWPqwu_YgcjjlUX2CZpOwfZl31dA
+[Area-Subject]: https://intra.epitech.eu/module/2025/G-DEV-500/PAR-5-2/acti-692707/project/file/G-DEV-500_AREA.pdf
+
+<br>
+
+## Educational Objectives
 
 The AREA project aims to teach:
 - how to integrate multiple external services and APIs,
@@ -96,7 +115,7 @@ The AREA project aims to teach:
 
 <br>
 
-## 📄 License – MIT License
+## License – MIT License
 
 MIT License
 
@@ -123,4 +142,3 @@ SOFTWARE.
 <br>
 
 <div align="center"> <sub>{Epitech} — 2025</sub> </div>
-
