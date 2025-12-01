@@ -11,8 +11,9 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Loaded services:")
-	for _, s := range services {
-		fmt.Printf(" - %s (%s)\n", s.Name, s.BaseURL)
+	if err := config.ValidateAll(services); err != nil {
+		panic(err)
 	}
+
+	fmt.Println("All configs are valid.")
 }
