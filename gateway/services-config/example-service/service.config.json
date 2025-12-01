@@ -1,0 +1,5 @@
+{
+  "name": "example-service",
+  "base_url": "http://example-service:3000",
+  "routes": []
+}
