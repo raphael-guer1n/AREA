@@ -1,22 +1,18 @@
-		package main
+package main
 
-		import (
-			"fmt"
-			"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
-		)
+import (
+	"fmt"
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
+)
 
-		func main() {
-			c := config.ServiceConfig{
-				Name: "test",
-				BaseURL: "http://localhost:3000",
-				Routes: []config.RouteConfig{
-					{
-						Path: "/ping",
-						Methods: []string{"GET"},
-						AuthRequired: false,
-					},
-				},
-			}
+func main() {
+	services, err := config.LoadAllServiceConfigs("./services-config")
+	if err != nil {
+		panic(err)
+	}
 
-			fmt.Printf("%+v\n", c)
-		}
+	fmt.Println("Loaded services:")
+	for _, s := range services {
+		fmt.Printf(" - %s (%s)\n", s.Name, s.BaseURL)
+	}
+}
