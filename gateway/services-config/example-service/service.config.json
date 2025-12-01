@@ -1,5 +1,17 @@
 {
   "name": "example-service",
   "base_url": "http://example-service:3000",
-  "routes": []
+  "routes": [
+    {
+      "path": "/example",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": true,
+      "permissions": [
+        "example.read"
+      ],
+      "internal_only": false
+    }
+  ]
 }
