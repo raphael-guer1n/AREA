@@ -1,20 +1,18 @@
+import 'package:area_mobile/screens/main_shell.dart';
 import 'package:flutter/material.dart';
-import 'theme/app_theme.dart';
-import 'screens/main_shell.dart';
+import 'theme/theme.dart';
 
-void main() {
-  runApp(const ActionReactionApp());
-}
+void main() => runApp(const AreaApp());
 
-class ActionReactionApp extends StatelessWidget {
-  const ActionReactionApp({super.key});
+class AreaApp extends StatelessWidget {
+  const AreaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Action‑Reaction',
+      title: 'AREA',
+      theme: areaTheme,
       debugShowCheckedModeBanner: false,
-      theme: appTheme,
       home: const MainShell(),
     );
   }

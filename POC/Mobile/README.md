@@ -161,6 +161,6 @@ flutter emulators --launch Pixel_6
 
 to start the project react:
 
-flutter emulators --launch Pixel_6 
+flutter emulators --launch Pixel_6
 npx react-native start
 npx react-native run-android
