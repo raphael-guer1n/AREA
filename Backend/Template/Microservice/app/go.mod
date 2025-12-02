@@ -1,4 +1,4 @@
-module microservice
+module github.com/raphael-guer1n/AREA/Backend/Template/Microservice
 
 go 1.22
 
