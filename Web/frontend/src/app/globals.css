@@ -1,12 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #1b1b1f;
-  --muted: #4b5563;
-  --surface: #ffffff;
-  --surface-border: #e4e4e7;
-  --accent: #111111;
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --border-surface: #e2e8f0;
+  --text-secondary: #4a4a4a;
+  --text-primary: #0d0d0d;
+  --blue-primary-1: #0a1a2f;
+  --blue-primary-2: #112a46;
+  --blue-primary-3: #1c3d63;
+  --blue-soft: #41556b;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--bg-secondary);
+  --surface-border: var(--border-surface);
+  --accent: var(--blue-primary-2);
+}
+
+:root[data-vision="tritanopia"] {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f9;
+  --border-surface: #e4e3ed;
+  --text-secondary: #4a4a4a;
+  --text-primary: #0d0d0d;
+  --blue-primary-1: #0a2525;
+  --blue-primary-2: #123938;
+  --blue-primary-3: #1d5250;
+  --blue-soft: #426160;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--bg-secondary);
+  --surface-border: var(--border-surface);
+  --accent: var(--blue-primary-2);
 }
 
 @theme inline {
@@ -18,12 +49,43 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #050505;
-    --foreground: #f4f4f5;
-    --muted: #a1a1aa;
-    --surface: #18181b;
-    --surface-border: #27272a;
-    --accent: #f4f4f5;
+    color-scheme: dark;
+    --bg-primary: #0a0f14;
+    --bg-secondary: #0f1a24;
+    --border-surface: #1c2a36;
+    --text-secondary: #a8b4c0;
+    --text-primary: #e8edf2;
+    --blue-primary-1: #0d253a;
+    --blue-primary-2: #163a59;
+    --blue-primary-3: #1e4c73;
+    --blue-soft: #7b8fa3;
+
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --muted: var(--text-secondary);
+    --surface: var(--bg-secondary);
+    --surface-border: var(--border-surface);
+    --accent: var(--blue-primary-2);
+  }
+
+  :root[data-vision="tritanopia"] {
+    color-scheme: dark;
+    --bg-primary: #0a1111;
+    --bg-secondary: #0f1f1f;
+    --border-surface: #1c3030;
+    --text-secondary: #a8baba;
+    --text-primary: #e8efef;
+    --blue-primary-1: #206260;
+    --blue-primary-2: #174b4a;
+    --blue-primary-3: #0e3030;
+    --blue-soft: #7c9a99;
+
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --muted: var(--text-secondary);
+    --surface: var(--bg-secondary);
+    --surface-border: var(--border-surface);
+    --accent: var(--blue-primary-2);
   }
 }
 
