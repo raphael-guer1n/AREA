@@ -42,7 +42,7 @@ func main() {
 
 	// graceful https erros
 	w := httptest.NewRecorder()
-	core.WriteError(w, 401, core.ErrUnauthorized, "Test Erro")
+	core.WriteError(w, 401, core.ErrUnauthorized, "Test Error")
 
 	fmt.Println("Status code :", w.Code)
 	fmt.Println("Headers :", w.Header())
