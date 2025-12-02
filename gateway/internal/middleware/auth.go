@@ -2,9 +2,11 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,6 +52,32 @@ func NewAuthMiddleware(cfg *config.GatewayConfig) *AuthMiddleware {
 	}
 }
 
+func parseExpClaim(value interface{}) (int64, error) {
+
+	switch v := value.(type) {
+
+	case float64:
+		return int64(v), nil
+
+	case json.Number:
+		i, err := v.Int64()
+		if err != nil {
+			return 0, err
+		}
+		return i, nil
+
+	case string:
+		i, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return i, nil
+
+	default:
+		return 0, fmt.Errorf("unsupported exp type: %T", value)
+	}
+}
+
 func (a *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -66,18 +94,25 @@ func (a *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		}
 
 		rawToken := parts[1]
+		if rawToken == "" {
+			core.WriteError(w, http.StatusUnauthorized, core.ErrInvalidToken, "Empty token")
+			return
+		}
 
 		if a.Algorithm == "RS256" && len(a.PublicKey) == 0 {
 			core.WriteError(w, 500, core.ErrInternalError, "RS256 requires JWT_PUBLIC_KEY")
 			return
 		}
-
 		if a.Algorithm == "HS256" && len(a.Secret) == 0 {
 			core.WriteError(w, 500, core.ErrInternalError, "HS256 requires JWT_SECRET")
 			return
 		}
 
 		token, err := jwt.Parse(rawToken, func(t *jwt.Token) (interface{}, error) {
+
+			if t.Method.Alg() == "none" {
+				return nil, errors.New("alg=none is forbidden")
+			}
 
 			if t.Method.Alg() != a.Algorithm {
 				return nil, fmt.Errorf("unexpected signing method: %s", t.Method.Alg())
@@ -109,13 +144,29 @@ func (a *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			return
 		}
 
-		exp, ok := claims["exp"].(float64)
-		if !ok || time.Unix(int64(exp), 0).Before(time.Now()) {
+		expValue, ok := claims["exp"]
+		if !ok {
+			core.WriteError(w, http.StatusUnauthorized, core.ErrInvalidToken, "Missing exp claim")
+			return
+		}
+
+		exp, err := parseExpClaim(expValue)
+		if err != nil {
+			core.WriteError(w, http.StatusUnauthorized, core.ErrInvalidToken, "Invalid exp format")
+			return
+		}
+
+		if time.Unix(exp, 0).Before(time.Now()) {
 			core.WriteError(w, http.StatusUnauthorized, core.ErrInvalidToken, "Token expired")
 			return
 		}
 
 		uid, _ := claims["sub"].(string)
+		if uid == "" {
+			core.WriteError(w, http.StatusUnauthorized, core.ErrInvalidToken, "Missing sub claim")
+			return
+		}
+
 		email, _ := claims["email"].(string)
 
 		var perms []string
