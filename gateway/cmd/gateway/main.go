@@ -25,10 +25,10 @@ func main() {
 	fmt.Printf("Loaded %d services\n", len(reg.ListServices()))
 	fmt.Printf("Loaded %d routes\n", len(reg.ListAllRoutes()))
 
+	config.LoadDotEnv("configs/gateway.env")
 	cfg, err := config.LoadGatewayConfig()
 	if err != nil {
 		panic(err)
 	}
-
 	fmt.Printf("Gateway starting on port %d (debug=%v)\n", cfg.Port, cfg.DebugMode)
 }
