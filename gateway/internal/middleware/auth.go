@@ -114,7 +114,6 @@ func (a *AuthMiddleware) Handler(next http.Handler) http.Handler {
 				return nil, errors.New("alg=none is forbidden")
 			}
 
-
 			if t.Method.Alg() != a.Algorithm {
 				return nil, fmt.Errorf("unexpected signing method: %s", t.Method.Alg())
 			}
