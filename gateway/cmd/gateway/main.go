@@ -5,7 +5,9 @@ import (
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/registry"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/middleware"
 	"net/http/httptest"
+	"net/http"
 )
 
 func main() {
@@ -40,10 +42,21 @@ func main() {
 
 	// graceful https erros
 	w := httptest.NewRecorder()
-	core.WriteError(w, 401, core.ErrUnauthorized, "Missing token")
+	core.WriteError(w, 401, core.ErrUnauthorized, "Test Erro")
 
 	fmt.Println("Status code :", w.Code)
 	fmt.Println("Headers :", w.Header())
 	fmt.Println("Body :", w.Body.String())
+
+
+	// JWT middleware RS256 / HS256
+	auth := middleware.NewAuthMiddleware(cfg)
+
+	http.Handle("/secure", auth.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := middleware.GetUserFromContext(r.Context())
+		w.Write([]byte("Hello " + user.Email))
+	})))
+
+	http.ListenAndServe(":8080", nil)
 
 }
