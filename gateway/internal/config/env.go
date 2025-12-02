@@ -14,6 +14,8 @@ type GatewayConfig struct {
 	RequestTimeoutMs int
 	LogLevel         string
 	DebugMode        bool
+	JwtAlgorithm     string
+	JwtSecret        string
 }
 
 func LoadGatewayConfig() (*GatewayConfig, error) {
@@ -60,6 +62,15 @@ func LoadGatewayConfig() (*GatewayConfig, error) {
 
 	debug := os.Getenv("DEBUG_MODE")
 	cfg.DebugMode = (debug == "1" || debug == "true")
+
+	cfg.JwtAlgorithm = os.Getenv("JWT_ALGO")
+	if cfg.JwtAlgorithm == "" {
+		cfg.JwtAlgorithm = "RS256"
+	}
+	cfg.JwtSecret = os.Getenv("JWT_SECRET")
+	if cfg.JwtAlgorithm != "RS256" && cfg.JwtAlgorithm != "HS256" {
+	    return nil, fmt.Errorf("invalid JWT_ALGO: must be RS256 or HS256")
+	}
 
 	return cfg, nil
 }
