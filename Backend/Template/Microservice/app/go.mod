@@ -1,4 +1,4 @@
-module github.com/raphael-guer1n/AREA/Backend/Template/Microservice
+module github.com/raphael-guer1n/AREA/Template
 
 go 1.22
 
