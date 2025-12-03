@@ -6,6 +6,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func NewReverseProxy(baseURL string) http.Handler {
@@ -15,6 +16,19 @@ func NewReverseProxy(baseURL string) http.Handler {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	proxy.Transport = &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   3 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   3 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          100,
+		MaxConnsPerHost:       100,
+	}
 
 	proxy.Director = func(req *http.Request) {
 		clientIP := clientIPFromRemoteAddr(req.RemoteAddr)
@@ -82,17 +96,17 @@ func schemeFromRequest(req *http.Request) string {
 }
 
 func removeHopByHopHeaders(h http.Header) {
-    hopByHop := []string{
-        "Connection",
-        "Keep-Alive",
-        "Proxy-Authenticate",
-        "Proxy-Authorization",
-        "TE",
-        "Trailer",
-        "Transfer-Encoding",
-        "Upgrade",
-    }
-    for _, k := range hopByHop {
-        h.Del(k)
-    }
+	hopByHop := []string{
+		"Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	}
+	for _, k := range hopByHop {
+		h.Del(k)
+	}
 }
