@@ -1,6 +1,9 @@
 package router
 
 import (
+	"context"
+	"errors"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -59,6 +62,23 @@ func NewReverseProxy(baseURL string) http.Handler {
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Printf("proxy error for %s %s: %v", r.Method, r.URL.Path, err)
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+			return
+		}
+
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			if netErr.Timeout() {
+				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+				return
+			}
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			return
+		}
+
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 	}
 
