@@ -1,34 +1,101 @@
-import { sleep } from '@/lib/helpers';
-import type { LoginPayload, RegisterPayload, User } from '@/types/User';
+import type { LoginPayload, RegisterPayload, User } from "@/types/User";
+import type {
+  GoogleAuthUrlResponse,
+  GoogleCallbackPayload,
+  GoogleCallbackResponse,
+} from "@/types/auth";
 
-export async function loginRequest(payload: LoginPayload): Promise<User> {
-  await sleep(300);
-  if (!payload.email || !payload.password) {
-    throw new Error('Email et mot de passe requis');
+type AuthAction = "login" | "register";
+const BACKEND_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+
+async function postAuth(
+  action: AuthAction,
+  payload: LoginPayload | RegisterPayload,
+): Promise<User> {
+  try {
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action, ...payload }),
+    });
+
+    if (!response.ok) {
+      const errorBody = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+      const message =
+        errorBody?.message ?? "Impossible de s'authentifier pour le moment.";
+      throw new Error(message);
+    }
+
+    return (await response.json()) as User;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Erreur réseau pendant l'authentification.");
   }
-
-  return {
-    id: `user-${payload.email}`,
-    email: payload.email,
-    name: payload.email.split('@')[0],
-    token: 'demo-token',
-  };
 }
 
-export async function registerRequest(payload: RegisterPayload): Promise<User> {
-  await sleep(350);
-  if (!payload.email || !payload.password) {
-    throw new Error('Email et mot de passe requis');
-  }
+export function loginRequest(payload: LoginPayload): Promise<User> {
+  return postAuth("login", payload);
+}
 
-  return {
-    id: `user-${Date.now()}`,
-    email: payload.email,
-    name: payload.name ?? payload.email.split('@')[0],
-    token: 'demo-token',
-  };
+export function registerRequest(payload: RegisterPayload): Promise<User> {
+  return postAuth("register", payload);
 }
 
 export async function logoutRequest(): Promise<void> {
-  await sleep(80);
+  return Promise.resolve();
+}
+
+export async function fetchGoogleAuthUrl(): Promise<GoogleAuthUrlResponse> {
+  const response = await fetch(`${BACKEND_BASE_URL}/auth/google/url`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Impossible de récupérer l'URL de connexion Google.");
+  }
+
+  const data = (await response.json()) as Partial<GoogleAuthUrlResponse>;
+  if (!data.auth_url) {
+    throw new Error("Réponse du serveur invalide (auth_url manquant).");
+  }
+
+  return { auth_url: data.auth_url };
+}
+
+export async function exchangeGoogleCode(
+  payload: GoogleCallbackPayload,
+): Promise<GoogleCallbackResponse> {
+  const response = await fetch(`${BACKEND_BASE_URL}/auth/google/callback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+    const message =
+      errorBody?.message ??
+      "Impossible d'échanger le code d'autorisation Google.";
+    throw new Error(message);
+  }
+
+  const data = (await response.json()) as Partial<GoogleCallbackResponse>;
+  if (!data.token) {
+    throw new Error("Jeton de session manquant dans la réponse du serveur.");
+  }
+
+  return { token: data.token };
 }

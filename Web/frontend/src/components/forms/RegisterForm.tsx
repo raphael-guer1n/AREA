@@ -13,6 +13,8 @@ const socialProviders = [
   { key: "facebook", label: "Continuer avec Facebook", badge: "F" },
 ] as const;
 
+type ButtonState = "idle" | "success" | "error";
+
 export default function RegisterForm() {
   const router = useRouter();
   const { register, isLoading, error } = useAuth();
@@ -24,22 +26,43 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [buttonState, setButtonState] = useState<ButtonState>("idle");
+
+  const buttonVariants: Record<ButtonState, string> = {
+    idle:
+      "bg-[var(--blue-primary-1)] hover:bg-[var(--blue-primary-2)] focus-visible:outline-[var(--blue-primary-2)]",
+    success:
+      "bg-emerald-600 hover:bg-emerald-500 focus-visible:outline-emerald-500",
+    error: "bg-red-600 hover:bg-red-500 focus-visible:outline-red-500",
+  };
+
+  const resetFeedback = () => {
+    setStatus(null);
+    setLocalError(null);
+    setButtonState("idle");
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus(null);
     setLocalError(null);
+    setButtonState("idle");
 
     if (payload.password !== confirmPassword) {
       setLocalError("Les mots de passe ne correspondent pas.");
+      setButtonState("error");
       return;
     }
 
     const user = await register(payload);
     if (user) {
       setStatus("Compte créé. Vous pouvez vous connecter.");
+      setButtonState("success");
       router.push("/login");
+      return;
     }
+
+    setButtonState("error");
   };
 
   return (
@@ -85,13 +108,15 @@ export default function RegisterForm() {
             <input
               id="name"
               type="text"
+              required
               value={payload.name ?? ""}
-              onChange={(event) =>
+              onChange={(event) => {
+                resetFeedback();
                 setPayload((current) => ({
                   ...current,
                   name: event.target.value,
-                }))
-              }
+                }));
+              }}
               placeholder="Jean Dupont"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
@@ -106,12 +131,13 @@ export default function RegisterForm() {
               type="email"
               required
               value={payload.email}
-              onChange={(event) =>
+              onChange={(event) => {
+                resetFeedback();
                 setPayload((current) => ({
                   ...current,
                   email: event.target.value,
-                }))
-              }
+                }));
+              }}
               placeholder="votre@email.com"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
@@ -126,12 +152,13 @@ export default function RegisterForm() {
               type="password"
               required
               value={payload.password}
-              onChange={(event) =>
+              onChange={(event) => {
+                resetFeedback();
                 setPayload((current) => ({
                   ...current,
                   password: event.target.value,
-                }))
-              }
+                }));
+              }}
               placeholder="••••••••"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
@@ -146,7 +173,10 @@ export default function RegisterForm() {
               type="password"
               required
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                resetFeedback();
+                setConfirmPassword(event.target.value);
+              }}
               placeholder="••••••••"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
@@ -154,7 +184,7 @@ export default function RegisterForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="mt-2 w-full rounded-xl bg-[var(--blue-primary-1)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-2)] disabled:cursor-not-allowed disabled:opacity-70"
+            className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 ${buttonVariants[buttonState]}`}
           >
             {isLoading ? "Création..." : "Créer mon compte"}
           </button>
