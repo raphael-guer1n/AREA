@@ -4,11 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/raphael-guer1n/AREA/Template/internal/config"
-	"github.com/raphael-guer1n/AREA/Template/internal/db"
-	httphandler "github.com/raphael-guer1n/AREA/Template/internal/http"
-	"github.com/raphael-guer1n/AREA/Template/internal/repository"
-	"github.com/raphael-guer1n/AREA/Template/internal/service"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/config"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/db"
+	httphandler "github.com/raphael-guer1n/AREA/AuthService/internal/http"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/repository"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
 
 func main() {
@@ -16,8 +16,8 @@ func main() {
 	dbConn := db.Connect(cfg)
 
 	userRepo := repository.NewUserRepository(dbConn)
-	userSvc := service.NewUserService(userRepo)
-	router := httphandler.NewRouter(userSvc)
+	authSvc := service.NewAuthService(userRepo)
+	router := httphandler.NewRouter(authSvc)
 
 	addr := ":" + cfg.HTTPPort
 	log.Printf("Starting server on %s", addr)
