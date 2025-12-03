@@ -10,7 +10,7 @@ services:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
       DB_HOST: db
-      DB_PORT: ${DB_PORT:-5432}
+      DB_PORT: ${DB_INTERNAL_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-microservice_db}
@@ -19,7 +19,7 @@ services:
       db:
         condition: service_healthy
     networks:
-      - ${GLOBAL_NETWORK:-area_network}
+      - area_network
     restart: unless-stopped
   db:
     image: postgres:16-alpine
@@ -29,12 +29,12 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-microservice_db}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
     networks:
-      - ${GLOBAL_NETWORK:-area_network}
+      - area_network
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
       interval: 5s
@@ -43,7 +43,7 @@ services:
     restart: unless-stopped
 
 networks:
-  ${GLOBAL_NETWORK:-area_network}:
+  area_network:
     external: true
 
 volumes:
