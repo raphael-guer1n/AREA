@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: microservice_api
+    container_name: area_${SERVICE_NAME:-service}_api
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
@@ -19,12 +19,11 @@ services:
       db:
         condition: service_healthy
     networks:
-      - microservice_network
+      - ${GLOBAL_NETWORK:-area_network}
     restart: unless-stopped
-
   db:
     image: postgres:16-alpine
-    container_name: microservice_db
+    container_name: area_${SERVICE_NAME:-service}_db
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -35,17 +34,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d
     networks:
-      - microservice_network
+      - ${GLOBAL_NETWORK:-area_network}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
 networks:
-  microservice_network:
-    driver: bridge
+  ${GLOBAL_NETWORK:-area_network}:
+    external: true
 
 volumes:
   postgres_data:
