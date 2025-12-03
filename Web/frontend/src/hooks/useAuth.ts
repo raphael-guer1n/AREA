@@ -29,6 +29,21 @@ export function useAuth(options: UseAuthOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const persistSession = useCallback(async (token: string) => {
+    setSession({ token });
+    try {
+      await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Impossible de sauvegarder la session.";
+      setError(message);
+    }
+  }, []);
+
   const refreshSession = useCallback(async () => {
     setStatus("loading");
     setError(null);
@@ -46,9 +61,9 @@ export function useAuth(options: UseAuthOptions = {}) {
       const data = (await response.json()) as SessionStatusResponse;
       const isAuthenticated = Boolean(data.authenticated);
 
-      setSession((current) => ({
-        token: isAuthenticated ? current.token : null,
-      }));
+      setSession({
+        token: isAuthenticated ? data.token : null,
+      });
       setStatus(isAuthenticated ? "authenticated" : "unauthenticated");
 
       return isAuthenticated;
@@ -95,7 +110,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     try {
       const authenticatedUser = await loginRequest(payload);
       if (authenticatedUser.token) {
-        setSession({ token: authenticatedUser.token });
+        await persistSession(authenticatedUser.token);
       }
       setStatus("authenticated");
       setUser(authenticatedUser);
@@ -119,7 +134,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     try {
       const registeredUser = await registerRequest(payload);
       if (registeredUser.token) {
-        setSession({ token: registeredUser.token });
+        await persistSession(registeredUser.token);
       }
       setUser(registeredUser);
       setStatus("authenticated");

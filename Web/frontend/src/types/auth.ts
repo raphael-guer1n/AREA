@@ -28,4 +28,5 @@ export type AuthError = {
 
 export type SessionStatusResponse = {
   authenticated: boolean;
+  token: string | null;
 };

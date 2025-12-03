@@ -7,17 +7,17 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import type { RegisterPayload } from "@/types/User";
 
-const socialProviders = [
-  { key: "google", label: "Continuer avec Google", badge: "G" },
-  { key: "apple", label: "Continuer avec Apple", badge: "A" },
-  { key: "facebook", label: "Continuer avec Facebook", badge: "F" },
-] as const;
-
 type ButtonState = "idle" | "success" | "error";
+type SocialProvider = {
+  key: "google" | "apple" | "facebook";
+  label: string;
+  badge: string;
+  onClick?: () => void;
+};
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { register, isLoading, error } = useAuth();
+  const { register, startGoogleLogin, isLoading, error } = useAuth();
   const [payload, setPayload] = useState<RegisterPayload>({
     name: "",
     email: "",
@@ -27,6 +27,17 @@ export default function RegisterForm() {
   const [status, setStatus] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [buttonState, setButtonState] = useState<ButtonState>("idle");
+
+  const socialProviders: SocialProvider[] = [
+    {
+      key: "google",
+      label: "Continuer avec Google",
+      badge: "G",
+      onClick: startGoogleLogin,
+    },
+    { key: "apple", label: "Continuer avec Apple", badge: "A" },
+    { key: "facebook", label: "Continuer avec Facebook", badge: "F" },
+  ];
 
   const buttonVariants: Record<ButtonState, string> = {
     idle:
@@ -80,14 +91,20 @@ export default function RegisterForm() {
             <button
               key={provider.key}
               type="button"
-              className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-3)] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+              onClick={() => provider.onClick?.()}
+              disabled={isLoading && provider.key === "google"}
+              className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-3)] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-70"
               aria-label={provider.label}
             >
               <span className="flex items-center justify-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-sm font-semibold text-[var(--blue-soft)]">
                   {provider.badge}
                 </span>
-                <span>{provider.label}</span>
+                <span>
+                  {isLoading && provider.key === "google"
+                    ? "Redirection vers Google..."
+                    : provider.label}
+                </span>
               </span>
             </button>
           ))}
@@ -104,7 +121,7 @@ export default function RegisterForm() {
             htmlFor="name"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Nom complet
+            Nom d'utilisateur
             <input
               id="name"
               type="text"
@@ -117,7 +134,9 @@ export default function RegisterForm() {
                   name: event.target.value,
                 }));
               }}
-              placeholder="Jean Dupont"
+              placeholder="johndoe"
+              pattern="[A-Za-z0-9_]{3,20}"
+              title="3 à 20 caractères alphanumériques ou underscore"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>

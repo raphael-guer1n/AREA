@@ -12,7 +12,7 @@ type SessionCookieOptions = {
 
 const defaultOptions: SessionCookieOptions = {
   httpOnly: true,
-  secure: true,
+  secure: process.env.NODE_ENV === "production",
   path: "/",
 };
 
