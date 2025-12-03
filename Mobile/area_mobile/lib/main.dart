@@ -4,7 +4,6 @@ import 'screens/main_shell.dart';
 import 'theme/theme.dart';
 
 Future<void> main() async {
-
   await dotenv.load(fileName: ".env");
   runApp(const AreaApp());
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../services/service_connector.dart';
 
 class ServicesScreen extends StatefulWidget {
@@ -11,7 +12,13 @@ class ServicesScreen extends StatefulWidget {
 class _ServicesScreenState extends State<ServicesScreen> {
   bool _loading = false;
   String _status = 'Not connected';
-  final ServiceConnector connector = ServiceConnector();
+  late final ServiceConnector _connector;
+
+  @override
+  void initState() {
+    super.initState();
+    _connector = ServiceConnector(baseUrl: dotenv.env['BASE_URL'] ?? '');
+  }
 
   Future<void> _connectGoogle() async {
     setState(() {
@@ -20,9 +27,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
     });
 
     try {
-      await connector.connectToService('google', 'JWT_TOKEN');
+      await _connector.connectToService('google', 'FAKE_JWT_TOKEN');
       setState(() {
-        _status = 'Successfully connected to Google service';
+        _status = 'Connected to Google successfully!';
       });
     } catch (e) {
       setState(() {
@@ -45,11 +52,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    _status,
-                    style: const TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(_status, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18)),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _connectGoogle,
