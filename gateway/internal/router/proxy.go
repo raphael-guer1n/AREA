@@ -36,6 +36,14 @@ func NewReverseProxy(baseURL string) http.Handler {
 		}
 		req.URL.Path = basePath + incomingPath
 	}
+
+	proxy.ModifyResponse = func(res *http.Response) error {
+		removeHopByHopHeaders(res.Header)
+		res.Header.Del("Server")
+		res.Header.Del("X-Powered-By")
+		return nil
+	}
+
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
 	}
@@ -71,4 +79,20 @@ func schemeFromRequest(req *http.Request) string {
 		return "https"
 	}
 	return "http"
+}
+
+func removeHopByHopHeaders(h http.Header) {
+    hopByHop := []string{
+        "Connection",
+        "Keep-Alive",
+        "Proxy-Authenticate",
+        "Proxy-Authorization",
+        "TE",
+        "Trailer",
+        "Transfer-Encoding",
+        "Upgrade",
+    }
+    for _, k := range hopByHop {
+        h.Del(k)
+    }
 }
