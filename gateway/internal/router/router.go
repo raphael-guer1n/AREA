@@ -42,9 +42,9 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 	routes := rt.registry.ListAllRoutes()
 
 	for _, route := range routes {
-		var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.NotFound(w, r)
-		})
+		proxy := NewReverseProxy(route.BaseURL)
+
+		var handler http.Handler = proxy
 
 		handler = rt.permMW.Handler(handler)
 		handler = rt.authMW.Handler(handler)

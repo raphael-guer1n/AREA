@@ -12,7 +12,7 @@ import (
 
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
-
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/registry"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -40,38 +40,32 @@ func GetUserFromContext(ctx context.Context) *UserContext {
 
 type AuthMiddleware struct {
 	Algorithm string
-	PublicKey []byte // RS256
-	Secret    []byte // HS256
+	PublicKey []byte
+	Secret    []byte
+
+	reg *registry.Registry
 }
 
-func NewAuthMiddleware(cfg *config.GatewayConfig) *AuthMiddleware {
+func NewAuthMiddleware(cfg *config.GatewayConfig, reg *registry.Registry) *AuthMiddleware {
 	return &AuthMiddleware{
 		Algorithm: cfg.JwtAlgorithm,
 		PublicKey: []byte(cfg.JwtPublicKey),
 		Secret:    []byte(cfg.JwtSecret),
+		reg:       reg,
 	}
 }
 
 func parseExpClaim(value interface{}) (int64, error) {
-
 	switch v := value.(type) {
 
 	case float64:
 		return int64(v), nil
 
 	case json.Number:
-		i, err := v.Int64()
-		if err != nil {
-			return 0, err
-		}
-		return i, nil
+		return v.Int64()
 
 	case string:
-		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return i, nil
+		return strconv.ParseInt(v, 10, 64)
 
 	default:
 		return 0, fmt.Errorf("unsupported exp type: %T", value)
@@ -80,6 +74,12 @@ func parseExpClaim(value interface{}) (int64, error) {
 
 func (a *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		route, err := a.reg.FindRoute(r.URL.Path, r.Method)
+		if err == nil && !route.AuthRequired {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
