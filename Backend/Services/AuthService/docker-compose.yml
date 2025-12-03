@@ -16,6 +16,7 @@ services:
       DB_NAME: ${DB_NAME:-microservice_db}
       SERVER_PORT: ${SERVER_PORT:-8080}
       JWT_SECRET: ${JWT_SECRET:-secret}
+      OAUTH2_CONFIG_PATH: ${OAUTH2_CONFIG_PATH:-aouth2-config.json}
     depends_on:
       db:
         condition: service_healthy
