@@ -1,16 +1,14 @@
 {
   "name": "example-service",
-  "base_url": "http://example-service:3000",
+  "base_url": "http://localhost:9999",
   "routes": [
     {
       "path": "/example",
       "methods": [
         "GET"
       ],
-      "auth_required": true,
-      "permissions": [
-        "example.read"
-      ],
+      "auth_required": false,
+      "permissions": [],
       "internal_only": false
     }
   ]
