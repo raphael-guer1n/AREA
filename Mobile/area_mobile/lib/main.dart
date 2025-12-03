@@ -1,8 +1,12 @@
-import 'package:area_mobile/screens/main_shell.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'screens/main_shell.dart';
 import 'theme/theme.dart';
 
-void main() => runApp(const AreaApp());
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
+  runApp(const AreaApp());
+}
 
 class AreaApp extends StatelessWidget {
   const AreaApp({super.key});
