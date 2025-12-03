@@ -1,9 +1,9 @@
 {
   "name": "example-service",
-  "base_url": "http://localhost:9999",
+  "base_url": "http://localhost:9999/api",
   "routes": [
     {
-      "path": "/example",
+      "path": "/test",
       "methods": [
         "GET"
       ],
