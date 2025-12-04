@@ -1,3 +1,5 @@
+import type { User } from "./User";
+
 export type OAuthAuthorizeResponse = {
   auth_url: string;
   provider: string;
@@ -43,4 +45,6 @@ export type AuthError = {
 export type SessionStatusResponse = {
   authenticated: boolean;
   token: string | null;
+  user: User | null;
+  error?: string;
 };

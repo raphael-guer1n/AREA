@@ -5,10 +5,12 @@ import type {
   OAuthCallbackResponse,
 } from "@/types/auth";
 
-const BACKEND_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8083";
+export const BACKEND_BASE_URL =
+  process.env.API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8080";
 
-type BackendUser = {
+export type BackendUser = {
   id: number | string;
   email: string;
   username: string;
@@ -31,7 +33,7 @@ type BackendAuthError = {
 
 type BackendAuthResponse = BackendAuthSuccess | BackendAuthError;
 
-function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
+export function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
   return {
     id: String(user.id),
     email: user.email,
@@ -57,7 +59,7 @@ async function handleAuthResponse(response: Response): Promise<User> {
 
 export async function loginRequest(payload: LoginPayload): Promise<User> {
   try {
-    const response = await fetch(`${BACKEND_BASE_URL}/auth/login`, {
+    const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -75,7 +77,7 @@ export async function loginRequest(payload: LoginPayload): Promise<User> {
 export async function registerRequest(payload: RegisterPayload): Promise<User> {
   try {
     const username = (payload.name ?? payload.email).trim();
-    const response = await fetch(`${BACKEND_BASE_URL}/auth/register`, {
+    const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

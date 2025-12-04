@@ -49,17 +49,31 @@ export function useAuth(options: UseAuthOptions = {}) {
         cache: "no-store",
       });
 
-      if (!response.ok) {
-        throw new Error("Impossible de récupérer la session.");
+      const data = (await response.json().catch(() => null)) as
+        | SessionStatusResponse
+        | null;
+
+      if (!data) {
+        throw new Error("Réponse de session invalide.");
       }
 
-      const data = (await response.json()) as SessionStatusResponse;
-      const isAuthenticated = Boolean(data.authenticated);
+      const isAuthenticated = Boolean(data.authenticated && data.token);
 
-      setSession({
-        token: isAuthenticated ? data.token : null,
-      });
+      if (!response.ok && !isAuthenticated) {
+        setSession({ token: null });
+        setUser(null);
+        setStatus("unauthenticated");
+        if (data.error) setError(data.error);
+        return false;
+      }
+
+      setSession({ token: isAuthenticated ? data.token : null });
+      setUser(isAuthenticated ? data.user : null);
       setStatus(isAuthenticated ? "authenticated" : "unauthenticated");
+
+      if (!isAuthenticated && data.error) {
+        setError(data.error);
+      }
 
       return isAuthenticated;
     } catch (err) {
