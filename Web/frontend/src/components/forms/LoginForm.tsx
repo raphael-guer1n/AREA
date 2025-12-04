@@ -8,14 +8,14 @@ import type { LoginPayload } from "@/types/User";
 
 type ButtonState = "idle" | "success" | "error";
 type SocialProvider = {
-  key: "google" | "apple" | "facebook";
+  key: "google";
   label: string;
   badge: string;
   onClick?: () => void;
 };
 
 export default function LoginForm() {
-  const { login, startGoogleLogin, isLoading, error } = useAuth();
+  const { login, startOAuthLogin, isLoading, error } = useAuth();
   const [credentials, setCredentials] = useState<LoginPayload>({
     email: "",
     password: "",
@@ -30,10 +30,8 @@ export default function LoginForm() {
       key: "google",
       label: "Continuer avec Google",
       badge: "G",
-      onClick: startGoogleLogin,
+      onClick: () => startOAuthLogin("google"),
     },
-    { key: "apple", label: "Continuer avec Apple", badge: "A" },
-    { key: "facebook", label: "Continuer avec Facebook", badge: "f" },
   ];
 
   const buttonVariants: Record<ButtonState, string> = {
@@ -97,7 +95,7 @@ export default function LoginForm() {
                 </span>
                 <span>
                   {isLoading && provider.key === "google"
-                    ? "Redirection vers Google..."
+                    ? "Redirection en cours..."
                     : provider.label}
                 </span>
               </span>

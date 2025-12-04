@@ -1,13 +1,27 @@
-export type GoogleAuthUrlResponse = {
+export type OAuthAuthorizeResponse = {
   auth_url: string;
+  provider: string;
 };
 
-export type GoogleCallbackPayload = {
+export type OAuthCallbackPayload = {
   code: string;
+  state: string;
 };
 
-export type GoogleCallbackResponse = {
-  token: string;
+export type OAuthUserInfo = {
+  id?: string;
+  email?: string;
+  name?: string;
+  username?: string;
+  raw_data?: Record<string, unknown>;
+};
+
+export type OAuthCallbackResponse = {
+  provider: string;
+  user_info: OAuthUserInfo;
+  access_token: string;
+  token_type: string;
+  expires_in: number;
 };
 
 export type AuthSession = {

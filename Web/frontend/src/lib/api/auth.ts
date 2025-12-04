@@ -1,12 +1,12 @@
 import type { LoginPayload, RegisterPayload, User } from "@/types/User";
 import type {
-  GoogleAuthUrlResponse,
-  GoogleCallbackPayload,
-  GoogleCallbackResponse,
+  OAuthAuthorizeResponse,
+  OAuthCallbackPayload,
+  OAuthCallbackResponse,
 } from "@/types/auth";
 
 const BACKEND_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8083";
 
 type BackendUser = {
   id: number | string;
@@ -95,50 +95,70 @@ export async function logoutRequest(): Promise<void> {
   return Promise.resolve();
 }
 
-export async function fetchGoogleAuthUrl(): Promise<GoogleAuthUrlResponse> {
-  const response = await fetch(`${BACKEND_BASE_URL}/auth/google/url`, {
+export async function fetchOAuthAuthorizeUrl(
+  provider: string,
+): Promise<OAuthAuthorizeResponse> {
+  const response = await fetch(
+    `${BACKEND_BASE_URL}/auth/oauth2/authorize?provider=${encodeURIComponent(provider)}`,
+    {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    },
+  );
+
+  const body = (await response.json().catch(() => null)) as
+    | {
+        success?: boolean;
+        data?: { auth_url?: string; provider?: string };
+        error?: string;
+      }
+    | null;
+
+  if (!body?.success || !body.data?.auth_url) {
+    throw new Error(
+      body?.error ?? "Impossible de récupérer l'URL d'autorisation OAuth2.",
+    );
+  }
+
+  return {
+    auth_url: body.data.auth_url,
+    provider: body.data.provider ?? provider,
+  };
+}
+
+export async function exchangeOAuthCallback(
+  payload: OAuthCallbackPayload,
+): Promise<OAuthCallbackResponse> {
+  const url = `${BACKEND_BASE_URL}/auth/oauth2/callback?code=${encodeURIComponent(
+    payload.code,
+  )}&state=${encodeURIComponent(payload.state)}`;
+
+  const response = await fetch(url, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error("Impossible de récupérer l'URL de connexion Google.");
+  const body = (await response.json().catch(() => null)) as
+    | {
+        success?: boolean;
+        data?: Partial<OAuthCallbackResponse>;
+        error?: string;
+      }
+    | null;
+
+  if (!body?.success || !body.data?.access_token) {
+    throw new Error(
+      body?.error ?? "Impossible de finaliser l'authentification OAuth2.",
+    );
   }
 
-  const data = (await response.json()) as Partial<GoogleAuthUrlResponse>;
-  if (!data.auth_url) {
-    throw new Error("Réponse du serveur invalide (auth_url manquant).");
-  }
-
-  return { auth_url: data.auth_url };
-}
-
-export async function exchangeGoogleCode(
-  payload: GoogleCallbackPayload,
-): Promise<GoogleCallbackResponse> {
-  const response = await fetch(`${BACKEND_BASE_URL}/auth/google/callback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => null)) as
-      | { message?: string }
-      | null;
-    const message =
-      errorBody?.message ??
-      "Impossible d'échanger le code d'autorisation Google.";
-    throw new Error(message);
-  }
-
-  const data = (await response.json()) as Partial<GoogleCallbackResponse>;
-  if (!data.token) {
-    throw new Error("Jeton de session manquant dans la réponse du serveur.");
-  }
-
-  return { token: data.token };
+  return {
+    provider: body.data.provider ?? "unknown",
+    user_info: body.data.user_info ?? {},
+    access_token: body.data.access_token,
+    token_type: body.data.token_type ?? "Bearer",
+    expires_in: body.data.expires_in ?? 0,
+  };
 }

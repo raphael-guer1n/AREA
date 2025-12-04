@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import {
-  fetchGoogleAuthUrl,
-  loginRequest,
-  logoutRequest,
-  registerRequest,
-} from "@/lib/api/auth";
+import { fetchOAuthAuthorizeUrl, loginRequest, logoutRequest, registerRequest } from "@/lib/api/auth";
 import type { AuthSession, AuthStatus, SessionStatusResponse } from "@/types/auth";
 import type { LoginPayload, RegisterPayload, User } from "@/types/User";
 
@@ -81,20 +76,20 @@ export function useAuth(options: UseAuthOptions = {}) {
     void refreshSession();
   }, [initialSession?.token, refreshSession]);
 
-  const startGoogleLogin = useCallback(async () => {
+  const startOAuthLogin = useCallback(async (provider: string) => {
     setIsLoading(true);
     setError(null);
     setStatus("loading");
 
     try {
-      const { auth_url } = await fetchGoogleAuthUrl();
+      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
       setStatus("idle");
       window.location.href = auth_url;
     } catch (err) {
       const message =
         err instanceof Error
           ? err.message
-          : "Impossible de démarrer la connexion Google.";
+          : "Impossible de démarrer la connexion OAuth2.";
       setError(message);
       setStatus("error");
     } finally {
@@ -179,7 +174,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     status,
     isLoading,
     error,
-    startGoogleLogin,
+    startOAuthLogin,
     refreshSession,
     login,
     register,

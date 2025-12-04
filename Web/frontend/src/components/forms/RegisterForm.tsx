@@ -9,7 +9,7 @@ import type { RegisterPayload } from "@/types/User";
 
 type ButtonState = "idle" | "success" | "error";
 type SocialProvider = {
-  key: "google" | "apple" | "facebook";
+  key: "google";
   label: string;
   badge: string;
   onClick?: () => void;
@@ -17,7 +17,7 @@ type SocialProvider = {
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { register, startGoogleLogin, isLoading, error } = useAuth();
+  const { register, startOAuthLogin, isLoading, error } = useAuth();
   const [payload, setPayload] = useState<RegisterPayload>({
     name: "",
     email: "",
@@ -33,10 +33,8 @@ export default function RegisterForm() {
       key: "google",
       label: "Continuer avec Google",
       badge: "G",
-      onClick: startGoogleLogin,
+      onClick: () => startOAuthLogin("google"),
     },
-    { key: "apple", label: "Continuer avec Apple", badge: "A" },
-    { key: "facebook", label: "Continuer avec Facebook", badge: "F" },
   ];
 
   const buttonVariants: Record<ButtonState, string> = {
@@ -102,7 +100,7 @@ export default function RegisterForm() {
                 </span>
                 <span>
                   {isLoading && provider.key === "google"
-                    ? "Redirection vers Google..."
+                    ? "Redirection en cours..."
                     : provider.label}
                 </span>
               </span>
