@@ -12,13 +12,13 @@ type LoginWithGoogleProps = {
 };
 
 export default function LoginWithGoogle({
-  label = "Continuer avec Google",
+  label = "Continue with Google",
   className,
 }: LoginWithGoogleProps) {
   const { startOAuthLogin, isLoading, error } = useAuth();
 
   const buttonLabel = useMemo(
-    () => (isLoading ? "Redirection vers Google..." : label),
+    () => (isLoading ? "Redirecting to Google..." : label),
     [isLoading, label],
   );
 

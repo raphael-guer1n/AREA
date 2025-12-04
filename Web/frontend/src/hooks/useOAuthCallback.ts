@@ -29,7 +29,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
     if (errorParam) {
       setCallbackState({
         status: "error",
-        error: "Le fournisseur OAuth2 a renvoyé une erreur. Merci de réessayer.",
+        error: "The OAuth2 provider returned an error. Please try again.",
       });
       return;
     }
@@ -37,7 +37,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
     if (!code) {
       setCallbackState({
         status: "error",
-        error: "Le paramètre 'code' est manquant dans l'URL de retour.",
+        error: "The 'code' parameter is missing from the callback URL.",
       });
       return;
     }
@@ -45,7 +45,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
     if (!stateParam) {
       setCallbackState({
         status: "error",
-        error: "Le paramètre 'state' est manquant dans l'URL de retour.",
+        error: "The 'state' parameter is missing from the callback URL.",
       });
       return;
     }
@@ -66,7 +66,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
         const message =
           err instanceof Error
             ? err.message
-            : "Impossible de finaliser la connexion OAuth2.";
+            : "Unable to finish the OAuth2 login.";
         setCallbackState({ status: "error", error: message });
       }
     };

@@ -31,7 +31,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       await persistSessionToken(token);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Impossible de sauvegarder la session.";
+        err instanceof Error ? err.message : "Unable to save the session.";
       setError(message);
     }
   }, []);
@@ -63,7 +63,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       return isAuthenticated;
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Impossible de récupérer la session.";
+        err instanceof Error ? err.message : "Unable to retrieve the session.";
       setError(message);
       setStatus("error");
       return false;
@@ -88,7 +88,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       const message =
         err instanceof Error
           ? err.message
-          : "Impossible de démarrer la connexion OAuth2.";
+          : "Unable to start the OAuth2 login.";
       setError(message);
       setStatus("error");
     } finally {
@@ -111,7 +111,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       return authenticatedUser;
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Impossible de se connecter";
+        err instanceof Error ? err.message : "Unable to log in.";
       setError(message);
       setStatus("error");
       return null;
@@ -135,7 +135,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       return registeredUser;
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Impossible de créer le compte";
+        err instanceof Error ? err.message : "Unable to create the account.";
       setError(message);
       setStatus("error");
       return null;
@@ -158,7 +158,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       setStatus("unauthenticated");
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Impossible de se déconnecter";
+        err instanceof Error ? err.message : "Unable to log out.";
       setError(message);
       setStatus("error");
     } finally {

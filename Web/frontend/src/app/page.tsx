@@ -7,10 +7,10 @@ export default function HomePage() {
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
       <div className="flex gap-4">
         <Link href="/login">
-          <Button variant="secondary">Se connecter</Button>
+          <Button variant="secondary">Log in</Button>
         </Link>
         <Link href="/register">
-          <Button>Créer un compte</Button>
+          <Button>Create an account</Button>
         </Link>
       </div>
     </main>

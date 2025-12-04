@@ -41,36 +41,36 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as AuthRequestBody | null;
 
   if (!body) {
-    return jsonError("Corps de requête invalide ou manquant.", 400);
+    return jsonError("Invalid or missing request body.", 400);
   }
 
   const { action, email, password, name } = body;
 
   if (action !== "login" && action !== "register") {
-    return jsonError("Action invalide. Utilisez 'login' ou 'register'.", 400);
+    return jsonError("Invalid action. Use 'login' or 'register'.", 400);
   }
 
   const normalizedEmail = normalizeEmail(email);
   const cleanPassword = password?.trim() ?? "";
 
   if (!normalizedEmail || !cleanPassword) {
-    return jsonError("Email et mot de passe requis.", 400);
+    return jsonError("Email and password are required.", 400);
   }
 
   if (cleanPassword.length < MIN_PASSWORD_LENGTH) {
     return jsonError(
-      `Mot de passe trop court (min ${MIN_PASSWORD_LENGTH} caractères).`,
+      `Password too short (min ${MIN_PASSWORD_LENGTH} characters).`,
       400,
     );
   }
 
   if (action === "register") {
     if (!name?.trim()) {
-      return jsonError("Le nom est requis pour l'inscription.", 400);
+      return jsonError("Name is required for registration.", 400);
     }
 
     if (users.has(normalizedEmail)) {
-      return jsonError("Un compte existe déjà avec cet email.", 409);
+      return jsonError("An account already exists with this email.", 409);
     }
 
     const newUser: StoredUser = {
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
   const existingUser = users.get(normalizedEmail);
 
   if (!existingUser || existingUser.password !== cleanPassword) {
-    return jsonError("Identifiants incorrects.", 401);
+    return jsonError("Invalid credentials.", 401);
   }
 
   return NextResponse.json(buildUserResponse(existingUser), { status: 200 });

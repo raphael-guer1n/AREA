@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
   if (!email || !username || !password) {
     return NextResponse.json(
-      { success: false, error: "Email, nom d'utilisateur et mot de passe requis." },
+      { success: false, error: "Email, username, and password are required." },
       { status: 400 },
     );
   }
@@ -28,14 +28,14 @@ export async function POST(request: Request) {
     const { status, body } = await registerWithCredentials(email, username, password);
 
     return NextResponse.json(
-      body ?? { success: false, error: "Réponse du serveur invalide." },
+      body ?? { success: false, error: "Invalid server response." },
       { status },
     );
   } catch (error) {
     const message =
       error instanceof Error
         ? error.message
-        : "Impossible de contacter le service d'authentification.";
+        : "Unable to reach the authentication service.";
     return NextResponse.json({ success: false, error: message }, { status: 502 });
   }
 }

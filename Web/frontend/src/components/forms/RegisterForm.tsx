@@ -31,7 +31,7 @@ export default function RegisterForm() {
   const socialProviders: SocialProvider[] = [
     {
       key: "google",
-      label: "Continuer avec Google",
+      label: "Continue with Google",
       badge: "G",
       onClick: () => startOAuthLogin("google"),
     },
@@ -58,14 +58,14 @@ export default function RegisterForm() {
     setButtonState("idle");
 
     if (payload.password !== confirmPassword) {
-      setLocalError("Les mots de passe ne correspondent pas.");
+      setLocalError("Passwords do not match.");
       setButtonState("error");
       return;
     }
 
     const user = await register(payload);
     if (user) {
-      setStatus("Compte créé. Vous pouvez vous connecter.");
+      setStatus("Account created. You can log in.");
       setButtonState("success");
       router.push("/login");
       return;
@@ -79,7 +79,7 @@ export default function RegisterForm() {
       <div className="w-full rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] px-8 py-10 shadow-[0_20px_60px_rgba(17,42,70,0.08)] sm:px-10 sm:py-12">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold uppercase tracking-wide text-[var(--foreground)]">
-            Inscription
+            Sign Up
           </h1>
           <div className="mt-2 h-1 w-16 rounded-full bg-[var(--blue-primary-1)]" />
         </div>
@@ -100,7 +100,7 @@ export default function RegisterForm() {
                 </span>
                 <span>
                   {isLoading && provider.key === "google"
-                    ? "Redirection en cours..."
+                    ? "Redirecting..."
                     : provider.label}
                 </span>
               </span>
@@ -110,7 +110,7 @@ export default function RegisterForm() {
 
         <div className="my-8 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
           <span className="h-px flex-1 bg-[var(--surface-border)]" aria-hidden />
-          <span>Ou par email</span>
+          <span>Or with email</span>
           <span className="h-px flex-1 bg-[var(--surface-border)]" aria-hidden />
         </div>
 
@@ -119,7 +119,7 @@ export default function RegisterForm() {
             htmlFor="name"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Nom d'utilisateur
+            Username
             <input
               id="name"
               type="text"
@@ -134,7 +134,7 @@ export default function RegisterForm() {
               }}
               placeholder="johndoe"
               pattern="[A-Za-z0-9_]{3,20}"
-              title="3 à 20 caractères alphanumériques ou underscore"
+              title="3 to 20 alphanumeric characters or underscore"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
@@ -155,7 +155,7 @@ export default function RegisterForm() {
                   email: event.target.value,
                 }));
               }}
-              placeholder="votre@email.com"
+              placeholder="you@example.com"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
@@ -163,7 +163,7 @@ export default function RegisterForm() {
             htmlFor="password"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Mot de passe
+            Password
             <input
               id="password"
               type="password"
@@ -184,7 +184,7 @@ export default function RegisterForm() {
             htmlFor="confirmPassword"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Confirmer le mot de passe
+            Confirm password
             <input
               id="confirmPassword"
               type="password"
@@ -203,7 +203,7 @@ export default function RegisterForm() {
             disabled={isLoading}
             className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 ${buttonVariants[buttonState]}`}
           >
-            {isLoading ? "Création..." : "Créer mon compte"}
+            {isLoading ? "Creating..." : "Create my account"}
           </button>
           <div className="space-y-1 text-sm">
             {localError ? <p className="text-red-500">{localError}</p> : null}
@@ -217,7 +217,7 @@ export default function RegisterForm() {
             href="/login"
             className="text-[var(--blue-soft)] transition hover:text-[var(--blue-primary-3)]"
           >
-            Déjà un compte ? Se connecter
+            Already have an account? Log in
           </Link>
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function RegisterForm() {
         >
           <path d="M15 18l-6-6 6-6" />
         </svg>
-        Retour
+        Back
       </Link>
     </div>
   );

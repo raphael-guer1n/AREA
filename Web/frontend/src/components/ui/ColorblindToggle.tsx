@@ -37,7 +37,7 @@ export function ColorblindToggle() {
         onClick={() => setIsTritanopia((current) => !current)}
         className="shadow-md"
       >
-        {isTritanopia ? "Tritanopie activée" : "Tritanopie"}
+        {isTritanopia ? "Tritanopia enabled" : "Tritanopia"}
       </Button>
     </div>
   );

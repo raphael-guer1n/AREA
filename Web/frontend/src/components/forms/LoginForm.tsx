@@ -28,7 +28,7 @@ export default function LoginForm() {
   const socialProviders: SocialProvider[] = [
     {
       key: "google",
-      label: "Continuer avec Google",
+      label: "Continue with Google",
       badge: "G",
       onClick: () => startOAuthLogin("google"),
     },
@@ -53,19 +53,19 @@ export default function LoginForm() {
     setButtonState("idle");
 
     if (!credentials.email || !credentials.password) {
-      setFeedback({ message: "Email et mot de passe requis.", tone: "error" });
+      setFeedback({ message: "Email and password are required.", tone: "error" });
       setButtonState("error");
       return;
     }
 
     const user = await login(credentials);
     if (user) {
-      setFeedback({ message: "Connexion réussie.", tone: "success" });
+      setFeedback({ message: "Login successful.", tone: "success" });
       setButtonState("success");
       return;
     }
 
-    setFeedback({ message: "Échec de la connexion.", tone: "error" });
+    setFeedback({ message: "Login failed.", tone: "error" });
     setButtonState("error");
   };
 
@@ -74,7 +74,7 @@ export default function LoginForm() {
       <div className="w-full rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] px-8 py-10 shadow-[0_20px_60px_rgba(17,42,70,0.08)] sm:px-10 sm:py-12">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold uppercase tracking-wide text-[var(--foreground)]">
-            Connexion
+            Login
           </h1>
           <div className="mt-2 h-1 w-16 rounded-full bg-[var(--blue-primary-1)]" />
         </div>
@@ -95,7 +95,7 @@ export default function LoginForm() {
                 </span>
                 <span>
                   {isLoading && provider.key === "google"
-                    ? "Redirection en cours..."
+                    ? "Redirecting..."
                     : provider.label}
                 </span>
               </span>
@@ -105,7 +105,7 @@ export default function LoginForm() {
 
         <div className="my-8 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--muted)]">
           <span className="h-px flex-1 bg-[var(--surface-border)]" aria-hidden />
-          <span>Ou par email</span>
+          <span>Or with email</span>
           <span className="h-px flex-1 bg-[var(--surface-border)]" aria-hidden />
         </div>
 
@@ -114,7 +114,7 @@ export default function LoginForm() {
             htmlFor="email"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Email ou nom d'utilisateur
+            Email or username
             <input
               id="email"
               type="text"
@@ -127,7 +127,7 @@ export default function LoginForm() {
                 }));
                 resetFeedback();
               }}
-              placeholder="votre@email.com ou johndoe"
+              placeholder="you@example.com or johndoe"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
@@ -135,7 +135,7 @@ export default function LoginForm() {
             htmlFor="password"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Mot de passe
+            Password
             <input
               id="password"
               type="password"
@@ -157,7 +157,7 @@ export default function LoginForm() {
             disabled={isLoading}
             className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 ${buttonVariants[buttonState]}`}
           >
-            {isLoading ? "Connexion..." : "Se connecter"}
+            {isLoading ? "Logging in..." : "Log in"}
           </button>
           <div className="space-y-1 text-sm">
             {feedback ? (
@@ -178,7 +178,7 @@ export default function LoginForm() {
             href="/register"
             className="text-[var(--blue-soft)] transition hover:text-[var(--blue-primary-3)]"
           >
-            Créer un compte
+            Create an account
           </Link>
         </div>
       </div>
@@ -199,7 +199,7 @@ export default function LoginForm() {
         >
           <path d="M15 18l-6-6 6-6" />
         </svg>
-        Retour
+        Back
       </Link>
     </div>
   );

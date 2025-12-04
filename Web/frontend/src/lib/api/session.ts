@@ -9,7 +9,7 @@ export async function persistSessionToken(token: string): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de sauvegarder la session.");
+    throw new Error("Unable to save the session.");
   }
 }
 
@@ -20,7 +20,7 @@ export async function clearSession(): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de fermer la session.");
+    throw new Error("Unable to clear the session.");
   }
 }
 
@@ -34,7 +34,7 @@ export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
   const body = (await response.json().catch(() => null)) as SessionStatusResponse | null;
 
   if (!body) {
-    throw new Error("Réponse de session invalide.");
+    throw new Error("Invalid session response.");
   }
 
   return body;

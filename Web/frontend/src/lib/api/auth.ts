@@ -50,11 +50,11 @@ export function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
 
 function parseAuthResponse(body: BackendAuthResponse | null): User {
   if (!body) {
-    throw new Error("Réponse du serveur invalide.");
+    throw new Error("Invalid server response.");
   }
 
   if (!body.success) {
-    throw new Error(body.error || "Impossible de s'authentifier.");
+    throw new Error(body.error || "Unable to authenticate.");
   }
 
   return mapUser(body.data);
@@ -76,7 +76,7 @@ async function postAuth(
 
     return { status: response.status, body };
   } catch (error) {
-    throw new Error("Impossible de contacter le service d'authentification.");
+    throw new Error("Unable to reach the authentication service.");
   }
 }
 
@@ -111,7 +111,7 @@ export async function fetchAuthenticatedUser(token: string): Promise<User> {
     | null;
 
   if (!body?.success || !body.data?.user) {
-    throw new Error(body?.error ?? "Session invalide.");
+    throw new Error(body?.error ?? "Invalid session.");
   }
 
   return mapUser({ user: body.data.user, token });
@@ -161,7 +161,7 @@ export async function fetchOAuthAuthorizeUrl(
 
   if (!body?.success || !body.data?.auth_url) {
     throw new Error(
-      body?.error ?? "Impossible de récupérer l'URL d'autorisation OAuth2.",
+      body?.error ?? "Unable to retrieve the OAuth2 authorization URL.",
     );
   }
 
@@ -194,7 +194,7 @@ export async function exchangeOAuthCallback(
 
   if (!body?.success || !body.data?.access_token) {
     throw new Error(
-      body?.error ?? "Impossible de finaliser l'authentification OAuth2.",
+      body?.error ?? "Unable to complete OAuth2 authentication.",
     );
   }
 

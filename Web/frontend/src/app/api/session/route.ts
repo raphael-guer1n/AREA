@@ -18,7 +18,7 @@ export async function GET() {
   } catch (error) {
     await clearSessionCookie();
     const message =
-      error instanceof Error ? error.message : "Session expirée. Merci de vous reconnecter.";
+      error instanceof Error ? error.message : "Session expired. Please sign in again.";
     return NextResponse.json(
       { authenticated: false, token: null, user: null, error: message },
       { status: 401 },
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { token?: string } | null;
 
   if (!body?.token) {
-    return NextResponse.json({ message: "Token manquant." }, { status: 400 });
+    return NextResponse.json({ message: "Missing token." }, { status: 400 });
   }
 
   await setSessionCookie(body.token);
