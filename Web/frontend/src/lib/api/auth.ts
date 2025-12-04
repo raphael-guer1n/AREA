@@ -31,7 +31,12 @@ type BackendAuthError = {
   error: string;
 };
 
-type BackendAuthResponse = BackendAuthSuccess | BackendAuthError;
+export type BackendAuthResponse = BackendAuthSuccess | BackendAuthError;
+
+type BackendResponse<T> = {
+  status: number;
+  body: T | null;
+};
 
 export function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
   return {
@@ -43,9 +48,7 @@ export function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
   };
 }
 
-async function handleAuthResponse(response: Response): Promise<User> {
-  const body = (await response.json().catch(() => null)) as BackendAuthResponse | null;
-
+function parseAuthResponse(body: BackendAuthResponse | null): User {
   if (!body) {
     throw new Error("Réponse du serveur invalide.");
   }
@@ -57,40 +60,79 @@ async function handleAuthResponse(response: Response): Promise<User> {
   return mapUser(body.data);
 }
 
-export async function loginRequest(payload: LoginPayload): Promise<User> {
+async function postAuth(
+  path: string,
+  payload: Record<string, unknown>,
+): Promise<BackendResponse<BackendAuthResponse>> {
   try {
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch(`${BACKEND_BASE_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        emailOrUsername: payload.email.trim(),
-        password: payload.password.trim(),
-      }),
+      body: JSON.stringify(payload),
+      cache: "no-store",
     });
-    return handleAuthResponse(response);
+
+    const body = (await response.json().catch(() => null)) as BackendAuthResponse | null;
+
+    return { status: response.status, body };
   } catch (error) {
-    if (error instanceof Error) throw error;
-    throw new Error("Impossible de se connecter pour le moment.");
+    throw new Error("Impossible de contacter le service d'authentification.");
   }
 }
 
-export async function registerRequest(payload: RegisterPayload): Promise<User> {
-  try {
-    const username = (payload.name ?? payload.email).trim();
-    const response = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: payload.email.trim(),
-        username,
-        password: payload.password.trim(),
-      }),
-    });
-    return handleAuthResponse(response);
-  } catch (error) {
-    if (error instanceof Error) throw error;
-    throw new Error("Impossible de créer le compte pour le moment.");
+export async function authenticateWithCredentials(
+  emailOrUsername: string,
+  password: string,
+): Promise<BackendResponse<BackendAuthResponse>> {
+  return postAuth("/auth/login", { emailOrUsername, password });
+}
+
+export async function registerWithCredentials(
+  email: string,
+  username: string,
+  password: string,
+): Promise<BackendResponse<BackendAuthResponse>> {
+  return postAuth("/auth/register", { email, username, password });
+}
+
+export async function fetchAuthenticatedUser(token: string): Promise<User> {
+  const response = await fetch(`${BACKEND_BASE_URL}/auth/me`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
+  const body = (await response.json().catch(() => null)) as
+    | {
+        success?: boolean;
+        data?: { user?: BackendUser };
+        error?: string;
+      }
+    | null;
+
+  if (!body?.success || !body.data?.user) {
+    throw new Error(body?.error ?? "Session invalide.");
   }
+
+  return mapUser({ user: body.data.user, token });
+}
+
+export async function loginRequest(payload: LoginPayload): Promise<User> {
+  const { body } = await authenticateWithCredentials(
+    payload.email.trim(),
+    payload.password.trim(),
+  );
+  return parseAuthResponse(body);
+}
+
+export async function registerRequest(payload: RegisterPayload): Promise<User> {
+  const username = (payload.name ?? payload.email).trim();
+  const { body } = await registerWithCredentials(
+    payload.email.trim(),
+    username,
+    payload.password.trim(),
+  );
+  return parseAuthResponse(body);
 }
 
 export async function logoutRequest(): Promise<void> {

@@ -1,32 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { BACKEND_BASE_URL, mapUser, type BackendUser } from "@/lib/api/auth";
+import { fetchAuthenticatedUser } from "@/lib/api/auth";
 import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
-
-async function fetchUserFromBackend(token: string) {
-  const response = await fetch(`${BACKEND_BASE_URL}/auth/me`, {
-    method: "GET",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  const body = (await response.json().catch(() => null)) as
-    | {
-        success?: boolean;
-        data?: { user?: BackendUser };
-        error?: string;
-      }
-    | null;
-
-  if (!body?.success || !body.data?.user) {
-    const errorMessage = body?.error ?? "Session invalide.";
-    throw new Error(errorMessage);
-  }
-
-  return mapUser({ user: body.data.user, token });
-}
 
 export async function GET() {
   const token = await getSessionToken();
@@ -36,7 +13,7 @@ export async function GET() {
   }
 
   try {
-    const user = await fetchUserFromBackend(token);
+    const user = await fetchAuthenticatedUser(token);
     return NextResponse.json({ authenticated: true, token, user });
   } catch (error) {
     await clearSessionCookie();
