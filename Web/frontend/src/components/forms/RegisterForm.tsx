@@ -6,6 +6,24 @@ import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { RegisterPayload } from "@/types/User";
+import { z } from "zod";
+
+const registerSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(3, "Username must be at least 3 characters.")
+      .max(20, "Username must be at most 20 characters.")
+      .regex(/^[A-Za-z0-9_]+$/, "Username can only contain letters, numbers, and underscores."),
+    email: z.string().trim().email("Please enter a valid email address."),
+    password: z.string().min(8, "Password must be at least 8 characters."),
+    confirmPassword: z.string().min(8, "Password must be at least 8 characters."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match.",
+  });
 
 type ButtonState = "idle" | "success" | "error";
 type SocialProvider = {
@@ -51,19 +69,31 @@ export default function RegisterForm() {
     setButtonState("idle");
   };
 
+  const validateRegisterPayload = () => {
+    const result = registerSchema.safeParse({ ...payload, confirmPassword });
+    if (!result.success) {
+      const firstIssue = result.error.issues[0];
+      setLocalError(firstIssue?.message ?? "Invalid registration details.");
+      setButtonState("error");
+      return null;
+    }
+    return result.data;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus(null);
     setLocalError(null);
     setButtonState("idle");
 
-    if (payload.password !== confirmPassword) {
-      setLocalError("Passwords do not match.");
-      setButtonState("error");
-      return;
-    }
+    const validated = validateRegisterPayload();
+    if (!validated) return;
 
-    const user = await register(payload);
+    const user = await register({
+      name: validated.name,
+      email: validated.email,
+      password: validated.password,
+    });
     if (user) {
       setStatus("Account created. You can log in.");
       setButtonState("success");
@@ -167,6 +197,7 @@ export default function RegisterForm() {
             <input
               id="password"
               type="password"
+              minLength={8}
               required
               value={payload.password}
               onChange={(event) => {
@@ -188,6 +219,7 @@ export default function RegisterForm() {
             <input
               id="confirmPassword"
               type="password"
+              minLength={8}
               required
               value={confirmPassword}
               onChange={(event) => {

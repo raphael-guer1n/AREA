@@ -18,7 +18,7 @@ type StoredUser = {
 
 // In-memory store for demo purposes only.
 const users = new Map<string, StoredUser>();
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 
 function normalizeEmail(value?: string): string {
   return value?.trim().toLowerCase() ?? "";

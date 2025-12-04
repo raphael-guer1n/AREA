@@ -5,6 +5,12 @@ import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { LoginPayload } from "@/types/User";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().trim().email("Please enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+});
 
 type ButtonState = "idle" | "success" | "error";
 type SocialProvider = {
@@ -47,18 +53,29 @@ export default function LoginForm() {
     setButtonState("idle");
   };
 
+  const validateCredentials = () => {
+    const result = loginSchema.safeParse(credentials);
+    if (!result.success) {
+      const firstIssue = result.error.issues[0];
+      setFeedback({
+        message: firstIssue?.message ?? "Invalid credentials.",
+        tone: "error",
+      });
+      setButtonState("error");
+      return null;
+    }
+    return result.data;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFeedback(null);
     setButtonState("idle");
 
-    if (!credentials.email || !credentials.password) {
-      setFeedback({ message: "Email and password are required.", tone: "error" });
-      setButtonState("error");
-      return;
-    }
+    const validated = validateCredentials();
+    if (!validated) return;
 
-    const user = await login(credentials);
+    const user = await login(validated);
     if (user) {
       setFeedback({ message: "Login successful.", tone: "success" });
       setButtonState("success");
@@ -114,10 +131,10 @@ export default function LoginForm() {
             htmlFor="email"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Email or username
+            Email
             <input
               id="email"
-              type="text"
+              type="email"
               required
               value={credentials.email}
               onChange={(event) => {
@@ -127,7 +144,7 @@ export default function LoginForm() {
                 }));
                 resetFeedback();
               }}
-              placeholder="you@example.com or johndoe"
+              placeholder="you@example.com"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
@@ -139,6 +156,7 @@ export default function LoginForm() {
             <input
               id="password"
               type="password"
+              minLength={8}
               required
               value={credentials.password}
               onChange={(event) => {
