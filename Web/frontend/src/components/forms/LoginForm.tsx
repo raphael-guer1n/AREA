@@ -3,22 +3,70 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
+import { useAuth } from "@/hooks/useAuth";
 import type { LoginPayload } from "@/types/User";
 
-const socialProviders = [
-  { key: "google", label: "Continuer avec Google", badge: "G" },
-  { key: "apple", label: "Continuer avec Apple", badge: "A" },
-  { key: "facebook", label: "Continuer avec Facebook", badge: "f" },
-] as const;
+type ButtonState = "idle" | "success" | "error";
+type SocialProvider = {
+  key: "google";
+  label: string;
+  badge: string;
+  onClick?: () => void;
+};
 
 export default function LoginForm() {
+  const { login, startOAuthLogin, isLoading, error } = useAuth();
   const [credentials, setCredentials] = useState<LoginPayload>({
     email: "",
     password: "",
   });
+  const [feedback, setFeedback] = useState<
+    { message: string; tone: "success" | "error" } | null
+  >(null);
+  const [buttonState, setButtonState] = useState<ButtonState>("idle");
+
+  const socialProviders: SocialProvider[] = [
+    {
+      key: "google",
+      label: "Continuer avec Google",
+      badge: "G",
+      onClick: () => startOAuthLogin("google"),
+    },
+  ];
+
+  const buttonVariants: Record<ButtonState, string> = {
+    idle:
+      "bg-[var(--blue-primary-1)] hover:bg-[var(--blue-primary-2)] focus-visible:outline-[var(--blue-primary-2)]",
+    success:
+      "bg-emerald-600 hover:bg-emerald-500 focus-visible:outline-emerald-500",
+    error: "bg-red-600 hover:bg-red-500 focus-visible:outline-red-500",
+  };
+
+  const resetFeedback = () => {
+    setFeedback(null);
+    setButtonState("idle");
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFeedback(null);
+    setButtonState("idle");
+
+    if (!credentials.email || !credentials.password) {
+      setFeedback({ message: "Email et mot de passe requis.", tone: "error" });
+      setButtonState("error");
+      return;
+    }
+
+    const user = await login(credentials);
+    if (user) {
+      setFeedback({ message: "Connexion réussie.", tone: "success" });
+      setButtonState("success");
+      return;
+    }
+
+    setFeedback({ message: "Échec de la connexion.", tone: "error" });
+    setButtonState("error");
   };
 
   return (
@@ -36,14 +84,20 @@ export default function LoginForm() {
             <button
               key={provider.key}
               type="button"
-              className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-3)] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+              onClick={() => provider.onClick?.()}
+              disabled={isLoading && provider.key === "google"}
+              className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-3)] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-70"
               aria-label={provider.label}
             >
               <span className="flex items-center justify-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-sm font-semibold text-[var(--blue-soft)]">
                   {provider.badge}
                 </span>
-                <span>{provider.label}</span>
+                <span>
+                  {isLoading && provider.key === "google"
+                    ? "Redirection en cours..."
+                    : provider.label}
+                </span>
               </span>
             </button>
           ))}
@@ -60,19 +114,20 @@ export default function LoginForm() {
             htmlFor="email"
             className="block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]"
           >
-            Email
+            Email ou nom d'utilisateur
             <input
               id="email"
-              type="email"
+              type="text"
               required
               value={credentials.email}
-              onChange={(event) =>
+              onChange={(event) => {
                 setCredentials((current) => ({
                   ...current,
                   email: event.target.value,
-                }))
-              }
-              placeholder="votre@email.com"
+                }));
+                resetFeedback();
+              }}
+              placeholder="votre@email.com ou johndoe"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
@@ -86,22 +141,36 @@ export default function LoginForm() {
               type="password"
               required
               value={credentials.password}
-              onChange={(event) =>
+              onChange={(event) => {
                 setCredentials((current) => ({
                   ...current,
                   password: event.target.value,
-                }))
-              }
+                }));
+                resetFeedback();
+              }}
               placeholder="••••••••"
               className="mt-2 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/30"
             />
           </label>
           <button
             type="submit"
-            className="mt-2 w-full rounded-xl bg-[var(--blue-primary-1)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-2)]"
+            disabled={isLoading}
+            className={`mt-2 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 ${buttonVariants[buttonState]}`}
           >
-            Se connecter
+            {isLoading ? "Connexion..." : "Se connecter"}
           </button>
+          <div className="space-y-1 text-sm">
+            {feedback ? (
+              <p
+                className={
+                  feedback.tone === "success" ? "text-emerald-600" : "text-red-500"
+                }
+              >
+                {feedback.message}
+              </p>
+            ) : null}
+            {error ? <p className="text-red-500">{error}</p> : null}
+          </div>
         </form>
 
         <div className="mt-8 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
