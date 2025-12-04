@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { BACKEND_BASE_URL } from "@/lib/api/auth";
+import { authenticateWithCredentials } from "@/lib/api/auth";
 
 type LoginRequestBody = {
   email?: string;
@@ -23,25 +23,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const backendResponse = await fetch(`${BACKEND_BASE_URL}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emailOrUsername, password }),
-      cache: "no-store",
-    });
+    const { status, body } = await authenticateWithCredentials(emailOrUsername, password);
 
-    const backendBody = (await backendResponse.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
-
-    if (!backendBody) {
-      return NextResponse.json(
-        { success: false, error: "Réponse du serveur invalide." },
-        { status: 502 },
-      );
-    }
-
-    return NextResponse.json(backendBody, { status: backendResponse.status });
+    return NextResponse.json(
+      body ?? { success: false, error: "Réponse du serveur invalide." },
+      { status },
+    );
   } catch (error) {
     const message =
       error instanceof Error

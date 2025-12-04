@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { BACKEND_BASE_URL } from "@/lib/api/auth";
+import { registerWithCredentials } from "@/lib/api/auth";
 
 type RegisterRequestBody = {
   email?: string;
@@ -25,25 +25,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const backendResponse = await fetch(`${BACKEND_BASE_URL}/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, username, password }),
-      cache: "no-store",
-    });
+    const { status, body } = await registerWithCredentials(email, username, password);
 
-    const backendBody = (await backendResponse.json().catch(() => null)) as
-      | Record<string, unknown>
-      | null;
-
-    if (!backendBody) {
-      return NextResponse.json(
-        { success: false, error: "Réponse du serveur invalide." },
-        { status: 502 },
-      );
-    }
-
-    return NextResponse.json(backendBody, { status: backendResponse.status });
+    return NextResponse.json(
+      body ?? { success: false, error: "Réponse du serveur invalide." },
+      { status },
+    );
   } catch (error) {
     const message =
       error instanceof Error

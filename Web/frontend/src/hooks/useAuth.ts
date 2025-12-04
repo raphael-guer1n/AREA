@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchOAuthAuthorizeUrl, loginRequest, logoutRequest, registerRequest } from "@/lib/api/auth";
-import type { AuthSession, AuthStatus, SessionStatusResponse } from "@/types/auth";
+import { clearSession, fetchSessionStatus, persistSessionToken } from "@/lib/api/session";
+import type { AuthSession, AuthStatus } from "@/types/auth";
 import type { LoginPayload, RegisterPayload, User } from "@/types/User";
 
 type UseAuthOptions = {
@@ -27,11 +28,7 @@ export function useAuth(options: UseAuthOptions = {}) {
   const persistSession = useCallback(async (token: string) => {
     setSession({ token });
     try {
-      await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
+      await persistSessionToken(token);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Impossible de sauvegarder la session.";
@@ -44,22 +41,10 @@ export function useAuth(options: UseAuthOptions = {}) {
     setError(null);
 
     try {
-      const response = await fetch("/api/session", {
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const data = (await response.json().catch(() => null)) as
-        | SessionStatusResponse
-        | null;
-
-      if (!data) {
-        throw new Error("Réponse de session invalide.");
-      }
-
+      const data = await fetchSessionStatus();
       const isAuthenticated = Boolean(data.authenticated && data.token);
 
-      if (!response.ok && !isAuthenticated) {
+      if (!isAuthenticated) {
         setSession({ token: null });
         setUser(null);
         setStatus("unauthenticated");
@@ -166,7 +151,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     try {
       await Promise.all([
         logoutRequest(),
-        fetch("/api/session", { method: "DELETE", credentials: "include" }),
+        clearSession(),
       ]);
       setSession({ token: null });
       setUser(null);
