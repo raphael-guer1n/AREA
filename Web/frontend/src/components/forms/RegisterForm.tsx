@@ -244,7 +244,7 @@ export default function RegisterForm() {
           </div>
         </form>
 
-        <div className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+        <div className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
           <Link
             href="/login"
             className="text-[var(--blue-soft)] transition hover:text-[var(--blue-primary-3)]"
