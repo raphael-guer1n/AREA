@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
 )
 
 func NewReverseProxy(baseURL string) http.Handler {
@@ -65,21 +67,41 @@ func NewReverseProxy(baseURL string) http.Handler {
 		log.Printf("proxy error for %s %s: %v", r.Method, r.URL.Path, err)
 
 		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+			core.WriteError(
+				w,
+				http.StatusGatewayTimeout,
+				core.ErrGatewayTimeout,
+				"Upstream service timeout",
+			)
 			return
 		}
 
 		var netErr net.Error
 		if errors.As(err, &netErr) {
 			if netErr.Timeout() {
-				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+				core.WriteError(
+					w,
+					http.StatusGatewayTimeout,
+					core.ErrGatewayTimeout,
+					"Upstream service timeout",
+				)
 				return
 			}
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			core.WriteError(
+				w,
+				http.StatusBadGateway,
+				core.ErrBadGateway,
+				"Upstream service unreachable",
+			)
 			return
 		}
 
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		core.WriteError(
+			w,
+			http.StatusBadGateway,
+			core.ErrBadGateway,
+			"Upstream service unreachable",
+		)
 	}
 
 	return proxy
