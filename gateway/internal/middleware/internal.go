@@ -25,7 +25,7 @@ func (im *InternalMiddleware) Handler(next http.Handler) http.Handler {
 
 		rt, err := im.reg.FindRoute(r.URL.Path, r.Method)
 		if err != nil {
-			core.WriteError(w, http.StatusInternalServerError, core.ErrInternalError, "Route not found in registry")
+			core.WriteError(w, http.StatusInternalServerError, core.ErrNotFound, "Route not found in registry")
 			return
 		}
 
