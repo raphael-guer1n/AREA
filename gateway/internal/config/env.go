@@ -16,6 +16,7 @@ type GatewayConfig struct {
 	DebugMode        bool
 	JwtAlgorithm     string
 	JwtSecret        string
+	AllowedOrigins   []string
 }
 
 func LoadGatewayConfig() (*GatewayConfig, error) {
