@@ -1,0 +1,34 @@
+{
+  "name": "auth-service",
+  "base_url": "http://localhost:8083",
+  "routes": [
+    {
+      "path": "/health",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/register",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/login",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/me",
+      "methods": ["GET"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    }
+  ]
+}

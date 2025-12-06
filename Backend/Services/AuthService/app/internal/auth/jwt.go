@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -20,12 +21,14 @@ func getJWTSecret() string {
 
 type Claims struct {
 	UserID int `json:"user_id"`
+	Sub string `json:"sub"`
 	jwt.RegisteredClaims
 }
 
 // GenerateToken creates a JWT token for a user
 func GenerateToken(userID int) (string, error) {
 	claims := Claims{
+		Sub:    fmt.Sprintf("%d", userID),
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
