@@ -1,0 +1,58 @@
+{
+  "name": "google",
+  "oauth2": {
+    "client_id": "GOOGLE_CLIENT_ID",
+    "client_secret": "GOOGLE_CLIENT_SECRET",
+    "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_url": "https://oauth2.googleapis.com/token",
+    "redirect_uri": "http://localhost:8083/auth/oauth2/callback",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ],
+    "user_info_url": "https://www.googleapis.com/oauth2/v2/userinfo"
+  },
+  "mappings": [
+    {
+      "field_key": "provider_user_id",
+      "json_path": "id",
+      "type": "string"
+    },
+    {
+      "field_key": "email",
+      "json_path": "email",
+      "type": "string"
+    },
+    {
+      "field_key": "email_verified",
+      "json_path": "verified_email",
+      "type": "boolean"
+    },
+    {
+      "field_key": "display_name",
+      "json_path": "name",
+      "type": "string"
+    },
+    {
+      "field_key": "given_name",
+      "json_path": "given_name",
+      "type": "string"
+    },
+    {
+      "field_key": "family_name",
+      "json_path": "family_name",
+      "type": "string"
+    },
+    {
+      "field_key": "avatar_url",
+      "json_path": "picture",
+      "type": "string"
+    },
+    {
+      "field_key": "locale",
+      "json_path": "locale",
+      "type": "string"
+    }
+  ]
+}
