@@ -4,11 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/raphael-guer1n/AREA/Template/internal/config"
-	"github.com/raphael-guer1n/AREA/Template/internal/db"
-	httphandler "github.com/raphael-guer1n/AREA/Template/internal/http"
-	"github.com/raphael-guer1n/AREA/Template/internal/repository"
-	"github.com/raphael-guer1n/AREA/Template/internal/service"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/config"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/db"
+	httphandler "github.com/raphael-guer1n/AREA/ServiceService/internal/http"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/repository"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/service"
 )
 
 func main() {

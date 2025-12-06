@@ -6,7 +6,7 @@ import (
 	"log"
 
 	_ "github.com/lib/pq"
-	"github.com/raphael-guer1n/AREA/Template/internal/config"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/config"
 )
 
 func Connect(cfg config.Config) *sql.DB {

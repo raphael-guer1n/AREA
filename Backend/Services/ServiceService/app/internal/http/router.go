@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/raphael-guer1n/AREA/Template/internal/service"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/service"
 )
 
 type Router struct {

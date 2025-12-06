@@ -1,4 +1,4 @@
-module github.com/raphael-guer1n/AREA/Template
+module github.com/raphael-guer1n/AREA/ServiceService
 
 go 1.22
 

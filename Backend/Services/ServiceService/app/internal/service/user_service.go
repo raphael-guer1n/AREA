@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/raphael-guer1n/AREA/Template/internal/domain"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/domain"
 )
 
 type UserService struct {

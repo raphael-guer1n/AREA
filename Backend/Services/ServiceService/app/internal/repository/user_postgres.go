@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 
-	"github.com/raphael-guer1n/AREA/Template/internal/domain"
+	"github.com/raphael-guer1n/AREA/ServiceService/internal/domain"
 )
 
 type userRepository struct {
