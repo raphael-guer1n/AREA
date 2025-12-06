@@ -2,8 +2,10 @@ package router
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/middleware"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/registry"
 )
@@ -51,8 +53,35 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 		handler = rt.internalMW.Handler(handler)
 		handler = rt.loggingMW.Handler(handler)
 
-		rt.mux.Handle(route.Path, handler)
+		methods := make(map[string]struct{})
+		for _, m := range route.Methods {
+			methods[strings.ToUpper(m)] = struct{}{}
+		}
+
+		finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if _, ok := methods[r.Method]; !ok {
+				core.WriteError(
+					w,
+					http.StatusMethodNotAllowed,
+					core.ErrForbidden,
+					"Method not allowed",
+				)
+				return
+			}
+			handler.ServeHTTP(w, r)
+		})
+
+		rt.mux.Handle(route.Path, finalHandler)
 	}
+
+	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		core.WriteError(
+			w,
+			http.StatusNotFound,
+			core.ErrNotFound,
+			"Route not found",
+		)
+	}))
 
 	return rt.mux, nil
 }
