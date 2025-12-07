@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/raphael-guer1n/AREA/ServiceService/internal/domain"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/domain"
 )
 
 type UserProfileService struct {

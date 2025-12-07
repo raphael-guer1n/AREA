@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/raphael-guer1n/AREA/ServiceService/internal/domain"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/domain"
 )
 
 type userProfileRepository struct {
 	db *sql.DB
 }
 
-func newUserProfileRepository(db *sql.DB) domain.UserProfileRepository {
+func NewUserProfileRepository(db *sql.DB) domain.UserProfileRepository {
 	return &userProfileRepository{db: db}
 }
 

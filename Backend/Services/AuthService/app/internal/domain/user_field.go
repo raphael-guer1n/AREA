@@ -16,3 +16,7 @@ type UserServiceField struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
+
+type UserServiceFieldRepository interface {
+	CreateBatch(fields []UserServiceField) error
+}
