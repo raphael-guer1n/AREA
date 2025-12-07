@@ -13,15 +13,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref }}
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Push main and dev to Epitech mirror
+      - name: Push to Epitech mirror
         run: |
           git remote remove mirror 2>/dev/null || true
           git remote add mirror "${{ secrets.MIRROR_URL }}"
-          git push mirror main
-          git push mirror dev
+          
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          git push mirror "$BRANCH_NAME:$BRANCH_NAME" --force
+
+      - name: Push all branches (optional)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Only push both branches when main is updated
+          git push mirror main:main dev:dev --force
