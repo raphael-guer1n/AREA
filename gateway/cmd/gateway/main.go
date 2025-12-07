@@ -59,10 +59,13 @@ func main() {
 		log.Fatalf("[FATAL] failed to build router: %v", err)
 	}
 
+	corsMW := middleware.NewCORSMiddleware(cfg)
+	handler := corsMW.Handler(mux)
+
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	log.Println("[INFO] Listening on", addr)
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatal("[FATAL] server crashed:", err)
 	}
 }
