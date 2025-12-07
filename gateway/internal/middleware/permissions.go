@@ -22,7 +22,7 @@ func (pm *PermissionsMiddleware) Handler(next http.Handler) http.Handler {
 
 		rt, err := pm.reg.FindRoute(r.URL.Path, r.Method)
 		if err != nil {
-			core.WriteError(w, http.StatusInternalServerError, core.ErrInternalError, "Route not found in registry")
+			core.WriteError(w, http.StatusInternalServerError, core.ErrNotFound, "Route not found in registry")
 			return
 		}
 

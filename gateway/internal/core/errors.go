@@ -18,14 +18,12 @@ func WriteError(w http.ResponseWriter, status int, code string, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	resp := ErrorResponse{
+	_ = json.NewEncoder(w).Encode(ErrorResponse{
 		Error: APIError{
 			Code:    code,
 			Message: msg,
 		},
-	}
-
-	json.NewEncoder(w).Encode(resp)
+	})
 }
 
 const (
@@ -35,4 +33,8 @@ const (
 	ErrMissingToken      = "missing_token"
 	ErrInvalidAuthHeader = "invalid_auth_header"
 	ErrInternalError     = "internal_error"
+	ErrInternalOnly      = "internal_only"
+	ErrNotFound          = "not_found"
+	ErrBadGateway        = "bad_gateway"
+	ErrGatewayTimeout    = "gateway_timeout"
 )
