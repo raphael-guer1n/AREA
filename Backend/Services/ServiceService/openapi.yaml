@@ -10,9 +10,9 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8084
     description: Local development server
-  - url: http://api:8080
+  - url: http://api:8084
     description: Docker internal network
 
 paths:
@@ -41,16 +41,16 @@ paths:
                         type: string
                         example: healthy
 
-  /users:
+  /providers/services:
     get:
-      summary: Get all users
-      description: Retrieves a list of all users
-      operationId: getUsers
+      summary: Get all available OAuth2 services
+      description: Returns a list of all configured OAuth2 provider services
+      operationId: getServices
       tags:
-        - Users
+        - Providers
       responses:
         '200':
-          description: Successfully retrieved users
+          description: Successfully retrieved service list
           content:
             application/json:
               schema:
@@ -60,32 +60,73 @@ paths:
                     type: boolean
                     example: true
                   data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-        '500':
-          description: Internal server error
+                    type: object
+                    properties:
+                      services:
+                        type: array
+                        items:
+                          type: string
+                        example: ["google", "discord", "github"]
+
+  /providers/oauth2-config:
+    get:
+      summary: Get OAuth2 configuration for a service
+      description: Returns the OAuth2 configuration (client ID, auth URL, scopes, etc.) for a specific provider
+      operationId: getOAuth2Config
+      tags:
+        - Providers
+      parameters:
+        - name: service
+          in: query
+          required: true
+          description: The name of the OAuth2 service
+          schema:
+            type: string
+            example: google
+      responses:
+        '200':
+          description: Successfully retrieved OAuth2 configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OAuth2Config'
+        '400':
+          description: Bad request - Missing service parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /users/create:
-    post:
-      summary: Create a new user
-      description: Creates a new user with the provided information
-      operationId: createUser
+  /providers/config:
+    get:
+      summary: Get full provider configuration
+      description: Returns the complete provider configuration including OAuth2 settings and field mappings
+      operationId: getProviderConfig
       tags:
-        - Users
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateUserRequest'
+        - Providers
+      parameters:
+        - name: service
+          in: query
+          required: true
+          description: The name of the OAuth2 service
+          schema:
+            type: string
+            example: google
       responses:
-        '201':
-          description: User created successfully
+        '200':
+          description: Successfully retrieved provider configuration
           content:
             application/json:
               schema:
@@ -95,15 +136,15 @@ paths:
                     type: boolean
                     example: true
                   data:
-                    $ref: '#/components/schemas/User'
+                    $ref: '#/components/schemas/ProviderConfig'
         '400':
-          description: Bad request - Invalid input
+          description: Bad request - Missing service parameter
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
+        '404':
+          description: Service not found
           content:
             application/json:
               schema:
@@ -111,51 +152,6 @@ paths:
 
 components:
   schemas:
-    User:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int32
-          example: 1
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        first_name:
-          type: string
-          example: John
-        last_name:
-          type: string
-          example: Doe
-        created_at:
-          type: string
-          format: date-time
-          example: '2025-01-15T10:30:00Z'
-      required:
-        - id
-        - email
-        - first_name
-        - last_name
-        - created_at
-
-    CreateUserRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-          example: user@example.com
-        first_name:
-          type: string
-          example: John
-        last_name:
-          type: string
-          example: Doe
-      required:
-        - email
-        - first_name
-        - last_name
 
     ErrorResponse:
       type: object
@@ -170,8 +166,62 @@ components:
         - success
         - error
 
+    OAuth2Config:
+      type: object
+      properties:
+        client_id:
+          type: string
+          example: GOOGLE_CLIENT_ID
+        client_secret:
+          type: string
+          example: GOOGLE_CLIENT_SECRET
+        auth_url:
+          type: string
+          example: https://accounts.google.com/o/oauth2/v2/auth
+        token_url:
+          type: string
+          example: https://oauth2.googleapis.com/token
+        redirect_uri:
+          type: string
+          example: http://localhost:8083/auth/oauth2/callback
+        scopes:
+          type: array
+          items:
+            type: string
+          example: ["openid", "email", "profile"]
+        user_info_url:
+          type: string
+          example: https://www.googleapis.com/oauth2/v2/userinfo
+
+    FieldMapping:
+      type: object
+      properties:
+        field_key:
+          type: string
+          example: email
+        json_path:
+          type: string
+          example: email
+        type:
+          type: string
+          enum: [string, number, boolean, json]
+          example: string
+
+    ProviderConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          example: google
+        oauth2:
+          $ref: '#/components/schemas/OAuth2Config'
+        mappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldMapping'
+
 tags:
   - name: Health
     description: Health check endpoints
-  - name: Users
-    description: User management endpoints
+  - name: Providers
+    description: OAuth2 provider configuration endpoints
