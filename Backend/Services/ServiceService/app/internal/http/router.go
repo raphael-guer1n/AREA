@@ -3,19 +3,17 @@ package http
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/raphael-guer1n/AREA/ServiceService/internal/service"
 )
 
 type Router struct {
-	mux     *http.ServeMux
-	userSvc *service.UserService
+	mux             *http.ServeMux
+	providerHandler *ProviderHandler
 }
 
-func NewRouter(userSvc *service.UserService) *Router {
+func NewRouter(providerHandler *ProviderHandler) *Router {
 	r := &Router{
-		mux:     http.NewServeMux(),
-		userSvc: userSvc,
+		mux:             http.NewServeMux(),
+		providerHandler: providerHandler,
 	}
 
 	r.routes()
@@ -24,8 +22,11 @@ func NewRouter(userSvc *service.UserService) *Router {
 
 func (r *Router) routes() {
 	r.mux.HandleFunc("/health", r.handleHealth)
-	r.mux.HandleFunc("/users", r.handleUsers)
-	r.mux.HandleFunc("/users/create", r.handleCreateUser)
+
+	// Provider configuration endpoints
+	r.mux.HandleFunc("/providers/services", r.providerHandler.HandleGetServices)
+	r.mux.HandleFunc("/providers/oauth2-config", r.providerHandler.HandleGetOAuth2Config)
+	r.mux.HandleFunc("/providers/config", r.providerHandler.HandleGetProviderConfig)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -39,34 +40,6 @@ func (r *Router) handleHealth(w http.ResponseWriter, _ *http.Request) {
 			"status": "healthy",
 		},
 	})
-}
-
-func (r *Router) handleUsers(w http.ResponseWriter, _ *http.Request) {
-	_, err := r.userSvc.ListUsers()
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
-	} else {
-		respondJSON(w, http.StatusOK, map[string]any{
-			"success": true,
-		})
-	}
-}
-
-func (r *Router) handleCreateUser(w http.ResponseWriter, _ *http.Request) {
-	_, err := r.userSvc.CreateUser("", "John", "Doe")
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		})
-	} else {
-		respondJSON(w, http.StatusOK, map[string]any{
-			"success": true,
-		})
-	}
 }
 
 func respondJSON(w http.ResponseWriter, status int, payload any) {
