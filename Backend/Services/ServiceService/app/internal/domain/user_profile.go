@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type UserServiceProfile struct {
+type UserProfile struct {
 	ID             int
 	UserId         int
 	Service        string
@@ -18,7 +18,6 @@ type UserServiceProfile struct {
 	UpdatedAt      time.Time
 }
 
-type UserServiceProfileRepository interface {
-	Create(userId int, service, providerUserId, accessToken, refreshToken string, expiresAt time.Time, rawProfile json.RawMessage) (*UserServiceProfile, error)
-	FindByUserId(userId int) ([]*UserServiceProfile, error)
+type UserProfileRepository interface {
+	Create(userId int, service, providerUserId, accessToken, refreshToken string, expiresAt time.Time, rawProfile json.RawMessage) (*UserProfile, error)
 }
