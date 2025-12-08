@@ -7,15 +7,18 @@ WORKDIR /build
 RUN apk add --no-cache git
 
 # Copy go mod files
-COPY app/go.mod app/go.sum ./
+COPY app/go.mod app/go.sum ./app/
 
 # Download dependencies
+WORKDIR /build/app
 RUN go mod download
 
-# Copy source code
-COPY app/ .
+# Copy entire project structure
+WORKDIR /build
+COPY . .
 
-# Build the application (entrypoint in ./cmd/main.go)
+# Build the application (entrypoint in ./app/cmd/main.go)
+WORKDIR /build/app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd
 
 # Runtime stage
@@ -23,10 +26,16 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /build/main .
+COPY --from=builder /build/app/main .
+
+# Copy all configuration files from root directory
+# This includes: *.json, *.yaml, *.yml, .env* files
+COPY --from=builder /build/*.json ./
+COPY --from=builder /build/*.yaml ./
+COPY --from=builder /build/*.yml ./
 
 # Run the application
 CMD ["./main"]
