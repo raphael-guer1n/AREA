@@ -263,7 +263,7 @@ paths:
   /oauth2/authorize:
     get:
       summary: Generate OAuth2 authorization URL
-      description: Generates an OAuth2 authorization URL for the specified provider with CSRF protection state parameter
+      description: Generates an OAuth2 authorization URL for the specified provider with CSRF protection state parameter. The user_id, callback_url, and platform are stored in the state and returned during the callback.
       operationId: getOAuth2AuthURL
       tags:
         - OAuth2
@@ -275,6 +275,29 @@ paths:
           schema:
             type: string
             example: google
+        - name: user_id
+          in: query
+          required: true
+          description: ID of the user to link the OAuth2 account to
+          schema:
+            type: integer
+            example: 1
+        - name: callback_url
+          in: query
+          required: false
+          description: Custom callback URL to redirect to after OAuth2 completion (optional, for future use with mobile apps)
+          schema:
+            type: string
+            example: "https://myapp.com/oauth/callback"
+        - name: platform
+          in: query
+          required: false
+          description: Platform type - web, android, or ios (defaults to "web", reserved for future mobile support)
+          schema:
+            type: string
+            enum: [web, android, ios]
+            default: web
+            example: web
       responses:
         '200':
           description: Successfully generated authorization URL
@@ -313,7 +336,7 @@ paths:
   /oauth2/callback:
     get:
       summary: Handle OAuth2 callback
-      description: Handles the OAuth2 callback from the provider after user authentication. Validates state, exchanges code for tokens, and retrieves user information.
+      description: Handles the OAuth2 callback from the provider after user authentication. Validates state, exchanges code for tokens, retrieves user information, and automatically stores the OAuth2 data in the database. The user_id, callback_url, and platform are retrieved from the stored state.
       operationId: handleOAuth2Callback
       tags:
         - OAuth2
@@ -327,12 +350,12 @@ paths:
         - name: state
           in: query
           required: true
-          description: CSRF protection state parameter
+          description: CSRF protection state parameter containing encrypted metadata
           schema:
             type: string
       responses:
         '200':
-          description: Successfully authenticated with OAuth2 provider
+          description: Successfully authenticated with OAuth2 provider and stored data
           content:
             application/json:
               schema:
@@ -362,6 +385,19 @@ paths:
                         type: integer
                         example: 3600
                         description: Token expiration time in seconds
+                      message:
+                        type: string
+                        example: "OAuth2 data stored successfully"
+                        description: Confirmation message
+                      callback_url:
+                        type: string
+                        example: "https://myapp.com/oauth/callback"
+                        description: Custom callback URL provided during authorization (if any)
+                      platform:
+                        type: string
+                        enum: [web, android, ios]
+                        example: web
+                        description: Platform type provided during authorization
         '400':
           description: Bad request - Missing parameters or invalid state/code
           content:

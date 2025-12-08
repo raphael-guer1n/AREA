@@ -2,8 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/oauth2"
@@ -153,7 +155,7 @@ func (h *OAuth2Handler) handleListProviders(w http.ResponseWriter, req *http.Req
 	})
 }
 
-// GET /oauth2/authorize?provider=<provider_name>
+// GET /auth/oauth2/authorize?provider=<provider_name>&user_id=<user_id>&callback_url=<url>&platform=<platform>
 func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
@@ -172,6 +174,10 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 	}
 
 	provider := req.URL.Query().Get("provider")
+	userIDStr := req.URL.Query().Get("user_id")
+	callbackURL := req.URL.Query().Get("callback_url")
+	platform := req.URL.Query().Get("platform")
+
 	if provider == "" {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
@@ -180,7 +186,30 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	authURL, err := h.oauth2Manager.GetAuthURL(provider)
+	if userIDStr == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id parameter is required",
+		})
+		return
+	}
+
+	// Parse user ID
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid user_id parameter",
+		})
+		return
+	}
+
+	// Default platform to "web" if not specified
+	if platform == "" {
+		platform = "web"
+	}
+
+	authURL, err := h.oauth2Manager.GetAuthURL(provider, userID, callbackURL, platform)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
@@ -227,8 +256,8 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Handle OAuth2 callback
-	userInfo, tokenResp, provider, err := h.oauth2Manager.HandleCallback(state, code)
+	// Handle OAuth2 callback - returns StateData with user_id
+	userInfo, tokenResp, stateData, err := h.oauth2Manager.HandleCallback(state, code)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
@@ -237,16 +266,48 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// TODO: Link OAuth2 account to user or create new user
-	// For now, return the OAuth2 user info and tokens
+	// Marshal user info to JSON
+	userInfoJSON, err := json.Marshal(userInfo.RawData)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to marshal user info",
+		})
+		return
+	}
+
+	// Calculate expiration time
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	// Store OAuth2 data using user_id from StateData
+	err = h.oauth2StorageSvc.StoreOAuth2Response(
+		stateData.UserID,
+		stateData.Provider,
+		tokenResp.AccessToken,
+		tokenResp.RefreshToken,
+		expiresAt,
+		userInfoJSON,
+	)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   fmt.Sprintf("failed to store OAuth2 data: %v", err),
+		})
+		return
+	}
+
+	// Return success with user info
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data": map[string]any{
-			"provider":     provider,
+			"provider":     stateData.Provider,
 			"user_info":    userInfo,
 			"access_token": tokenResp.AccessToken,
 			"token_type":   tokenResp.TokenType,
 			"expires_in":   tokenResp.ExpiresIn,
+			"message":      "OAuth2 data stored successfully",
+			"callback_url": stateData.CallbackURL,
+			"platform":     stateData.Platform,
 		},
 	})
 }

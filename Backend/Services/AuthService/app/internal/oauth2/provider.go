@@ -40,10 +40,14 @@ func NewProvider(config ProviderConfig) *Provider {
 }
 
 // GenerateAuthURL generates the OAuth2 authorization URL with state parameter
-func (p *Provider) GenerateAuthURL(state string) string {
+func (p *Provider) GenerateAuthURL(state string, callbackUri string) string {
 	params := url.Values{}
 	params.Add("client_id", p.config.ClientID)
-	params.Add("redirect_uri", p.config.RedirectURI)
+	if callbackUri != "" {
+		params.Add("redirect_uri", callbackUri)
+	} else {
+		params.Add("redirect_uri", p.config.RedirectURI)
+	}
 	params.Add("response_type", "code")
 	params.Add("state", state)
 
