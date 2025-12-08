@@ -54,10 +54,9 @@ export default function AreaPage() {
         <section className="w-full">
           <Card
             title="Vos areas"
-            subtitle="Elles s afficheront ici des qu elles seront creees."
-            className="relative w-full overflow-hidden border-[var(--surface-border)] bg-white border-dashed"
+            className="relative w-full overflow-hidden rounded-[26px] border-[var(--surface-border)] bg-white border"
           >
-            <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-dashed border-[var(--surface-border)] bg-white px-6 py-12 text-center">
+            <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border border-[var(--surface-border)] bg-white px-6 py-10 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-white">
                 <div className="h-6 w-6 rounded-full border-2 border-[var(--surface-border)]" />
               </div>
@@ -68,10 +67,7 @@ export default function AreaPage() {
                   leur statut en temps reel.
                 </p>
               </div>
-              <div className="flex flex-wrap justify-center gap-3">
-                <Link href="/services">
-                  <Button>Commencer avec un service</Button>
-                </Link>
+              <div className="flex flex-wrap justify-center gap-5">
                 <Button variant="secondary" type="button" className="cursor-not-allowed opacity-70" disabled>
                   Creer une area (bientot)
                 </Button>
