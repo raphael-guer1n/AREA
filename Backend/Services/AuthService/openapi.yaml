@@ -187,6 +187,230 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /oauth2/store:
+    post:
+      summary: Store OAuth2 user data
+      description: Stores OAuth2 authentication data including tokens and user info from external providers. This endpoint is called after successful OAuth2 authentication flow.
+      operationId: storeOAuth2
+      tags:
+        - OAuth2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreOAuth2Request'
+      responses:
+        '201':
+          description: OAuth2 data stored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: OAuth2 data stored successfully
+        '400':
+          description: Bad request - Missing required fields or invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth2/providers:
+    get:
+      summary: List available OAuth2 providers
+      description: Returns a list of all configured OAuth2 authentication providers
+      operationId: listOAuth2Providers
+      tags:
+        - OAuth2
+      responses:
+        '200':
+          description: Successfully retrieved provider list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      providers:
+                        type: array
+                        items:
+                          type: string
+                        example: ["google", "github", "microsoft", "discord"]
+        '503':
+          description: Service unavailable - OAuth2 not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth2/authorize:
+    get:
+      summary: Generate OAuth2 authorization URL
+      description: Generates an OAuth2 authorization URL for the specified provider with CSRF protection state parameter. The user_id, callback_url, and platform are stored in the state and returned during the callback.
+      operationId: getOAuth2AuthURL
+      tags:
+        - OAuth2
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          description: The OAuth2 provider name (e.g., google, github, microsoft, discord)
+          schema:
+            type: string
+            example: google
+        - name: user_id
+          in: query
+          required: true
+          description: ID of the user to link the OAuth2 account to
+          schema:
+            type: integer
+            example: 1
+        - name: callback_url
+          in: query
+          required: false
+          description: Custom callback URL to redirect to after OAuth2 completion (optional, for future use with mobile apps)
+          schema:
+            type: string
+            example: "https://myapp.com/oauth/callback"
+        - name: platform
+          in: query
+          required: false
+          description: Platform type - web, android, or ios (defaults to "web", reserved for future mobile support)
+          schema:
+            type: string
+            enum: [web, android, ios]
+            default: web
+            example: web
+      responses:
+        '200':
+          description: Successfully generated authorization URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      auth_url:
+                        type: string
+                        example: "https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=..."
+                        description: The authorization URL to redirect the user to
+                      provider:
+                        type: string
+                        example: google
+                        description: The provider name
+        '400':
+          description: Bad request - Missing or invalid provider parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable - OAuth2 not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth2/callback:
+    get:
+      summary: Handle OAuth2 callback
+      description: Handles the OAuth2 callback from the provider after user authentication. Validates state, exchanges code for tokens, retrieves user information, and automatically stores the OAuth2 data in the database. The user_id, callback_url, and platform are retrieved from the stored state.
+      operationId: handleOAuth2Callback
+      tags:
+        - OAuth2
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Authorization code from OAuth2 provider
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          description: CSRF protection state parameter containing encrypted metadata
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully authenticated with OAuth2 provider and stored data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                        example: google
+                        description: The OAuth2 provider name
+                      user_info:
+                        $ref: '#/components/schemas/OAuth2UserInfo'
+                      access_token:
+                        type: string
+                        example: "ya29.a0AfH6SMB..."
+                        description: OAuth2 access token
+                      token_type:
+                        type: string
+                        example: Bearer
+                        description: Token type
+                      expires_in:
+                        type: integer
+                        example: 3600
+                        description: Token expiration time in seconds
+                      message:
+                        type: string
+                        example: "OAuth2 data stored successfully"
+                        description: Confirmation message
+                      callback_url:
+                        type: string
+                        example: "https://myapp.com/oauth/callback"
+                        description: Custom callback URL provided during authorization (if any)
+                      platform:
+                        type: string
+                        enum: [web, android, ios]
+                        example: web
+                        description: Platform type provided during authorization
+        '400':
+          description: Bad request - Missing parameters or invalid state/code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable - OAuth2 not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -272,6 +496,76 @@ components:
         - emailOrUsername
         - password
 
+    StoreOAuth2Request:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int32
+          example: 1
+          description: ID of the user who authenticated
+        service:
+          type: string
+          example: google
+          description: Name of the OAuth2 service provider (e.g., google, discord, github)
+        access_token:
+          type: string
+          example: ya29.a0AfH6SMBx...
+          description: OAuth2 access token
+        refresh_token:
+          type: string
+          example: 1//0gZ9...
+          description: OAuth2 refresh token (optional)
+        expires_in:
+          type: integer
+          example: 3600
+          description: Token expiration time in seconds
+        user_info:
+          type: object
+          description: User information returned by the OAuth2 provider
+          example:
+            id: "123456789"
+            email: "user@example.com"
+            name: "John Doe"
+            picture: "https://example.com/photo.jpg"
+      required:
+        - user_id
+        - service
+        - access_token
+        - expires_in
+        - user_info
+
+    OAuth2UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "123456789"
+          description: User ID from the OAuth2 provider
+        email:
+          type: string
+          format: email
+          example: user@example.com
+          description: User's email address from the provider
+        name:
+          type: string
+          example: John Doe
+          description: User's display name from the provider
+        username:
+          type: string
+          example: johndoe
+          description: Username from the provider (if available)
+        raw_data:
+          type: object
+          description: Complete raw data returned by the OAuth2 provider
+          additionalProperties: true
+          example:
+            sub: "123456789"
+            email: "user@example.com"
+            name: "John Doe"
+            picture: "https://example.com/photo.jpg"
+            locale: "en"
+
     ErrorResponse:
       type: object
       properties:
@@ -290,3 +584,5 @@ tags:
     description: Health check endpoints
   - name: Authentication
     description: User authentication and profile management endpoints
+  - name: OAuth2
+    description: OAuth2 authentication flow endpoints - providers are loaded dynamically from service-service API

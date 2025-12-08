@@ -1,0 +1,227 @@
+openapi: 3.0.3
+info:
+  title: Microservice API Template
+  description: Template for AREA microservice with Go, PostgreSQL, and Docker
+  version: 1.0.0
+  contact:
+    name: AREA Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8084
+    description: Local development server
+  - url: http://api:8084
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the microservice
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: healthy
+
+  /providers/services:
+    get:
+      summary: Get all available OAuth2 services
+      description: Returns a list of all configured OAuth2 provider services
+      operationId: getServices
+      tags:
+        - Providers
+      responses:
+        '200':
+          description: Successfully retrieved service list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      services:
+                        type: array
+                        items:
+                          type: string
+                        example: ["google", "discord", "github"]
+
+  /providers/oauth2-config:
+    get:
+      summary: Get OAuth2 configuration for a service
+      description: Returns the OAuth2 configuration (client ID, auth URL, scopes, etc.) for a specific provider
+      operationId: getOAuth2Config
+      tags:
+        - Providers
+      parameters:
+        - name: service
+          in: query
+          required: true
+          description: The name of the OAuth2 service
+          schema:
+            type: string
+            example: google
+      responses:
+        '200':
+          description: Successfully retrieved OAuth2 configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/OAuth2Config'
+        '400':
+          description: Bad request - Missing service parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /providers/config:
+    get:
+      summary: Get full provider configuration
+      description: Returns the complete provider configuration including OAuth2 settings and field mappings
+      operationId: getProviderConfig
+      tags:
+        - Providers
+      parameters:
+        - name: service
+          in: query
+          required: true
+          description: The name of the OAuth2 service
+          schema:
+            type: string
+            example: google
+      responses:
+        '200':
+          description: Successfully retrieved provider configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ProviderConfig'
+        '400':
+          description: Bad request - Missing service parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: An error occurred
+      required:
+        - success
+        - error
+
+    OAuth2Config:
+      type: object
+      properties:
+        client_id:
+          type: string
+          example: GOOGLE_CLIENT_ID
+        client_secret:
+          type: string
+          example: GOOGLE_CLIENT_SECRET
+        auth_url:
+          type: string
+          example: https://accounts.google.com/o/oauth2/v2/auth
+        token_url:
+          type: string
+          example: https://oauth2.googleapis.com/token
+        redirect_uri:
+          type: string
+          example: http://localhost:8083/oauth2/callback
+        scopes:
+          type: array
+          items:
+            type: string
+          example: ["openid", "email", "profile"]
+        user_info_url:
+          type: string
+          example: https://www.googleapis.com/oauth2/v2/userinfo
+
+    FieldMapping:
+      type: object
+      properties:
+        field_key:
+          type: string
+          example: email
+        json_path:
+          type: string
+          example: email
+        type:
+          type: string
+          enum: [string, number, boolean, json]
+          example: string
+
+    ProviderConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          example: google
+        oauth2:
+          $ref: '#/components/schemas/OAuth2Config'
+        mappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldMapping'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Providers
+    description: OAuth2 provider configuration endpoints

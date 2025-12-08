@@ -117,23 +117,18 @@ db-%: ## Connect to service database (e.g., make db-auth)
 	docker-compose exec $*-db psql -U postgres -d $*_db
 
 # Service creation from template
-new-service: ## Create new microservice from template (Usage: make new-service NAME=myservice PORT=8088)
+new-service: ## Create new microservice from template (Usage: make new-service NAME=myservice)
 	@if [ -z "$(NAME)" ]; then \
 		echo "$(RED)Error: NAME is required$(NC)"; \
-		echo "Usage: make new-service NAME=myservice PORT=8088"; \
+		echo "Usage: make new-service NAME=myservice"; \
 		exit 1; \
 	fi
-	@if [ -z "$(PORT)" ]; then \
-		echo "$(RED)Error: PORT is required$(NC)"; \
-		echo "Usage: make new-service NAME=myservice PORT=8088"; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)Creating new service: $(NAME) on port $(PORT)$(NC)"
+	@echo "$(GREEN)Creating new service: $(NAME)"
 	@mkdir -p Services/$(NAME)
-	@cp -r Template/Microservice/* Services/$(NAME)/
+	@cp -r Template/Microservice/. Services/$(NAME)
 	@echo "$(YELLOW)Service created at: Services/$(NAME)$(NC)"
 	@echo "$(YELLOW)Next steps:$(NC)"
-	@echo "  1. Update Services/$(NAME)/.env.example with PORT=$(PORT)"
+	@echo "  1. Update Services/$(NAME)/.env.example with NAME=$(NAME)"
 	@echo "  2. Add the service to docker-compose.yml"
 	@echo "  3. Update services.yaml configuration"
 
