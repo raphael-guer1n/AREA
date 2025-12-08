@@ -48,24 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loginWithApple() async {
-    final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.loginWithApple();
-
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/main');
-    }
-  }
-
-  Future<void> _loginWithFacebook() async {
-    final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.loginWithFacebook();
-
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/main');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -134,18 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: isLoading ? null : _loginWithGoogle,
                       ),
                       const SizedBox(height: 12),
-                      _SocialLoginButton(
-                        icon: FontAwesomeIcons.apple,
-                        label: 'Continuer avec Apple',
-                        onPressed: isLoading ? null : _loginWithApple,
-                      ),
-                      const SizedBox(height: 12),
-                      _SocialLoginButton(
-                        icon: FontAwesomeIcons.facebook,
-                        label: 'Continuer avec Facebook',
-                        onPressed: isLoading ? null : _loginWithFacebook,
-                      ),
-
+                      
                       const SizedBox(height: 24),
                       Row(
                         children: const [
