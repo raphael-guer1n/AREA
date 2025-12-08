@@ -54,6 +54,14 @@ export default function AreaPage() {
         <section className="w-full">
           <Card
             title="Vos areas"
+            action={
+              <Link
+                href="/area/create"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-[var(--background)] transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--foreground)]"
+              >
+                Create area
+              </Link>
+            }
             className="relative w-full overflow-hidden rounded-[26px] border-[var(--surface-border)] bg-white border"
           >
             <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border border-[var(--surface-border)] bg-white px-6 py-10 text-center">
@@ -66,11 +74,6 @@ export default function AreaPage() {
                   Des que vous connecterez vos services et definirez un declencheur, vos areas apparaitront ici avec
                   leur statut en temps reel.
                 </p>
-              </div>
-              <div className="flex flex-wrap justify-center gap-5">
-                <Button variant="secondary" type="button" className="cursor-not-allowed opacity-70" disabled>
-                  Creer une area (bientot)
-                </Button>
               </div>
             </div>
           </Card>
