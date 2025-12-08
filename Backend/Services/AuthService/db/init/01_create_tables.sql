@@ -13,7 +13,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 
-CREATE TABLE user_service_profiles (
+CREATE TABLE IF NOT EXISTS user_service_profiles (
                                        id              BIGSERIAL PRIMARY KEY,
                                        user_id         BIGINT NOT NULL,
                                        service         TEXT   NOT NULL,
@@ -29,13 +29,13 @@ CREATE TABLE user_service_profiles (
                                        UNIQUE (service, provider_user_id)
 );
 
-CREATE INDEX idx_user_service_profiles_user_id
+CREATE INDEX IF NOT EXISTS idx_user_service_profiles_user_id
     ON user_service_profiles(user_id);
 
-CREATE INDEX idx_user_service_profiles_user_service
+CREATE INDEX IF NOT EXISTS idx_user_service_profiles_user_service
     ON user_service_profiles(user_id, service);
 
-CREATE TABLE user_service_fields IF NOT EXISTS (
+CREATE TABLE IF NOT EXISTS user_service_fields (
                                                    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                                                    profile_id      BIGINT NOT NULL REFERENCES user_service_profiles(id) ON DELETE CASCADE,
     field_key       TEXT   NOT NULL,
@@ -49,8 +49,8 @@ CREATE TABLE user_service_fields IF NOT EXISTS (
     UNIQUE (profile_id, field_key)
     );
 
-CREATE INDEX idx_user_service_fields_profile
+CREATE INDEX IF NOT EXISTS idx_user_service_fields_profile
     ON user_service_fields(profile_id);
 
-CREATE INDEX idx_user_service_fields_service_key_value
+CREATE INDEX IF NOT EXISTS idx_user_service_fields_service_key_value
     ON user_service_fields(field_key, value_string, profile_id);
