@@ -19,7 +19,7 @@ func NewUserProfileRepository(db *sql.DB) domain.UserProfileRepository {
 func (r *userProfileRepository) Create(userId int, service, providerUserId, accessToken, refreshToken string, expiresAt time.Time, rawProfile json.RawMessage) (domain.UserProfile, error) {
 	var u domain.UserProfile
 	err := r.db.QueryRow(
-		`INSERT INTO user_service_profiles (user_id, service, provider_user_id,access_token ,refresh_token, expires_at, rawProfile)
+		`INSERT INTO user_service_profiles (user_id, service, provider_user_id,access_token ,refresh_token, expires_at, raw_profile);
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, email, first_name, last_name, created_at`,
 		userId, service, providerUserId, accessToken, refreshToken, expiresAt, rawProfile,
