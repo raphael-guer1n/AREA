@@ -48,11 +48,6 @@
       "field_key": "avatar_url",
       "json_path": "picture",
       "type": "string"
-    },
-    {
-      "field_key": "locale",
-      "json_path": "locale",
-      "type": "string"
     }
   ]
 }
