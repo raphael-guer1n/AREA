@@ -187,6 +187,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /oauth2/store:
+    post:
+      summary: Store OAuth2 user data
+      description: Stores OAuth2 authentication data including tokens and user info from external providers. This endpoint is called after successful OAuth2 authentication flow.
+      operationId: storeOAuth2
+      tags:
+        - OAuth2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreOAuth2Request'
+      responses:
+        '201':
+          description: OAuth2 data stored successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: OAuth2 data stored successfully
+        '400':
+          description: Bad request - Missing required fields or invalid JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -272,6 +312,45 @@ components:
         - emailOrUsername
         - password
 
+    StoreOAuth2Request:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int32
+          example: 1
+          description: ID of the user who authenticated
+        service:
+          type: string
+          example: google
+          description: Name of the OAuth2 service provider (e.g., google, discord, github)
+        access_token:
+          type: string
+          example: ya29.a0AfH6SMBx...
+          description: OAuth2 access token
+        refresh_token:
+          type: string
+          example: 1//0gZ9...
+          description: OAuth2 refresh token (optional)
+        expires_in:
+          type: integer
+          example: 3600
+          description: Token expiration time in seconds
+        user_info:
+          type: object
+          description: User information returned by the OAuth2 provider
+          example:
+            id: "123456789"
+            email: "user@example.com"
+            name: "John Doe"
+            picture: "https://example.com/photo.jpg"
+      required:
+        - user_id
+        - service
+        - access_token
+        - expires_in
+        - user_info
+
     ErrorResponse:
       type: object
       properties:
@@ -290,3 +369,5 @@ tags:
     description: Health check endpoints
   - name: Authentication
     description: User authentication and profile management endpoints
+  - name: OAuth2
+    description: OAuth2 authentication data storage endpoints

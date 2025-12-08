@@ -3,7 +3,9 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/config"
@@ -11,21 +13,80 @@ import (
 )
 
 type OAuth2StorageService struct {
-	profileRepo domain.UserProfileRepository
-	fieldRepo   domain.UserServiceFieldRepository
-	configSvc   *ProviderConfigService
+	profileRepo       domain.UserProfileRepository
+	fieldRepo         domain.UserServiceFieldRepository
+	configCache       map[string]*config.ProviderConfig
+	configMutex       sync.RWMutex
+	serviceServiceURL string
+	httpClient        *http.Client
 }
 
 func NewOAuth2StorageService(
 	profileRepo domain.UserProfileRepository,
 	fieldRepo domain.UserServiceFieldRepository,
-	configSvc *ProviderConfigService,
+	serviceServiceURL string,
 ) *OAuth2StorageService {
 	return &OAuth2StorageService{
-		profileRepo: profileRepo,
-		fieldRepo:   fieldRepo,
-		configSvc:   configSvc,
+		profileRepo:       profileRepo,
+		fieldRepo:         fieldRepo,
+		configCache:       make(map[string]*config.ProviderConfig),
+		serviceServiceURL: serviceServiceURL,
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
+}
+
+// getProviderConfig retrieves provider config from cache or fetches from ServiceService API
+func (s *OAuth2StorageService) getProviderConfig(serviceName string) (*config.ProviderConfig, error) {
+	// Check cache first (read lock)
+	s.configMutex.RLock()
+	if cached, exists := s.configCache[serviceName]; exists {
+		s.configMutex.RUnlock()
+		return cached, nil
+	}
+	s.configMutex.RUnlock()
+
+	// Not in cache, fetch from API (write lock)
+	s.configMutex.Lock()
+	defer s.configMutex.Unlock()
+
+	// Double-check in case another goroutine loaded it
+	if cached, exists := s.configCache[serviceName]; exists {
+		return cached, nil
+	}
+
+	// Fetch from ServiceService API
+	url := fmt.Sprintf("%s/providers/config?service=%s", s.serviceServiceURL, serviceName)
+	resp, err := s.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch provider config from ServiceService: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ServiceService returned status %d for service %s", resp.StatusCode, serviceName)
+	}
+
+	// Parse response
+	var apiResp struct {
+		Success bool                  `json:"success"`
+		Data    config.ProviderConfig `json:"data"`
+		Error   string                `json:"error,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode provider config response: %w", err)
+	}
+
+	if !apiResp.Success {
+		return nil, fmt.Errorf("ServiceService error: %s", apiResp.Error)
+	}
+
+	// Cache the config
+	s.configCache[serviceName] = &apiResp.Data
+
+	return &apiResp.Data, nil
 }
 
 // StoreOAuth2Response stores the OAuth2 user info response in the database
@@ -38,10 +99,10 @@ func (s *OAuth2StorageService) StoreOAuth2Response(
 	expiresAt time.Time,
 	userInfoJSON []byte,
 ) error {
-	// Get provider config
-	providerConfig, exists := s.configSvc.GetProviderConfig(serviceName)
-	if !exists {
-		return fmt.Errorf("unknown service: %s", serviceName)
+	// Get provider config (lazy-loaded from ServiceService API)
+	providerConfig, err := s.getProviderConfig(serviceName)
+	if err != nil {
+		return fmt.Errorf("failed to get provider config: %w", err)
 	}
 
 	// Parse user info JSON

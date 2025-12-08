@@ -21,7 +21,7 @@ func main() {
 	userRepo := repository.NewUserRepository(dbConn)
 
 	// Build services
-	oauth2StorageSvc := service.NewOAuth2StorageService(userProfileRepo, userFieldRepo, nil)
+	oauth2StorageSvc := service.NewOAuth2StorageService(userProfileRepo, userFieldRepo, cfg.ServiceServiceURL)
 	authSvc := service.NewAuthService(userRepo)
 
 	// Build handlers
