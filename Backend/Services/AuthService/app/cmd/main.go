@@ -7,6 +7,7 @@ import (
 	"github.com/raphael-guer1n/AREA/AuthService/internal/config"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/db"
 	httphandler "github.com/raphael-guer1n/AREA/AuthService/internal/http"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/oauth2"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/repository"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
@@ -24,18 +25,12 @@ func main() {
 	oauth2StorageSvc := service.NewOAuth2StorageService(userProfileRepo, userFieldRepo, cfg.ServiceServiceURL)
 	authSvc := service.NewAuthService(userRepo)
 
-	// Load OAuth2 configuration (optional)
-	var oauth2Manager *oauth2.Manager
-	oauth2Config, err := oauth2.LoadConfig(cfg.OAuth2ConfigPath)
-	if err != nil {
-		log.Printf("Warning: OAuth2 config not loaded (%v). OAuth2 endpoints will be disabled.", err)
-	} else {
-		oauth2Manager = oauth2.NewManager(oauth2Config)
-		log.Printf("OAuth2 enabled with providers: %v", oauth2Manager.ListProviders())
-	}
+	// Initialize OAuth2 manager with service-service URL (lazy loading)
+	oauth2Manager := oauth2.NewManager(cfg.ServiceServiceURL)
+	log.Printf("OAuth2 manager initialized (providers will be loaded on-demand from service-service)")
 
 	// Build handlers
-	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc)
+	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager)
 	authHandler := httphandler.NewAuthHandler(authSvc)
 
 	// Build router

@@ -6,16 +6,19 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/raphael-guer1n/AREA/AuthService/internal/oauth2"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
 
 type OAuth2Handler struct {
 	oauth2StorageSvc *service.OAuth2StorageService
+	oauth2Manager    *oauth2.Manager
 }
 
-func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService) *OAuth2Handler {
+func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService, oauth2Manager *oauth2.Manager) *OAuth2Handler {
 	return &OAuth2Handler{
 		oauth2StorageSvc: oauth2StorageSvc,
+		oauth2Manager:    oauth2Manager,
 	}
 }
 
@@ -112,5 +115,138 @@ func (h *OAuth2Handler) HandleStoreOAuth2(w http.ResponseWriter, req *http.Reque
 	respondJSON(w, http.StatusCreated, map[string]any{
 		"success": true,
 		"message": "OAuth2 data stored successfully",
+	})
+}
+
+// GET /oauth2/providers - List available OAuth2 providers
+func (h *OAuth2Handler) handleListProviders(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	if h.oauth2Manager == nil {
+		respondJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "OAuth2 not configured",
+		})
+		return
+	}
+
+	providers, err := h.oauth2Manager.ListProviders()
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"providers": providers,
+		},
+	})
+}
+
+// GET /oauth2/authorize?provider=<provider_name>
+func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	if h.oauth2Manager == nil {
+		respondJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "OAuth2 not configured",
+		})
+		return
+	}
+
+	provider := req.URL.Query().Get("provider")
+	if provider == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "provider parameter is required",
+		})
+		return
+	}
+
+	authURL, err := h.oauth2Manager.GetAuthURL(provider)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"auth_url": authURL,
+			"provider": provider,
+		},
+	})
+}
+
+// GET /oauth2/callback?code=<code>&state=<state>
+func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	if h.oauth2Manager == nil {
+		respondJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "OAuth2 not configured",
+		})
+		return
+	}
+
+	code := req.URL.Query().Get("code")
+	state := req.URL.Query().Get("state")
+
+	if code == "" || state == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "code and state parameters are required",
+		})
+		return
+	}
+
+	// Handle OAuth2 callback
+	userInfo, tokenResp, provider, err := h.oauth2Manager.HandleCallback(state, code)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// TODO: Link OAuth2 account to user or create new user
+	// For now, return the OAuth2 user info and tokens
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"provider":     provider,
+			"user_info":    userInfo,
+			"access_token": tokenResp.AccessToken,
+			"token_type":   tokenResp.TokenType,
+			"expires_in":   tokenResp.ExpiresIn,
+		},
 	})
 }

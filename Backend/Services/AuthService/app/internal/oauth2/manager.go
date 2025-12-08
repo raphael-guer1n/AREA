@@ -5,11 +5,12 @@ import (
 	"sync"
 )
 
-// Manager manages multiple OAuth2 providers
+// Manager manages multiple OAuth2 providers with lazy loading
 type Manager struct {
-	config    *ConfigOAuth2
-	providers map[string]*Provider
-	states    *StateStore
+	configLoader *ConfigLoader
+	providers    map[string]*Provider
+	providersMu  sync.RWMutex
+	states       *StateStore
 }
 
 // StateStore manages OAuth2 state parameters for CSRF protection
@@ -43,25 +44,53 @@ func (s *StateStore) Get(state string) (string, bool) {
 	return provider, ok
 }
 
-// NewManager creates a new OAuth2 manager
-func NewManager(config *ConfigOAuth2) *Manager {
-	providers := make(map[string]*Provider)
-	for name, cfg := range config.Providers {
-		providers[name] = NewProvider(cfg)
+// NewManager creates a new OAuth2 manager with lazy loading from service-service
+func NewManager(serviceServiceURL string) *Manager {
+	return &Manager{
+		configLoader: NewConfigLoader(serviceServiceURL),
+		providers:    make(map[string]*Provider),
+		states:       NewStateStore(),
+	}
+}
+
+// getOrLoadProvider gets a provider from cache or loads it from service-service
+func (m *Manager) getOrLoadProvider(providerName string) (*Provider, error) {
+	// Check cache first
+	m.providersMu.RLock()
+	if provider, exists := m.providers[providerName]; exists {
+		m.providersMu.RUnlock()
+		return provider, nil
+	}
+	m.providersMu.RUnlock()
+
+	// Load from service-service
+	m.providersMu.Lock()
+	defer m.providersMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if provider, exists := m.providers[providerName]; exists {
+		return provider, nil
 	}
 
-	return &Manager{
-		config:    config,
-		providers: providers,
-		states:    NewStateStore(),
+	// Fetch config from service-service
+	config, err := m.configLoader.GetProvider(providerName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load provider config: %w", err)
 	}
+
+	// Create and cache provider
+	provider := NewProvider(*config)
+	m.providers[providerName] = provider
+
+	return provider, nil
 }
 
 // GetAuthURL generates an OAuth2 authorization URL for a specific provider
 func (m *Manager) GetAuthURL(providerName string) (string, error) {
-	provider, ok := m.providers[providerName]
-	if !ok {
-		return "", fmt.Errorf("provider %s not found", providerName)
+	// Load provider on-demand
+	provider, err := m.getOrLoadProvider(providerName)
+	if err != nil {
+		return "", err
 	}
 
 	// Generate CSRF state token
@@ -87,9 +116,10 @@ func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse,
 		return nil, nil, "", fmt.Errorf("invalid or expired state parameter")
 	}
 
-	provider, ok := m.providers[providerName]
-	if !ok {
-		return nil, nil, "", fmt.Errorf("provider %s not found", providerName)
+	// Load provider on-demand
+	provider, err := m.getOrLoadProvider(providerName)
+	if err != nil {
+		return nil, nil, "", err
 	}
 
 	// Exchange code for access token
@@ -107,16 +137,12 @@ func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse,
 	return userInfo, tokenResp, providerName, nil
 }
 
-// ListProviders returns all available provider names
-func (m *Manager) ListProviders() []string {
-	return m.config.ListProviders()
+// ListProviders returns all available provider names from service-service
+func (m *Manager) ListProviders() ([]string, error) {
+	return m.configLoader.ListProviders()
 }
 
-// GetProvider returns a specific provider
+// GetProvider returns a specific provider (lazy loaded)
 func (m *Manager) GetProvider(name string) (*Provider, error) {
-	provider, ok := m.providers[name]
-	if !ok {
-		return nil, fmt.Errorf("provider %s not found", name)
-	}
-	return provider, nil
+	return m.getOrLoadProvider(name)
 }
