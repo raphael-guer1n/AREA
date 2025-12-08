@@ -5,7 +5,7 @@
     "client_secret": "GOOGLE_CLIENT_SECRET",
     "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
     "token_url": "https://oauth2.googleapis.com/token",
-    "redirect_uri": "http://localhost:8083/auth/oauth2/callback",
+    "redirect_uri": "http://localhost:8083/oauth2/callback",
     "scopes": [
       "openid",
       "email",
