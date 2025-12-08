@@ -125,7 +125,7 @@ func (s *OAuth2StorageService) StoreOAuth2Response(
 		accessToken,
 		refreshToken,
 		expiresAt,
-		json.RawMessage(userInfoJSON),
+		userInfoJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create user profile: %w", err)

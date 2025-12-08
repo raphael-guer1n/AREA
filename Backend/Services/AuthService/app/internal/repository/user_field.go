@@ -26,13 +26,39 @@ func (r *userServiceFieldRepository) CreateBatch(fields []domain.UserServiceFiel
 	argPos := 1
 
 	for _, field := range fields {
-		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", argPos, argPos+1, argPos+2, argPos+3, argPos+4, argPos+5))
-		valueArgs = append(valueArgs, field.ProfileId, field.FieldKey, field.StringValue, field.NumberValue, field.BoolValue, field.JsonValue)
+		valueStrings = append(
+			valueStrings,
+			fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d)", argPos, argPos+1, argPos+2, argPos+3, argPos+4, argPos+5),
+		)
+
+		var jsonArg interface{}
+		if field.JsonValue != nil && len(field.JsonValue) > 0 {
+			jsonArg = string(field.JsonValue) // valid JSON text
+		} else {
+			jsonArg = nil // will be NULL in DB
+		}
+
+		valueArgs = append(
+			valueArgs,
+			field.ProfileId,
+			field.FieldKey,
+			field.StringValue,
+			field.NumberValue,
+			field.BoolValue,
+			jsonArg,
+		)
 		argPos += 6
 	}
 
 	query := fmt.Sprintf(`
-		INSERT INTO user_service_fields (profile_id, field_key, value_string, value_number, value_boolean, value_json)
+		INSERT INTO user_service_fields (
+			profile_id,
+			field_key,
+			value_string,
+			value_number,
+			value_boolean,
+			value_json
+		)
 		VALUES %s
 	`, strings.Join(valueStrings, ","))
 
