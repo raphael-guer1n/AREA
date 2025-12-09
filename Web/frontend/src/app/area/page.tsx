@@ -1,11 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
 import { AreaCard } from "@/components/area/AreaCard";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { Card } from "@/components/ui/AreaCard";
-import { cn } from "@/lib/helpers";
+import { cn, normalizeSearchValue } from "@/lib/helpers";
 
-import { mockAreas } from "./mockAreas";
+import { mockAreas, type MockArea } from "./mockAreas";
 
 type ServiceIconProps = {
   label: string;
@@ -25,10 +28,21 @@ function ServiceIcon({ label, colorClass }: ServiceIconProps) {
   );
 }
 
+function matchesAreaSearch(area: MockArea, normalizedTerm: string) {
+  if (!normalizedTerm) return true;
+  const haystack = normalizeSearchValue(
+    [area.name, area.action.label, area.reaction.label, area.lastRun ?? ""].join(" "),
+  );
+  return haystack.includes(normalizedTerm);
+}
+
 export default function AreaPage() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const normalizedSearch = normalizeSearchValue(searchTerm);
+  const filteredAreas = mockAreas.filter((area) => matchesAreaSearch(area, normalizedSearch));
+  const hasSearch = Boolean(normalizedSearch);
   const totalAreas = mockAreas.length;
   const activeCount = mockAreas.filter((area) => area.active).length;
-  const pausedCount = totalAreas - activeCount;
 
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
@@ -91,43 +105,85 @@ export default function AreaPage() {
             }
             className="relative w-full overflow-hidden rounded-[26px] border-[var(--surface-border)] bg-[var(--background)] ring-1 ring-[rgba(28,61,99,0.15)]"
           >
-            {totalAreas > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {mockAreas.map((area) => (
-                  <AreaCard
-                    key={area.id}
-                    id={area.id}
-                    name={area.name}
-                    actionLabel={area.action.label}
-                    reactionLabel={area.reaction.label}
-                    actionIcon={<ServiceIcon label={area.action.label} colorClass={area.action.colorClass} />}
-                    reactionIcon={<ServiceIcon label={area.reaction.label} colorClass={area.reaction.colorClass} />}
-                    isActive={area.active}
-                    gradientFrom={area.gradient?.from}
-                    gradientTo={area.gradient?.to}
-                  />
-                ))}
+            <div className="space-y-5">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]">
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden>
+                    <path
+                      d="m15.5 15.5-3.5-3.5m-6-3a5 5 0 1 0 10 0 5 5 0 0 0-10 0Z"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Rechercher une area (nom, action, réaction...)"
+                  className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-11 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
+                />
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-6 py-10 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]">
-                  <div className="h-6 w-6 rounded-full border-2 border-[var(--surface-border)]" />
+
+              {filteredAreas.length ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredAreas.map((area) => (
+                    <AreaCard
+                      key={area.id}
+                      id={area.id}
+                      name={area.name}
+                      actionLabel={area.action.label}
+                      reactionLabel={area.reaction.label}
+                      actionIcon={<ServiceIcon label={area.action.label} colorClass={area.action.colorClass} />}
+                      reactionIcon={<ServiceIcon label={area.reaction.label} colorClass={area.reaction.colorClass} />}
+                      isActive={area.active}
+                      gradientFrom={area.gradient?.from}
+                      gradientTo={area.gradient?.to}
+                    />
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <p className="text-lg font-semibold">Pas encore d&apos;area</p>
-                  <p className="text-sm text-[var(--muted)]">
-                    Dès que vous connecterez vos services et définirez un déclencheur, vos areas apparaitront ici avec
-                    leur statut en temps réel.
-                  </p>
+              ) : hasSearch ? (
+                <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-6 py-10 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]">
+                    <div className="h-6 w-6 rounded-full border-2 border-[var(--surface-border)]" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-lg font-semibold">Aucune area trouvée</p>
+                    <p className="text-sm text-[var(--muted)]">
+                      Aucun résultat pour cette recherche. Essayez un autre mot-clé ou réinitialisez la recherche.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                  >
+                    Réinitialiser la recherche
+                  </button>
                 </div>
-                <Link
-                  href="/area/create"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
-                >
-                  Créer une area
-                </Link>
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-6 py-10 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]">
+                    <div className="h-6 w-6 rounded-full border-2 border-[var(--surface-border)]" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-lg font-semibold">Pas encore d&apos;area</p>
+                    <p className="text-sm text-[var(--muted)]">
+                      Dès que vous connecterez vos services et définirez un déclencheur, vos areas apparaitront ici avec
+                      leur statut en temps réel.
+                    </p>
+                  </div>
+                  <Link
+                    href="/area/create"
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                  >
+                    Créer une area
+                  </Link>
+                </div>
+              )}
+            </div>
           </Card>
         </section>
       </div>
