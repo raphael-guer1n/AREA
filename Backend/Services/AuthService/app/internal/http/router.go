@@ -33,7 +33,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/oauth2/authorize", r.oauth2Handler.handleOAuth2Authorize)
 	r.mux.HandleFunc("/oauth2/callback", r.oauth2Handler.handleOAuth2Callback)
 	r.mux.HandleFunc("/oauth2/store", r.oauth2Handler.HandleStoreOAuth2)
-	r.mux.HandleFunc("/oauth2/services/", r.oauth2Handler.handleGetUserServices)
+	r.mux.HandleFunc("/oauth2/providers/", r.oauth2Handler.handleGetUserServices)
 
 }
 

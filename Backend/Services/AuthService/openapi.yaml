@@ -411,7 +411,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /oauth2/services/{userId}:
+  /oauth2/providers/{userId}:
     get:
       summary: Get user's service login status
       description: Returns all available OAuth2 providers with their login status for the specified user. Shows which services the user has authenticated with.

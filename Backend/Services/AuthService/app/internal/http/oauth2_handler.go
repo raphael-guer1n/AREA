@@ -312,7 +312,7 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 	})
 }
 
-// GET /oauth2/services/{userId}
+// GET /oauth2/providers/{userId}
 func (h *OAuth2Handler) handleGetUserServices(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
@@ -324,7 +324,7 @@ func (h *OAuth2Handler) handleGetUserServices(w http.ResponseWriter, req *http.R
 
 	// Extract userId from path
 	path := req.URL.Path
-	userIDStr := path[len("/oauth2/services/"):]
+	userIDStr := path[len("/oauth2/providers/"):]
 	if userIDStr == "" {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
