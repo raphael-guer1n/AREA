@@ -1,0 +1,13 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: area_gateway
+    env_file:
+      - ./configs/gateway.env
+    network_mode: host
+    volumes:
+      - ./services-config:/root/services-config:ro
+      - ./configs:/root/configs:ro
+    restart: unless-stopped
