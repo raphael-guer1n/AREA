@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { AreaCard } from "@/components/area/AreaCard";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/AreaCard";
 import { cn } from "@/lib/helpers";
 
 import { mockAreas } from "./mockAreas";
