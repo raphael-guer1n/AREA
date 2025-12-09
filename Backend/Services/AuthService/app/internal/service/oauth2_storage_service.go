@@ -218,3 +218,57 @@ func (s *OAuth2StorageService) extractFields(profileId int, userInfo map[string]
 
 	return fields, nil
 }
+
+// GetUserServicesStatus retrieves all available providers and their login status for a user
+func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]interface{}, error) {
+	// Fetch all available providers from ServiceService API
+	url := fmt.Sprintf("%s/providers/services", s.serviceServiceURL)
+	resp, err := s.httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch providers from ServiceService: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ServiceService returned status %d", resp.StatusCode)
+	}
+
+	var apiResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Services []string `json:"services"`
+		} `json:"data"`
+		Error string `json:"error,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode providers response: %w", err)
+	}
+
+	if !apiResp.Success {
+		return nil, fmt.Errorf("ServiceService error: %s", apiResp.Error)
+	}
+
+	// Get user's logged services
+	loggedServices, err := s.profileRepo.GetServicesByUserId(userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user services: %w", err)
+	}
+
+	// Create a map for a quick lookup
+	loggedServicesMap := make(map[string]bool)
+	for _, service := range loggedServices {
+		loggedServicesMap[service] = true
+	}
+
+	// Build response
+	result := make([]map[string]interface{}, 0, len(apiResp.Data.Services))
+	for _, serviceName := range apiResp.Data.Services {
+		result = append(result, map[string]interface{}{
+			"provider":  serviceName,
+			"is_logged": loggedServicesMap[serviceName],
+		})
+	}
+
+	return result, nil
+}
