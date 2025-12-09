@@ -1,58 +1,65 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
-import 'package:app_links/app_links.dart';
+import '../models/service_model.dart';  // Add this import
 
 class ServiceConnector {
   final String baseUrl;
-  final AppLinks _appLinks = AppLinks();
 
   ServiceConnector({required this.baseUrl});
 
-  Future<void> connectToService(String serviceName, String jwtToken) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/auth/$serviceName/url'),
-      headers: {'Authorization': 'Bearer $jwtToken'},
-    );
-    if (res.statusCode != 200) {
-      throw Exception('Failed to get $serviceName auth URL');
-    }
-    final data = jsonDecode(res.body);
-    final authUrl = data['auth_url'];
-    if (authUrl == null) throw Exception('Invalid response from backend');
-
-    final completer = Completer<Uri>();
-    final sub = _appLinks.uriLinkStream.listen((uri) {
-      if (uri.scheme == 'area' && uri.host == 'auth') {
-        completer.complete(uri);
-      }
-    });
-
+  Future<List<ServiceModel>> fetchServices(int userId) async {
     try {
-      final uri = Uri.parse(authUrl);
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        throw Exception('Could not launch browser for $serviceName');
-      }
-
-      final redirected = await completer.future;
-      final code = redirected.queryParameters['code'];
-      if (code == null) throw Exception('Missing authorization code');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/$serviceName/callback'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'code': code}),
+      final response = await http.get(
+        Uri.parse('$baseUrl/oauth2/providers/$userId'),
       );
 
-      if (response.statusCode != 200) {
-        throw Exception('Token exchange failed (${response.statusCode})');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final providers = data['data']['providers'] as List;
+          return providers
+              .map((p) => ServiceModel.fromJson(p))
+              .toList();
+        }
       }
-    } finally {
-      await sub.cancel();
+      throw Exception('Failed to load services');
+    } catch (e) {
+      throw Exception('Error fetching services: $e');
+    }
+  }
+
+  Future<String> getAuthUrl(String serviceName, int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/oauth2/authorize?provider=$serviceName&user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          return data['data']['auth_url'];
+        }
+      }
+      throw Exception('Failed to get auth URL');
+    } catch (e) {
+      throw Exception('Error getting auth URL: $e');
+    }
+  }
+
+  Future<void> disconnectService(
+    String serviceName,
+    int userId,
+    String token,
+  ) async {
+    // Implement disconnect logic based on your backend API
+    // This is a placeholder
+    try {
+      // You might need to add a disconnect endpoint to your backend
+      throw UnimplementedError('Disconnect endpoint not implemented yet');
+    } catch (e) {
+      throw Exception('Error disconnecting service: $e');
     }
   }
 }

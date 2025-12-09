@@ -44,7 +44,6 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-
     try {
       final result = await _authService.loginWithEmail(email, password);
       _token = result['token'];
@@ -69,7 +68,6 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-
     try {
       final result = await _authService.register(
         name: name,
@@ -90,13 +88,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Social logins now pass user.id
   Future<bool> loginWithGoogle() async {
     _error = null;
     _isLoading = true;
     notifyListeners();
-
     try {
-      final result = await _authService.loginWithGoogle();
+      final userId = _user?['id'] ?? 0;
+      final result = await _authService.loginWithGoogle(userId: userId);
       _token = result['token'];
       _user = result['user'];
       _isAuthenticated = true;
@@ -115,9 +114,9 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-
     try {
-      final result = await _authService.loginWithApple();
+      final userId = _user?['id'] ?? 0;
+      final result = await _authService.loginWithApple(userId: userId);
       _token = result['token'];
       _user = result['user'];
       _isAuthenticated = true;
@@ -136,9 +135,9 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
-
     try {
-      final result = await _authService.loginWithFacebook();
+      final userId = _user?['id'] ?? 0;
+      final result = await _authService.loginWithFacebook(userId: userId);
       _token = result['token'];
       _user = result['user'];
       _isAuthenticated = true;
