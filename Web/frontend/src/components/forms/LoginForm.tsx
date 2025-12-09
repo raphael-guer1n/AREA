@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -21,14 +22,12 @@ type SocialProvider = {
 };
 
 export default function LoginForm() {
-  const { login, startOAuthLogin, isLoading, error } = useAuth();
+  const router = useRouter();
+  const { login, startOAuthLogin, isLoading } = useAuth();
   const [credentials, setCredentials] = useState<LoginPayload>({
     email: "",
     password: "",
   });
-  const [feedback, setFeedback] = useState<
-    { message: string; tone: "success" | "error" } | null
-  >(null);
   const [buttonState, setButtonState] = useState<ButtonState>("idle");
 
   const socialProviders: SocialProvider[] = [
@@ -49,18 +48,12 @@ export default function LoginForm() {
   };
 
   const resetFeedback = () => {
-    setFeedback(null);
     setButtonState("idle");
   };
 
   const validateCredentials = () => {
     const result = loginSchema.safeParse(credentials);
     if (!result.success) {
-      const firstIssue = result.error.issues[0];
-      setFeedback({
-        message: firstIssue?.message ?? "Invalid credentials.",
-        tone: "error",
-      });
       setButtonState("error");
       return null;
     }
@@ -69,7 +62,6 @@ export default function LoginForm() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setFeedback(null);
     setButtonState("idle");
 
     const validated = validateCredentials();
@@ -77,12 +69,11 @@ export default function LoginForm() {
 
     const user = await login(validated);
     if (user) {
-      setFeedback({ message: "Login successful.", tone: "success" });
       setButtonState("success");
+      router.push("/area");
       return;
     }
 
-    setFeedback({ message: "Login failed.", tone: "error" });
     setButtonState("error");
   };
 
@@ -177,18 +168,6 @@ export default function LoginForm() {
           >
             {isLoading ? "Logging in..." : "Log in"}
           </button>
-          <div className="space-y-1 text-sm">
-            {feedback ? (
-              <p
-                className={
-                  feedback.tone === "success" ? "text-emerald-600" : "text-red-500"
-                }
-              >
-                {feedback.message}
-              </p>
-            ) : null}
-            {error ? <p className="text-red-500">{error}</p> : null}
-          </div>
         </form>
 
         <div className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
