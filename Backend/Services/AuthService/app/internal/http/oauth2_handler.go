@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/raphael-guer1n/AREA/AuthService/internal/auth"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/oauth2"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
@@ -174,7 +176,6 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 	}
 
 	provider := req.URL.Query().Get("provider")
-	userIDStr := req.URL.Query().Get("user_id")
 	callbackURL := req.URL.Query().Get("callback_url")
 	platform := req.URL.Query().Get("platform")
 
@@ -186,20 +187,30 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	if userIDStr == "" {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
+	authHeader := req.Header.Get("Authorization")
+	if authHeader == "" {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
-			"error":   "user_id parameter is required",
+			"error":   "missing authorization header",
 		})
 		return
 	}
 
-	// Parse user ID
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
-			"error":   "invalid user_id parameter",
+			"error":   "invalid authorization header format",
+		})
+		return
+	}
+
+	token := parts[1]
+	userID, err := auth.ValidateToken(token)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   "invalid or expired token",
 		})
 		return
 	}
