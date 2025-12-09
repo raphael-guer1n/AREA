@@ -139,15 +139,32 @@ export async function logoutRequest(): Promise<void> {
   return Promise.resolve();
 }
 
+type OAuthAuthorizeMode = "login" | "link";
+
 export async function fetchOAuthAuthorizeUrl(
   provider: string,
+  options: { token?: string | null; mode?: OAuthAuthorizeMode } = {},
 ): Promise<OAuthAuthorizeResponse> {
+  const { token, mode = "login" } = options;
+
+  if (mode === "link" && !token) {
+    throw new Error("Missing authentication token.");
+  }
+
+  const basePath =
+    mode === "login" ? "/auth/oauth2/login" : "/auth/oauth2/authorize";
   const response = await fetch(
-    `${BACKEND_BASE_URL}/auth/oauth2/authorize?provider=${encodeURIComponent(provider)}`,
+    `${BACKEND_BASE_URL}${basePath}?provider=${encodeURIComponent(provider)}`,
     {
       method: "GET",
       credentials: "include",
       cache: "no-store",
+      headers:
+        mode === "link" && token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
     },
   );
 
@@ -204,5 +221,7 @@ export async function exchangeOAuthCallback(
     access_token: body.data.access_token,
     token_type: body.data.token_type ?? "Bearer",
     expires_in: body.data.expires_in ?? 0,
+    token: body.data.token,
+    user: body.data.user,
   };
 }
