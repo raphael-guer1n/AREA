@@ -54,12 +54,16 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
       setCallbackState({ status: "processing" });
 
       try {
-        const { access_token } = await exchangeOAuthCallback({
+        const { token } = await exchangeOAuthCallback({
           code,
           state: stateParam,
         });
 
-        await persistSessionToken(access_token);
+        if (!token) {
+          throw new Error("OAuth2 callback did not return a session token.");
+        }
+
+        await persistSessionToken(token);
         setCallbackState({ status: "success" });
         router.replace(redirectTo);
       } catch (err) {

@@ -29,6 +29,27 @@
       "auth_required": true,
       "permissions": [],
       "internal_only": false
+    },
+    {
+      "path": "/auth/oauth2/login",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/oauth2/authorize",
+      "methods": ["GET"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/oauth2/callback",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
     }
   ]
 }

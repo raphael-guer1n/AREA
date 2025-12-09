@@ -29,6 +29,9 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/auth/me", r.authHandler.handleMe)
 
 	// OAuth2 routes
+	r.mux.HandleFunc("/auth/oauth2/login", r.oauth2Handler.handleOAuth2Login)
+	r.mux.HandleFunc("/auth/oauth2/authorize", r.oauth2Handler.handleOAuth2Authorize)
+	r.mux.HandleFunc("/auth/oauth2/callback", r.oauth2Handler.handleOAuth2Callback)
 	r.mux.HandleFunc("/oauth2/providers", r.oauth2Handler.handleListProviders)
 	r.mux.HandleFunc("/oauth2/authorize", r.oauth2Handler.handleOAuth2Authorize)
 	r.mux.HandleFunc("/oauth2/callback", r.oauth2Handler.handleOAuth2Callback)

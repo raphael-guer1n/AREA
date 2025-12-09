@@ -17,8 +17,10 @@ type Manager struct {
 type StateData struct {
 	Provider    string
 	UserID      int
+	HasUserID   bool
 	CallbackURL string
 	Platform    string // web, android, ios
+	Purpose     string // login, link
 }
 
 // StateStore manages OAuth2 state parameters for CSRF protection
@@ -94,7 +96,14 @@ func (m *Manager) getOrLoadProvider(providerName string) (*Provider, error) {
 }
 
 // GetAuthURL generates an OAuth2 authorization URL for a specific provider with metadata
-func (m *Manager) GetAuthURL(providerName string, userID int, callbackURL string, platform string) (string, error) {
+func (m *Manager) GetAuthURL(
+	providerName string,
+	userID int,
+	hasUserID bool,
+	callbackURL string,
+	platform string,
+	purpose string,
+) (string, error) {
 	// Load provider on-demand
 	provider, err := m.getOrLoadProvider(providerName)
 	if err != nil {
@@ -109,8 +118,12 @@ func (m *Manager) GetAuthURL(providerName string, userID int, callbackURL string
 
 	// Store state with metadata for validation
 	m.states.Set(state, &StateData{
-		Provider: providerName,
-		UserID:   userID,
+		Provider:    providerName,
+		UserID:      userID,
+		HasUserID:   hasUserID,
+		CallbackURL: callbackURL,
+		Platform:    platform,
+		Purpose:     purpose,
 	})
 
 	// Generate authorization URL

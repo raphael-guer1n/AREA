@@ -75,26 +75,38 @@ export function useAuth(options: UseAuthOptions = {}) {
     void refreshSession();
   }, [initialSession?.token, refreshSession]);
 
-  const startOAuthLogin = useCallback(async (provider: string) => {
-    setIsLoading(true);
-    setError(null);
-    setStatus("loading");
+  const startOAuthLogin = useCallback(
+    async (provider: string, mode: "login" | "link" = "login") => {
+      if (mode === "link" && !session.token) {
+        setError("You must be connected before linking an external service.");
+        setStatus("error");
+        return;
+      }
 
-    try {
-      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
-      setStatus("idle");
-      window.location.href = auth_url;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Unable to start the OAuth2 login.";
-      setError(message);
-      setStatus("error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      setIsLoading(true);
+      setError(null);
+      setStatus("loading");
+
+      try {
+        const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+          token: session.token,
+          mode,
+        });
+        setStatus("idle");
+        window.location.href = auth_url;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unable to start the OAuth2 login.";
+        setError(message);
+        setStatus("error");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [session.token],
+  );
 
   const login = useCallback(async (payload: LoginPayload) => {
     setIsLoading(true);
