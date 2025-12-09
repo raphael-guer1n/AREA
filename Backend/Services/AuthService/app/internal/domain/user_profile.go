@@ -20,4 +20,5 @@ type UserProfile struct {
 
 type UserProfileRepository interface {
 	Create(userId int, service, providerUserId, accessToken, refreshToken string, expiresAt time.Time, rawProfile json.RawMessage) (UserProfile, error)
+	GetServicesByUserId(userId int) ([]string, error)
 }

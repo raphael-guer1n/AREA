@@ -60,3 +60,25 @@ func (r *userProfileRepository) Create(
 	)
 	return u, err
 }
+
+func (r *userProfileRepository) GetServicesByUserId(userId int) ([]string, error) {
+	rows, err := r.db.Query(
+		`SELECT DISTINCT service FROM user_service_profiles WHERE user_id = $1`,
+		userId,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []string
+	for rows.Next() {
+		var service string
+		if err := rows.Scan(&service); err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
