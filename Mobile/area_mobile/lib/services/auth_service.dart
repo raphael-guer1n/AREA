@@ -11,17 +11,16 @@ class AuthService {
   final AppLinks _appLinks = AppLinks();
   final _storage = const FlutterSecureStorage();
 
+  // Redirect URI for this mobile client (matches AndroidManifest.xml)
+  static const String redirectUri = 'com.example.area_mobile:/oauth2redirect';
+
   Future<void> _saveToken(String token) async {
     await _storage.write(key: 'jwt_token', value: token);
   }
 
-  Future<String?> getToken() async {
-    return await _storage.read(key: 'jwt_token');
-  }
+  Future<String?> getToken() async => _storage.read(key: 'jwt_token');
 
-  Future<void> clearToken() async {
-    await _storage.delete(key: 'jwt_token');
-  }
+  Future<void> clearToken() async => _storage.delete(key: 'jwt_token');
 
   Future<Map<String, dynamic>> loginWithEmail(
       String email, String password) async {
@@ -59,11 +58,10 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> register({
-    required String name,
-    required String email,
-    required String password,
-  }) async {
+  Future<Map<String, dynamic>> register(
+      {required String name,
+      required String email,
+      required String password}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
@@ -77,7 +75,6 @@ class AuthService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = jsonDecode(response.body);
-
         if (body['success'] == true && body['data'] != null) {
           final token = body['data']['token'];
           final user = body['data']['user'];
@@ -88,7 +85,6 @@ class AuthService {
           await _saveToken(token);
           return {'token': token, 'user': body['user']};
         }
-
         throw Exception('Format de réponse invalide');
       } else {
         final body = jsonDecode(response.body);
@@ -100,22 +96,28 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> _handleOAuthFlow(String provider) async {
-    final res = await http.get(
-      Uri.parse('$baseUrl/auth/oauth2/authorize?provider=$provider'),
-    );
+  // Generic OAuth2 handler for all providers
+  Future<Map<String, dynamic>> _handleOAuthFlow(
+    String provider, {
+    required int userId,
+  }) async {
+    print('🔍 Calling backend: $baseUrl/oauth2/authorize?provider=$provider&user_id=$userId');
+    final res = await http.get(Uri.parse(
+        '$baseUrl/oauth2/authorize?provider=$provider&user_id=$userId'
+        '&callback_url=${Uri.encodeComponent(redirectUri)}&platform=android'));
 
     if (res.statusCode != 200) {
-      throw Exception('Impossible d\'obtenir l\'URL d\'authentification');
+      final body = res.body.isNotEmpty ? res.body : 'Empty response';
+      throw Exception(
+          'Impossible d\'obtenir l\'URL d\'authentification ($body)');
     }
 
     final data = jsonDecode(res.body);
-
     String? authUrl;
     if (data['success'] == true && data['data'] != null) {
       authUrl = data['data']['auth_url'];
     } else {
-      authUrl = data['auth_url'];
+      authUrl = data['auth_url'] ?? data['url'];
     }
 
     if (authUrl == null) {
@@ -124,40 +126,41 @@ class AuthService {
 
     final completer = Completer<Uri>();
     final sub = _appLinks.uriLinkStream.listen((uri) {
-      if (uri.scheme == 'area' && uri.host == 'auth') {
+      if (uri.scheme == 'com.example.area_mobile' &&
+          uri.host == 'oauth2redirect') {
         completer.complete(uri);
       }
     });
 
     try {
-      if (!await launchUrl(
-        Uri.parse(authUrl),
-        mode: LaunchMode.externalApplication,
-      )) {
+      if (!await launchUrl(Uri.parse(authUrl),
+          mode: LaunchMode.externalApplication)) {
         throw Exception('Impossible d\'ouvrir le navigateur');
       }
 
+      // Wait for redirect to com.example.area_mobile:/oauth2redirect
       final redirected =
           await completer.future.timeout(const Duration(minutes: 5));
+
       final code = redirected.queryParameters['code'];
       final state = redirected.queryParameters['state'];
+      if (code == null) throw Exception('Code d\'autorisation manquant');
 
-      if (code == null) {
-        throw Exception('Code d\'autorisation manquant');
-      }
-
+      // Call backend callback route
       final response = await http.get(
         Uri.parse(
-            '$baseUrl/auth/oauth2/callback?code=$code&state=${state ?? ""}'),
+          '$baseUrl/oauth2/callback?code=$code&state=${state ?? ""}'
+          '&redirect_uri=${Uri.encodeComponent(redirectUri)}',
+        ),
         headers: {'Content-Type': 'application/json'},
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Échec de l\'authentification');
+        throw Exception(
+            'Échec de l\'authentification (${response.statusCode})');
       }
 
       final body = jsonDecode(response.body);
-
       String? token;
       Map<String, dynamic>? user;
 
@@ -169,9 +172,7 @@ class AuthService {
         user = body['user_info'] ?? body['user'];
       }
 
-      if (token == null) {
-        throw Exception('Token non trouvé');
-      }
+      if (token == null) throw Exception('Token non trouvé');
 
       await _saveToken(token);
       return {'token': token, 'user': user};
@@ -180,13 +181,14 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> loginWithGoogle() =>
-      _handleOAuthFlow('google');
-  Future<Map<String, dynamic>> loginWithApple() => _handleOAuthFlow('apple');
-  Future<Map<String, dynamic>> loginWithFacebook() =>
-      _handleOAuthFlow('facebook');
+  Future<Map<String, dynamic>> loginWithGoogle({required int userId}) =>
+      _handleOAuthFlow('google', userId: userId);
 
-  Future<void> logout() async {
-    await clearToken();
-  }
+  Future<Map<String, dynamic>> loginWithApple({required int userId}) =>
+      _handleOAuthFlow('apple', userId: userId);
+
+  Future<Map<String, dynamic>> loginWithFacebook({required int userId}) =>
+      _handleOAuthFlow('facebook', userId: userId);
+
+  Future<void> logout() async => clearToken();
 }
