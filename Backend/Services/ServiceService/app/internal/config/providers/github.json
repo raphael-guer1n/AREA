@@ -1,0 +1,43 @@
+{
+    "name": "github",
+    "oauth2": {
+        "client_id": "GITHUB_CLIENT_ID",
+        "client_secret": "GITHUB_CLIENT_SECRET",
+        "auth_url": "https://github.com/login/oauth/authorize",
+        "token_url": "https://github.com/login/oauth/access_token",
+        "redirect_uri": "http://localhost:8083/oauth2/callback",
+        "scopes": [
+            "read:user",
+            "user:email"
+        ],
+        "user_info_url": "https://api.github.com/user",
+        "user_emails_url": "https://api.github.com/user/emails"
+    },
+    "mappings": [
+        {
+            "field_key": "provider_user_id",
+            "json_path": "id",
+            "type": "number"
+        },
+        {
+            "field_key": "username",
+            "json_path": "login",
+            "type": "string"
+        },
+        {
+            "field_key": "display_name",
+            "json_path": "name",
+            "type": "string"
+        },
+        {
+            "field_key": "avatar_url",
+            "json_path": "avatar_url",
+            "type": "string"
+        },
+        {
+            "field_key": "email",
+            "json_path": "email",
+            "type": "string"
+        }
+    ]
+}
