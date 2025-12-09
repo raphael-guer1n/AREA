@@ -267,6 +267,8 @@ paths:
       operationId: getOAuth2AuthURL
       tags:
         - OAuth2
+      security:
+        - bearerAuth: []
       parameters:
         - name: provider
           in: query
@@ -275,13 +277,6 @@ paths:
           schema:
             type: string
             example: google
-        - name: user_id
-          in: query
-          required: true
-          description: ID of the user to link the OAuth2 account to
-          schema:
-            type: integer
-            example: 1
         - name: callback_url
           in: query
           required: false
