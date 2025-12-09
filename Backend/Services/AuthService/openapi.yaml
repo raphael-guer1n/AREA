@@ -411,6 +411,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /oauth2/services/{userId}:
+    get:
+      summary: Get user's service login status
+      description: Returns all available OAuth2 providers with their login status for the specified user. Shows which services the user has authenticated with.
+      operationId: getUserServices
+      tags:
+        - OAuth2
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: The user ID to check service status for
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Successfully retrieved service status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      providers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            provider:
+                              type: string
+                              example: google
+                              description: The OAuth2 provider name
+                            is_logged:
+                              type: boolean
+                              example: true
+                              description: Whether the user has authenticated with this provider
+                        example:
+                          - provider: google
+                            is_logged: true
+                          - provider: discord
+                            is_logged: false
+        '400':
+          description: Bad request - Invalid user_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:

@@ -311,3 +311,51 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		},
 	})
 }
+
+// GET /oauth2/services/{userId}
+func (h *OAuth2Handler) handleGetUserServices(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	// Extract userId from path
+	path := req.URL.Path
+	userIDStr := path[len("/oauth2/services/"):]
+	if userIDStr == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id is required",
+		})
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid user_id",
+		})
+		return
+	}
+
+	providers, err := h.oauth2StorageSvc.GetUserServicesStatus(userID)
+	if err != nil {
+		fmt.Printf("Error getting user services status: %v\n", err)
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"providers": providers,
+		},
+	})
+}
