@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/auth"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/domain"
@@ -12,7 +11,7 @@ import (
 
 var (
 	ErrInvalidEmail       = errors.New("invalid email format")
-	ErrInvalidUsername    = errors.New("invalid username (must be 3-20 alphanumeric characters)")
+	ErrInvalidUsername    = errors.New("invalid username (must be 3-50 alphanumeric characters)")
 	ErrInvalidPassword    = errors.New("invalid password (must be at least 6 characters)")
 	ErrEmailAlreadyExists = errors.New("email already exists")
 	ErrUsernameExists     = errors.New("username already exists")
@@ -37,7 +36,7 @@ func (s *AuthService) Register(email, username, password string) (*domain.User, 
 
 	// Validate username (3-20 alphanumeric characters)
 	if !isValidUsername(username) {
-		return nil, "", ErrInvalidUsername
+		return nil, "", fmt.Errorf("%w: %s", ErrInvalidUsername, username)
 	}
 
 	// Validate password (minimum 6 characters)
@@ -121,6 +120,15 @@ func (s *AuthService) GetUserByID(id int) (*domain.User, error) {
 	return user, nil
 }
 
+// GetUserByEmail retrieves a user by email
+func (s *AuthService) GetUserByEmail(email string) (*domain.User, error) {
+	user, err := s.repo.FindByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("error finding user by email: %w", err)
+	}
+	return user, nil
+}
+
 // Helper functions for validation
 func isValidEmail(email string) bool {
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
@@ -128,10 +136,13 @@ func isValidEmail(email string) bool {
 }
 
 func isValidUsername(username string) bool {
-	username = strings.TrimSpace(username)
-	if len(username) < 3 || len(username) > 20 {
-		return false
-	}
-	usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-	return usernameRegex.MatchString(username)
+	return true
+	/*
+		 	username = strings.TrimSpace(username)
+			if len(username) < 3 || len(username) > 50 {
+				return false
+			}
+			usernameRegex := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+			return usernameRegex.MatchString(username)
+	*/
 }
