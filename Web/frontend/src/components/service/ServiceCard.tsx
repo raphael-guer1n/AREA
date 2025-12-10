@@ -218,15 +218,17 @@ function ServiceDetailsModal({
               {category ? <p className="text-sm text-[var(--muted)]">Catégorie : {category}</p> : null}
               <ServiceStatus connected={connected} tone="light" />
             </div>
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--blue-primary-2)] underline-offset-4 transition hover:text-[var(--blue-primary-3)] hover:underline"
-            >
-              Ouvrir le site
-              <ExternalLinkIcon />
-            </a>
+            {url ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--blue-primary-2)] underline-offset-4 transition hover:text-[var(--blue-primary-3)] hover:underline"
+              >
+                Ouvrir le site
+                <ExternalLinkIcon />
+              </a>
+            ) : null}
           </div>
           <button
             type="button"

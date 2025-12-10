@@ -1,24 +1,76 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchAvailableProviders, fetchUserProviders } from "@/lib/api/services";
 import { normalizeSearchValue } from "@/lib/helpers";
-import { mockServices, type MockService } from "./mockServices";
 
-function matchesSearch(service: MockService, term: string) {
+type Service = {
+  id: string;
+  name: string;
+  url?: string;
+  badge?: string;
+  category?: string;
+  gradient?: { from: string; to: string };
+  actions?: string[];
+  reactions?: string[];
+  connected: boolean;
+};
+
+const gradients: Array<{ from: string; to: string }> = [
+  { from: "#002642", to: "#0b3c5d" },
+  { from: "#840032", to: "#a33a60" },
+  { from: "#e59500", to: "#f2b344" },
+  { from: "#5B834D", to: "#68915a" },
+  { from: "#02040f", to: "#1b2640" },
+];
+
+function formatProviderName(provider: string) {
+  return provider
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function createService(provider: string, connected: boolean, index: number): Service {
+  const gradient = gradients[index % gradients.length];
+  const label = formatProviderName(provider) || provider;
+
+  return {
+    id: provider,
+    name: label,
+    badge: label.slice(0, 2).toUpperCase(),
+    gradient,
+    actions: [],
+    reactions: [],
+    connected,
+  };
+}
+
+function matchesSearch(service: Service, term: string) {
   const normalizedTerm = normalizeSearchValue(term);
   if (!normalizedTerm) return true;
   const haystack = normalizeSearchValue(
-    [service.name, service.category ?? "", ...service.actions, ...service.reactions].join(" "),
+    [
+      service.name,
+      service.category ?? "",
+      ...(service.actions ?? []),
+      ...(service.reactions ?? []),
+    ].join(" "),
   );
   return haystack.includes(normalizedTerm);
 }
 
 export function ServicesClient() {
-  const [services, setServices] = useState(mockServices);
+  const { user } = useAuth();
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearch, setModalSearch] = useState("");
@@ -38,6 +90,52 @@ export function ServicesClient() {
 
   const openConnectModal = () => setIsConnectModalOpen(true);
   const closeConnectModal = () => setIsConnectModalOpen(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadServices() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        let nextServices: Service[] = [];
+
+        if (user?.id) {
+          const providers = await fetchUserProviders(user.id);
+          nextServices = providers.map((provider, index) =>
+            createService(provider.provider, provider.is_logged, index),
+          );
+        } else {
+          const providers = await fetchAvailableProviders();
+          nextServices = providers.map((provider, index) => createService(provider, false, index));
+        }
+
+        if (isMounted) {
+          setServices(nextServices);
+        }
+      } catch (err) {
+        if (isMounted) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger la liste des services pour le moment.";
+          setError(message);
+          setServices([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadServices();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
@@ -112,27 +210,38 @@ export function ServicesClient() {
                 </div>
 
                 <div className="rounded-2xl border-2 border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-6">
-                  {connectableServices.length ? (
+                  {isLoading ? (
+                    <div className="flex min-h-[220px] items-center justify-center text-sm text-[var(--muted)]">
+                      Chargement des services disponibles...
+                    </div>
+                  ) : connectableServices.length ? (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {connectableServices.map((service) => (
                         <ServiceCard
                           key={service.id}
                           name={service.name}
-                          url={service.url}
-                          badge={service.badge}
+                          url={service.url ?? ""}
+                          badge={service.badge ?? service.name.slice(0, 2).toUpperCase()}
                           category={service.category}
-                          gradientFrom={service.gradient.from}
-                          gradientTo={service.gradient.to}
-                      actions={service.actions}
-                      reactions={service.reactions}
-                      connected={service.connected}
-                      action="À connecter"
-                      onConnect={() => updateConnection(service.id, true)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                          gradientFrom={service.gradient?.from}
+                          gradientTo={service.gradient?.to}
+                          actions={service.actions ?? []}
+                          reactions={service.reactions ?? []}
+                          connected={service.connected}
+                          action="À connecter"
+                          onConnect={() => updateConnection(service.id, true)}
+                        />
+                      ))}
+                    </div>
+                  ) : error ? (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                      <p className="text-base font-semibold text-[var(--foreground)]">
+                        Impossible de charger les services
+                      </p>
+                      <p className="text-sm text-[var(--muted)]">{error}</p>
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
                       <p className="text-base font-semibold text-[var(--foreground)]">
                         Aucun service à connecter trouvé
                       </p>
@@ -222,19 +331,28 @@ export function ServicesClient() {
             }
             className="relative w-full overflow-hidden rounded-[26px] border-[var(--surface-border)] bg-[var(--background)] ring-1 ring-[rgba(28,61,99,0.15)]"
           >
-            {filteredConnected.length ? (
+            {error ? (
+              <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+            {isLoading ? (
+              <div className="flex min-h-[200px] items-center justify-center text-sm text-[var(--muted)]">
+                Chargement de vos services...
+              </div>
+            ) : filteredConnected.length ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredConnected.map((service) => (
                   <ServiceCard
                     key={service.id}
                     name={service.name}
-                    url={service.url}
-                    badge={service.badge}
+                    url={service.url ?? ""}
+                    badge={service.badge ?? service.name.slice(0, 2).toUpperCase()}
                     category={service.category}
-                    gradientFrom={service.gradient.from}
-                    gradientTo={service.gradient.to}
-                    actions={service.actions}
-                    reactions={service.reactions}
+                    gradientFrom={service.gradient?.from}
+                    gradientTo={service.gradient?.to}
+                    actions={service.actions ?? []}
+                    reactions={service.reactions ?? []}
                     connected={service.connected}
                     action="Connecté"
                     onDisconnect={() => updateConnection(service.id, false)}
