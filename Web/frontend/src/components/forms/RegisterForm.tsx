@@ -35,13 +35,15 @@ type SocialProvider = {
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { register, startOAuthLogin, isLoading } = useAuth();
+  const { register, startOAuthLogin, isLoading, error } = useAuth();
   const [payload, setPayload] = useState<RegisterPayload>({
     name: "",
     email: "",
     password: "",
   });
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [buttonState, setButtonState] = useState<ButtonState>("idle");
 
   const socialProviders: SocialProvider[] = [
@@ -62,12 +64,16 @@ export default function RegisterForm() {
   };
 
   const resetFeedback = () => {
+    setStatus(null);
+    setLocalError(null);
     setButtonState("idle");
   };
 
   const validateRegisterPayload = () => {
     const result = registerSchema.safeParse({ ...payload, confirmPassword });
     if (!result.success) {
+      const firstIssue = result.error.issues[0];
+      setLocalError(firstIssue?.message ?? "Invalid registration details.");
       setButtonState("error");
       return null;
     }
@@ -76,6 +82,8 @@ export default function RegisterForm() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setStatus(null);
+    setLocalError(null);
     setButtonState("idle");
 
     const validated = validateRegisterPayload();
@@ -87,8 +95,9 @@ export default function RegisterForm() {
       password: validated.password,
     });
     if (user) {
+      setStatus("Account created. You can log in.");
       setButtonState("success");
-      router.push("/area");
+      router.push("/login");
       return;
     }
 
@@ -228,6 +237,11 @@ export default function RegisterForm() {
           >
             {isLoading ? "Creating..." : "Create my account"}
           </button>
+          <div className="space-y-1 text-sm">
+            {localError ? <p className="text-red-500">{localError}</p> : null}
+            {error ? <p className="text-red-500">{error}</p> : null}
+            {status ? <p className="text-emerald-600">{status}</p> : null}
+          </div>
         </form>
 
         <div className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
