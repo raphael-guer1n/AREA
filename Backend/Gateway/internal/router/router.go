@@ -44,7 +44,7 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 	routes := rt.registry.ListAllRoutes()
 
 	for _, route := range routes {
-		proxy := NewReverseProxy(route.BaseURL)
+		proxy := NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
 
 		var handler http.Handler = proxy
 
@@ -71,7 +71,8 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 			handler.ServeHTTP(w, r)
 		})
 
-		rt.mux.Handle(route.Path, finalHandler)
+		namespacedPath := "/" + route.ServiceName + route.Path
+		rt.mux.Handle(namespacedPath, finalHandler)
 	}
 
 	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
