@@ -14,7 +14,7 @@ import (
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
 )
 
-func NewReverseProxy(baseURL string) http.Handler {
+func NewReverseProxy(baseURL string, stripPrefix string) http.Handler {
 	target, err := url.Parse(baseURL)
 	if err != nil {
 		panic("invalid service base URL: " + baseURL)
@@ -52,6 +52,19 @@ func NewReverseProxy(baseURL string) http.Handler {
 		incomingPath := req.URL.Path
 		if !strings.HasPrefix(incomingPath, "/") {
 			incomingPath = "/" + incomingPath
+		}
+		if stripPrefix != "" {
+			sp := stripPrefix
+			if !strings.HasPrefix(sp, "/") {
+				sp = "/" + sp
+			}
+			sp = strings.TrimSuffix(sp, "/")
+			if strings.HasPrefix(incomingPath, sp) {
+				incomingPath = strings.TrimPrefix(incomingPath, sp)
+				if incomingPath == "" {
+					incomingPath = "/"
+				}
+			}
 		}
 		req.URL.Path = basePath + incomingPath
 	}
