@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Authentication Service API
   description: Authentication microservice for AREA project with user registration, login, and profile management
@@ -393,8 +393,78 @@ paths:
                         enum: [web, android, ios]
                         example: web
                         description: Platform type provided during authorization
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                        description: JWT token returned when using /loginwith (create/connect user)
         '400':
           description: Bad request - Missing parameters or invalid state/code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable - OAuth2 not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /loginwith:
+    get:
+      summary: Start OAuth2 login-with flow
+      description: Generates an OAuth2 authorization URL for the specified provider to create or connect a user account upon callback. Unlike `/oauth2/authorize`, this does not require an existing authenticated user and will return a JWT token at callback when user is created or found.
+      operationId: loginWithAuthURL
+      tags:
+        - OAuth2
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          description: The OAuth2 provider name (e.g., google, github)
+          schema:
+            type: string
+            example: google
+        - name: callback_url
+          in: query
+          required: false
+          description: Custom callback URL to redirect to after OAuth2 completion (optional)
+          schema:
+            type: string
+            example: "https://myapp.com/oauth/callback"
+        - name: platform
+          in: query
+          required: false
+          description: Platform type - web, android, or ios (defaults to "web")
+          schema:
+            type: string
+            enum: [web, android, ios]
+            default: web
+            example: web
+      responses:
+        '200':
+          description: Successfully generated authorization URL for login-with
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      auth_url:
+                        type: string
+                        example: "https://accounts.google.com/o/oauth2/v2/auth?client_id=...&state=..."
+                        description: The authorization URL to redirect the user to
+                      provider:
+                        type: string
+                        example: google
+                        description: The provider name
+        '400':
+          description: Bad request - Missing or invalid provider parameter
           content:
             application/json:
               schema:
