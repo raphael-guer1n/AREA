@@ -10,7 +10,7 @@ type CallbackState =
   | { status: "idle" | "processing" | "success"; error?: undefined }
   | { status: "error"; error: string };
 
-export function useOAuthCallback(redirectTo = "/dashboard") {
+export function useOAuthCallback(redirectTo = "/area") {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get("code");
@@ -54,12 +54,16 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
       setCallbackState({ status: "processing" });
 
       try {
-        const { access_token } = await exchangeOAuthCallback({
+        const { token } = await exchangeOAuthCallback({
           code,
           state: stateParam,
         });
 
-        await persistSessionToken(access_token);
+        if (!token) {
+          throw new Error("OAuth2 callback did not return a session token.");
+        }
+
+        await persistSessionToken(token);
         setCallbackState({ status: "success" });
         router.replace(redirectTo);
       } catch (err) {

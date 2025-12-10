@@ -5,10 +5,17 @@ import type {
   OAuthCallbackResponse,
 } from "@/types/auth";
 
+// Gateway (public) base URL for standard auth flows.
 export const BACKEND_BASE_URL =
   process.env.API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:8080";
+
+// Direct AuthService base URL for OAuth/provider operations (bypass gateway if needed).
+export const AUTH_SERVICE_BASE_URL =
+  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL ??
+  process.env.AUTH_SERVICE_URL ??
+  "http://localhost:8083";
 
 export type BackendUser = {
   id: number | string;
@@ -139,17 +146,30 @@ export async function logoutRequest(): Promise<void> {
   return Promise.resolve();
 }
 
+type OAuthAuthorizeMode = "login" | "link";
+
 export async function fetchOAuthAuthorizeUrl(
   provider: string,
+  options: {
+    token?: string | null;
+    mode?: OAuthAuthorizeMode;
+    callbackUrl?: string;
+    platform?: string;
+  } = {},
 ): Promise<OAuthAuthorizeResponse> {
-  const response = await fetch(
-    `${BACKEND_BASE_URL}/auth/oauth2/authorize?provider=${encodeURIComponent(provider)}`,
-    {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    },
-  );
+  const { mode = "login", callbackUrl, platform } = options;
+
+  const searchParams = new URLSearchParams({ provider, mode });
+  if (callbackUrl) searchParams.set("callback_url", callbackUrl);
+  if (platform) searchParams.set("platform", platform);
+
+  const response = await fetch(`/api/oauth/authorize?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+    headers: options.token
+      ? { Authorization: `Bearer ${options.token}` }
+      : undefined,
+  });
 
   const body = (await response.json().catch(() => null)) as
     | {
@@ -159,10 +179,8 @@ export async function fetchOAuthAuthorizeUrl(
       }
     | null;
 
-  if (!body?.success || !body.data?.auth_url) {
-    throw new Error(
-      body?.error ?? "Unable to retrieve the OAuth2 authorization URL.",
-    );
+  if (!response.ok || !body?.success || !body.data?.auth_url) {
+    throw new Error(body?.error ?? "Unable to retrieve the OAuth2 authorization URL.");
   }
 
   return {
@@ -204,5 +222,7 @@ export async function exchangeOAuthCallback(
     access_token: body.data.access_token,
     token_type: body.data.token_type ?? "Bearer",
     expires_in: body.data.expires_in ?? 0,
+    token: body.data.token,
+    user: body.data.user,
   };
 }

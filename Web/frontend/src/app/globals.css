@@ -19,6 +19,7 @@
   --surface: var(--bg-secondary);
   --surface-border: var(--border-surface);
   --accent: var(--blue-primary-2);
+  --on-accent: #ffffff;
 }
 
 :root[data-vision="tritanopia"] {
@@ -40,6 +41,7 @@
   --surface: var(--bg-secondary);
   --surface-border: var(--border-surface);
   --accent: var(--blue-primary-2);
+  --on-accent: #ffffff;
 }
 
 @theme inline {
@@ -69,6 +71,7 @@
     --surface: var(--bg-secondary);
     --surface-border: var(--border-surface);
     --accent: var(--blue-primary-2);
+    --on-accent: #ffffff;
   }
 
   :root[data-vision="tritanopia"] {
@@ -90,6 +93,7 @@
     --surface: var(--bg-secondary);
     --surface-border: var(--border-surface);
     --accent: var(--blue-primary-2);
+    --on-accent: #ffffff;
   }
 }
 
