@@ -35,6 +35,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/oauth2/store", r.oauth2Handler.HandleStoreOAuth2)
 	r.mux.HandleFunc("/oauth2/providers/", r.oauth2Handler.handleGetUserServices)
 	r.mux.HandleFunc("/oauth2/provider/token/", r.oauth2Handler.handleGetProviderTokenByServiceByUserId)
+	r.mux.HandleFunc("/loginwith", r.oauth2Handler.handleLoginWithAuthorize)
 
 }
 
