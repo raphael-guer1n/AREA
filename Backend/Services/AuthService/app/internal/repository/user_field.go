@@ -32,7 +32,7 @@ func (r *userServiceFieldRepository) CreateBatch(fields []domain.UserServiceFiel
 		)
 
 		var jsonArg interface{}
-		if field.JsonValue != nil && len(field.JsonValue) > 0 {
+		if len(field.JsonValue) > 0 {
 			jsonArg = string(field.JsonValue) // valid JSON text
 		} else {
 			jsonArg = nil // will be NULL in DB
@@ -60,6 +60,13 @@ func (r *userServiceFieldRepository) CreateBatch(fields []domain.UserServiceFiel
 			value_json
 		)
 		VALUES %s
+		ON CONFLICT (profile_id, field_key)
+		DO UPDATE SET
+			value_string = EXCLUDED.value_string,
+			value_number = EXCLUDED.value_number,
+			value_boolean = EXCLUDED.value_boolean,
+			value_json = EXCLUDED.value_json,
+			updated_at = NOW()
 	`, strings.Join(valueStrings, ","))
 
 	_, err := r.db.Exec(query, valueArgs...)
