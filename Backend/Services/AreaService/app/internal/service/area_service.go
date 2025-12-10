@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/raphael-guer1n/AREA/AreaService/internal/domain"
@@ -42,7 +41,6 @@ func (s *AreaService) CreateCalendarEvent(authToken string, event domain.Event) 
 
 	req.Header.Set("Authorization", "Bearer "+authToken)
 	req.Header.Set("Content-Type", "application/json")
-	log.Println(req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return domain.Event{}, fmt.Errorf("failed to call Google Calendar API: %w", err)

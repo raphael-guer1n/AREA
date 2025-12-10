@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/raphael-guer1n/AREA/AreaService/internal/domain"
 	"github.com/raphael-guer1n/AREA/AreaService/internal/service"
@@ -56,6 +57,24 @@ func (h *AreaHandler) HandleCreateEventArea(w http.ResponseWriter, req *http.Req
 		})
 		return
 	}
+
+	if body.Delay > 0 {
+		time.AfterFunc(time.Duration(body.Delay)*time.Second, func() {
+			event, err := h.authSvc.CreateCalendarEvent(token, body.Event)
+			if err != nil {
+				log.Printf("Error creating delayed calendar event: %v", err)
+				return
+			}
+			log.Printf("Delayed calendar event created successfully: %s", event.Summary)
+		})
+
+		respondJSON(w, http.StatusAccepted, map[string]any{
+			"success": true,
+			"message": fmt.Sprintf("Event will be created in %d seconds", body.Delay),
+		})
+		return
+	}
+
 	event, err := h.authSvc.CreateCalendarEvent(token, body.Event)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -98,7 +117,6 @@ func getUserServiceToken(r *http.Request, userId int, service string) (string, e
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return "", err
 	}
-	log.Default().Printf("Got token for user %d from service %s: %s", userId, service, body.Data.Token)
 	return body.Data.Token, nil
 }
 

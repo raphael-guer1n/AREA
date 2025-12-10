@@ -58,7 +58,7 @@ paths:
               $ref: '#/components/schemas/CreateEventRequest'
       responses:
         '200':
-          description: Event created successfully
+          description: Event created successfully (immediate execution)
           content:
             application/json:
               schema:
@@ -72,6 +72,19 @@ paths:
                     properties:
                       event:
                         $ref: '#/components/schemas/Event'
+        '202':
+          description: Event scheduled for creation (delayed execution)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Event will be created in 300 seconds'
         '400':
           description: Bad request - Invalid input
           content:
