@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { fetchOAuthAuthorizeUrl, loginRequest, logoutRequest, registerRequest } from "@/lib/api/auth";
 import { clearSession, fetchSessionStatus, persistSessionToken } from "@/lib/api/session";
@@ -20,26 +12,7 @@ type UseAuthOptions = {
   initialSession?: AuthSession | null;
 };
 
-type AuthContextValue = {
-  user: User | null;
-  session: AuthSession;
-  token: string | null;
-  status: AuthStatus;
-  isLoading: boolean;
-  error: string | null;
-  startOAuthLogin: (
-    provider: string,
-    options?: { mode?: "login" | "link"; callbackUrl?: string; platform?: string },
-  ) => Promise<void>;
-  refreshSession: () => Promise<boolean>;
-  login: (payload: LoginPayload) => Promise<User | null>;
-  register: (payload: RegisterPayload) => Promise<User | null>;
-  logout: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
+export function useAuth(options: UseAuthOptions = {}) {
   const { initialUser = null, initialSession = null } = options;
 
   const [user, setUser] = useState<User | null>(initialUser);
@@ -102,51 +75,26 @@ function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
     void refreshSession();
   }, [initialSession?.token, refreshSession]);
 
-  const startOAuthLogin = useCallback(
-    async (
-      provider: string,
-      options: { mode?: "login" | "link"; callbackUrl?: string; platform?: string } = {},
-    ) => {
-      const { mode = "login", callbackUrl, platform } = options;
+  const startOAuthLogin = useCallback(async (provider: string) => {
+    setIsLoading(true);
+    setError(null);
+    setStatus("loading");
 
-      const resolvedCallbackUrl =
-        callbackUrl ??
-        (mode === "login" && typeof window !== "undefined"
-          ? `${window.location.origin}/area`
-          : undefined);
-
-      if (mode === "link" && !session.token) {
-        setError("You must be connected before linking an external service.");
-        setStatus("error");
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-      setStatus("loading");
-
-      try {
-        const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
-          token: session.token,
-          mode,
-          platform,
-          callbackUrl: resolvedCallbackUrl,
-        });
-        setStatus("idle");
-        window.location.href = auth_url;
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Unable to start the OAuth2 login.";
-        setError(message);
-        setStatus("error");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [session.token],
-  );
+    try {
+      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
+      setStatus("idle");
+      window.location.href = auth_url;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to start the OAuth2 login.";
+      setError(message);
+      setStatus("error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const login = useCallback(async (payload: LoginPayload) => {
     setIsLoading(true);
@@ -170,7 +118,7 @@ function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
     } finally {
       setIsLoading(false);
     }
-  }, [persistSession]);
+  }, []);
 
   const register = useCallback(async (payload: RegisterPayload) => {
     setIsLoading(true);
@@ -194,7 +142,7 @@ function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
     } finally {
       setIsLoading(false);
     }
-  }, [persistSession]);
+  }, []);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -218,51 +166,17 @@ function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
     }
   }, []);
 
-  return useMemo(
-    () => ({
-      user,
-      session,
-      token: session.token,
-      status,
-      isLoading,
-      error,
-      startOAuthLogin,
-      refreshSession,
-      login,
-      register,
-      logout,
-    }),
-    [
-      error,
-      isLoading,
-      login,
-      logout,
-      refreshSession,
-      register,
-      session,
-      startOAuthLogin,
-      status,
-      user,
-    ],
-  );
-}
-
-type AuthProviderProps = UseAuthOptions & {
-  children: ReactNode;
-};
-
-export function AuthProvider({ children, ...options }: AuthProviderProps) {
-  const auth = useAuthState(options);
-
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider.");
-  }
-
-  return context;
+  return {
+    user,
+    session,
+    token: session.token,
+    status,
+    isLoading,
+    error,
+    startOAuthLogin,
+    refreshSession,
+    login,
+    register,
+    logout,
+  };
 }

@@ -7,7 +7,7 @@ import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 export const dynamic = "force-dynamic";
 
 export default function AuthCallbackPage() {
-  const { status, error } = useOAuthCallback("/area");
+  const { status, error } = useOAuthCallback("/dashboard");
   const isProcessing = status === "idle" || status === "processing" || status === "success";
 
   if (status === "error") {

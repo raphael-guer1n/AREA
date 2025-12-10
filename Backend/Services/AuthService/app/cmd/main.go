@@ -30,7 +30,7 @@ func main() {
 	log.Printf("OAuth2 manager initialized (providers will be loaded on-demand from service-service)")
 
 	// Build handlers
-	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager, authSvc)
+	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager)
 	authHandler := httphandler.NewAuthHandler(authSvc)
 
 	// Build router
