@@ -9,7 +9,9 @@
     "scopes": [
       "openid",
       "email",
-      "profile"
+      "profile",
+      "https://mail.google.com/",
+      "https://www.googleapis.com/auth/calendar"
     ],
     "user_info_url": "https://www.googleapis.com/oauth2/v2/userinfo"
   },
