@@ -272,3 +272,7 @@ func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]i
 
 	return result, nil
 }
+
+func (s *OAuth2StorageService) GetProviderTokenByServiceByUser(userId int, serviceName string) (string, error) {
+	return s.profileRepo.GetProviderUserTokenByServiceByUserId(userId, serviceName)
+}

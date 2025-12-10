@@ -359,3 +359,43 @@ func (h *OAuth2Handler) handleGetUserServices(w http.ResponseWriter, req *http.R
 		},
 	})
 }
+
+func (h *OAuth2Handler) handleGetProviderTokenByServiceByUserId(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	userIdStr := req.URL.Query().Get("user_id")
+	serviceName := req.URL.Query().Get("service")
+	if userIdStr == "" || serviceName == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id and service query parameters are required",
+		})
+		return
+	}
+	userId, err := strconv.Atoi(userIdStr)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid user_id",
+		})
+		return
+	}
+	providerToken, err := h.oauth2StorageSvc.GetProviderTokenByServiceByUser(userId, serviceName)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+	}
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"providerToken": providerToken,
+		},
+	})
+}
