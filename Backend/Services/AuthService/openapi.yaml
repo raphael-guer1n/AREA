@@ -466,6 +466,59 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /oauth2/provider/id:
+    get:
+      summary: Get provider ID by service and user ID
+      description: Returns the provider ID for a specific service and user
+      operationId: getProviderIdByServiceByUserId
+      tags:
+        - OAuth2
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: The user ID
+          schema:
+            type: integer
+            example: 1
+        - name: service
+          in: query
+          required: true
+          description: The OAuth2 service name (e.g., google, github, discord)
+          schema:
+            type: string
+            example: google
+      responses:
+        '200':
+          description: Successfully retrieved provider ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      providerId:
+                        type: string
+                        example: "123456789"
+                        description: The provider-specific user ID
+        '400':
+          description: Bad request - Missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     bearerAuth:

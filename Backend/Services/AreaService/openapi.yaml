@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: AREA Service API
+  description: AREA microservice for managing actions and reactions with calendar event creation
+  version: 1.0.0
+  contact:
+    name: AREA Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8085
+    description: Local development server
+  - url: http://api:8085
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the microservice
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: healthy
+
+  /createEvent:
+    post:
+      summary: Create a calendar event with delay
+      description: Creates a Google Calendar event after a specified delay. Requires the user to be linked to Google.
+      operationId: createEventArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventRequest'
+      responses:
+        '200':
+          description: Event created successfully (immediate execution)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      event:
+                        $ref: '#/components/schemas/Event'
+        '202':
+          description: Event scheduled for creation (delayed execution)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Event will be created in 300 seconds'
+        '400':
+          description: Bad request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Event:
+      type: object
+      properties:
+        startTime:
+          type: string
+          format: date-time
+          example: '2025-12-10T14:00:00Z'
+        endTime:
+          type: string
+          format: date-time
+          example: '2025-12-10T15:00:00Z'
+        summary:
+          type: string
+          example: 'Team Meeting'
+        description:
+          type: string
+          example: 'Weekly team sync meeting'
+      required:
+        - startTime
+        - endTime
+        - summary
+        - description
+
+    CreateEventRequest:
+      type: object
+      properties:
+        delay:
+          type: integer
+          description: Delay in seconds before creating the event
+          example: 300
+        event:
+          $ref: '#/components/schemas/Event'
+      required:
+        - delay
+        - event
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: An error occurred
+      required:
+        - success
+        - error
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: AREA
+    description: Action-Reaction endpoints for calendar event management

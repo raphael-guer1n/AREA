@@ -12,6 +12,16 @@ type userProfileRepository struct {
 	db *sql.DB
 }
 
+func (r *userProfileRepository) GetProviderUserTokenByServiceByUserId(userId int, service string) (string, error) {
+	var providerToken string
+
+	err := r.db.QueryRow(
+		`SELECT access_token FROM user_service_profiles WHERE user_id = $1 AND service = $2`,
+		userId, service,
+	).Scan(&providerToken)
+	return providerToken, err
+}
+
 func NewUserProfileRepository(db *sql.DB) domain.UserProfileRepository {
 	return &userProfileRepository{db: db}
 }
