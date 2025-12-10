@@ -17,12 +17,14 @@ import (
 type OAuth2Handler struct {
 	oauth2StorageSvc *service.OAuth2StorageService
 	oauth2Manager    *oauth2.Manager
+	authSvc          *service.AuthService
 }
 
-func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService, oauth2Manager *oauth2.Manager) *OAuth2Handler {
+func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService, oauth2Manager *oauth2.Manager, authSvc *service.AuthService) *OAuth2Handler {
 	return &OAuth2Handler{
 		oauth2StorageSvc: oauth2StorageSvc,
 		oauth2Manager:    oauth2Manager,
+		authSvc:          authSvc,
 	}
 }
 
@@ -238,6 +240,60 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 	})
 }
 
+// GET /loginwith?provider=<provider_name>&callback_url=<url>&platform=<platform>
+// Starts an OAuth2 login flow that will create or connect a user on callback
+func (h *OAuth2Handler) handleLoginWithAuthorize(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	if h.oauth2Manager == nil {
+		respondJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"success": false,
+			"error":   "OAuth2 not configured",
+		})
+		return
+	}
+
+	provider := req.URL.Query().Get("provider")
+	callbackURL := req.URL.Query().Get("callback_url")
+	platform := req.URL.Query().Get("platform")
+
+	if provider == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "provider parameter is required",
+		})
+		return
+	}
+
+	if platform == "" {
+		platform = "web"
+	}
+
+	// Use userID = 0 to indicate sign-in/sign-up flow
+	authURL, err := h.oauth2Manager.GetAuthURL(provider, 0, callbackURL, platform)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"auth_url": authURL,
+			"provider": provider,
+		},
+	})
+}
+
 // GET /oauth2/callback?code=<code>&state=<state>
 func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -290,9 +346,61 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 	// Calculate expiration time
 	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
-	// Store OAuth2 data using user_id from StateData
+	// If UserID == 0, this is a login-with flow: create or connect user
+	var userIDForStorage int = stateData.UserID
+	var jwtToken string
+	if stateData.UserID == 0 {
+		// Derive email and username from provider userInfo
+		email := strings.TrimSpace(userInfo.Email)
+		username := strings.TrimSpace(userInfo.Username)
+		if username == "" {
+			username = strings.TrimSpace(userInfo.Name)
+		}
+		if username == "" {
+			username = fmt.Sprintf("%s_user", stateData.Provider)
+		}
+		// Fallback if email missing: synthesize one using provider id
+		if email == "" {
+			if userInfo.ID != "" {
+				email = fmt.Sprintf("%s_%s@oauth.local", stateData.Provider, userInfo.ID)
+			} else {
+				email = fmt.Sprintf("%s_%d@oauth.local", stateData.Provider, time.Now().Unix())
+			}
+		}
+
+		// Try to find existing user by email
+		existingUser, findErr := h.authSvc.GetUserByEmail(email)
+		if findErr == nil && existingUser != nil {
+			// Generate JWT for existing user
+			token, genErr := auth.GenerateToken(existingUser.ID)
+			if genErr != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]any{
+					"success": false,
+					"error":   genErr.Error(),
+				})
+				return
+			}
+			userIDForStorage = existingUser.ID
+			jwtToken = token
+		} else {
+			// Register a new user with a random password
+			randPass := fmt.Sprintf("oauth_%d_%s", time.Now().UnixNano(), userInfo.ID)
+			newUser, token, regErr := h.authSvc.Register(email, username, randPass)
+			if regErr != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]any{
+					"success": false,
+					"error":   regErr.Error(),
+				})
+				return
+			}
+			userIDForStorage = newUser.ID
+			jwtToken = token
+		}
+	}
+
+	// Store OAuth2 data with resolved user ID
 	err = h.oauth2StorageSvc.StoreOAuth2Response(
-		stateData.UserID,
+		userIDForStorage,
 		stateData.Provider,
 		tokenResp.AccessToken,
 		tokenResp.RefreshToken,
@@ -307,19 +415,23 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Return success with user info
+	// Return success with user info; include JWT when created/connected
+	respData := map[string]any{
+		"provider":     stateData.Provider,
+		"user_info":    userInfo,
+		"access_token": tokenResp.AccessToken,
+		"token_type":   tokenResp.TokenType,
+		"expires_in":   tokenResp.ExpiresIn,
+		"message":      "OAuth2 data stored successfully",
+		"callback_url": stateData.CallbackURL,
+		"platform":     stateData.Platform,
+	}
+	if jwtToken != "" {
+		respData["token"] = jwtToken
+	}
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"data": map[string]any{
-			"provider":     stateData.Provider,
-			"user_info":    userInfo,
-			"access_token": tokenResp.AccessToken,
-			"token_type":   tokenResp.TokenType,
-			"expires_in":   tokenResp.ExpiresIn,
-			"message":      "OAuth2 data stored successfully",
-			"callback_url": stateData.CallbackURL,
-			"platform":     stateData.Platform,
-		},
+		"data":    respData,
 	})
 }
 
