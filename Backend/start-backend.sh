@@ -43,6 +43,13 @@ start_compose() {
   (cd "$dir" && "${COMPOSE_CMD[@]}" up -d --build)
 }
 
+reset_databases() {
+  local dir="$1"
+  log "Resetting databases for $(basename "$dir")..."
+  # Bring down stack and drop volumes (to reset Postgres data)
+  (cd "$dir" && "${COMPOSE_CMD[@]}" down -v || true)
+}
+
 start_gateway() {
   local dir="$ROOT_DIR/Gateway"
   local env_file="$dir/configs/gateway.env"
@@ -60,6 +67,9 @@ main() {
 
   ensure_env "$ROOT_DIR/Services/ServiceService"
   ensure_env "$ROOT_DIR/Services/AuthService"
+
+  reset_databases "$ROOT_DIR/Services/ServiceService"
+  reset_databases "$ROOT_DIR/Services/AuthService"
 
   start_compose "$ROOT_DIR/Services/ServiceService"
   start_compose "$ROOT_DIR/Services/AuthService"

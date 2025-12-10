@@ -50,6 +50,34 @@
       "auth_required": false,
       "permissions": [],
       "internal_only": false
+    },
+    {
+      "path": "/auth/oauth2/providers",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/oauth2/providers/",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/providers",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/providers/",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
     }
   ]
 }
