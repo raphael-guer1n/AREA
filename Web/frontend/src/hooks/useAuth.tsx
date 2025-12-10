@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import type { ReactNode } from "react";
 
 import { fetchOAuthAuthorizeUrl, loginRequest, logoutRequest, registerRequest } from "@/lib/api/auth";
 import { clearSession, fetchSessionStatus, persistSessionToken } from "@/lib/api/session";
@@ -12,7 +20,26 @@ type UseAuthOptions = {
   initialSession?: AuthSession | null;
 };
 
-export function useAuth(options: UseAuthOptions = {}) {
+type AuthContextValue = {
+  user: User | null;
+  session: AuthSession;
+  token: string | null;
+  status: AuthStatus;
+  isLoading: boolean;
+  error: string | null;
+  startOAuthLogin: (
+    provider: string,
+    options?: { mode?: "login" | "link"; callbackUrl?: string; platform?: string },
+  ) => Promise<void>;
+  refreshSession: () => Promise<boolean>;
+  login: (payload: LoginPayload) => Promise<User | null>;
+  register: (payload: RegisterPayload) => Promise<User | null>;
+  logout: () => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function useAuthState(options: UseAuthOptions = {}): AuthContextValue {
   const { initialUser = null, initialSession = null } = options;
 
   const [user, setUser] = useState<User | null>(initialUser);
@@ -76,7 +103,18 @@ export function useAuth(options: UseAuthOptions = {}) {
   }, [initialSession?.token, refreshSession]);
 
   const startOAuthLogin = useCallback(
-    async (provider: string, mode: "login" | "link" = "login") => {
+    async (
+      provider: string,
+      options: { mode?: "login" | "link"; callbackUrl?: string; platform?: string } = {},
+    ) => {
+      const { mode = "login", callbackUrl, platform } = options;
+
+      const resolvedCallbackUrl =
+        callbackUrl ??
+        (mode === "login" && typeof window !== "undefined"
+          ? `${window.location.origin}/area`
+          : undefined);
+
       if (mode === "link" && !session.token) {
         setError("You must be connected before linking an external service.");
         setStatus("error");
@@ -91,6 +129,8 @@ export function useAuth(options: UseAuthOptions = {}) {
         const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
           token: session.token,
           mode,
+          platform,
+          callbackUrl: resolvedCallbackUrl,
         });
         setStatus("idle");
         window.location.href = auth_url;
@@ -130,7 +170,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [persistSession]);
 
   const register = useCallback(async (payload: RegisterPayload) => {
     setIsLoading(true);
@@ -154,7 +194,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [persistSession]);
 
   const logout = useCallback(async () => {
     setIsLoading(true);
@@ -178,17 +218,51 @@ export function useAuth(options: UseAuthOptions = {}) {
     }
   }, []);
 
-  return {
-    user,
-    session,
-    token: session.token,
-    status,
-    isLoading,
-    error,
-    startOAuthLogin,
-    refreshSession,
-    login,
-    register,
-    logout,
-  };
+  return useMemo(
+    () => ({
+      user,
+      session,
+      token: session.token,
+      status,
+      isLoading,
+      error,
+      startOAuthLogin,
+      refreshSession,
+      login,
+      register,
+      logout,
+    }),
+    [
+      error,
+      isLoading,
+      login,
+      logout,
+      refreshSession,
+      register,
+      session,
+      startOAuthLogin,
+      status,
+      user,
+    ],
+  );
+}
+
+type AuthProviderProps = UseAuthOptions & {
+  children: ReactNode;
+};
+
+export function AuthProvider({ children, ...options }: AuthProviderProps) {
+  const auth = useAuthState(options);
+
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider.");
+  }
+
+  return context;
 }

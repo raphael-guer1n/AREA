@@ -1,5 +1,3 @@
-import { BACKEND_BASE_URL } from "@/lib/api/auth";
-
 type ProvidersResponse<T> = {
   success?: boolean;
   data?: {
@@ -13,6 +11,8 @@ export type ProviderStatus = {
   is_logged: boolean;
 };
 
+type FetchOptions = RequestInit & { token?: string };
+
 async function parseProvidersResponse<T>(
   response: Response,
 ): Promise<ProvidersResponse<T>["data"]["providers"]> {
@@ -25,48 +25,16 @@ async function parseProvidersResponse<T>(
   return body.data.providers;
 }
 
-async function fetchWithFallback(
-  paths: string[],
-  options?: RequestInit,
-): Promise<Response> {
-  let lastError: Error | null = null;
-
-  for (const path of paths) {
-    try {
-      const response = await fetch(`${BACKEND_BASE_URL}${path}`, options);
-
-      if (response.ok) {
-        return response;
-      }
-
-      if (response.status === 404) {
-        continue;
-      }
-
-      const fallbackMessage = await response
-        .json()
-        .then((data) => (data?.error as string | undefined) ?? response.statusText)
-        .catch(() => response.statusText);
-
-      throw new Error(fallbackMessage || "Unable to reach the services endpoint.");
-    } catch (error) {
-      lastError =
-        error instanceof Error ? error : new Error("Unable to reach the services endpoint.");
-    }
-  }
-
-  throw lastError ?? new Error("Unable to reach the services endpoint.");
-}
-
-export async function fetchUserProviders(userId: string | number): Promise<ProviderStatus[]> {
+export async function fetchUserProviders(
+  userId: string | number,
+  token?: string,
+): Promise<ProviderStatus[]> {
   try {
-    const response = await fetchWithFallback(
-      [`/auth/oauth2/providers/${userId}`, `/oauth2/providers/${userId}`],
-      {
-        method: "GET",
-        cache: "no-store",
-      },
-    );
+    const response = await fetch(`/api/auth-providers/${userId}`, {
+      method: "GET",
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
 
     const providers = await parseProvidersResponse<ProviderStatus[]>(response);
 
@@ -75,7 +43,7 @@ export async function fetchUserProviders(userId: string | number): Promise<Provi
       is_logged: Boolean(provider.is_logged),
     }));
   } catch (error) {
-    const fallbackProviders = await fetchAvailableProviders();
+    const fallbackProviders = await fetchAvailableProviders(token);
     return fallbackProviders.map((provider) => ({
       provider,
       is_logged: false,
@@ -83,14 +51,12 @@ export async function fetchUserProviders(userId: string | number): Promise<Provi
   }
 }
 
-export async function fetchAvailableProviders(): Promise<string[]> {
-  const response = await fetchWithFallback(
-    ["/auth/oauth2/providers", "/oauth2/providers"],
-    {
-      method: "GET",
-      cache: "no-store",
-    },
-  );
+export async function fetchAvailableProviders(token?: string): Promise<string[]> {
+  const response = await fetch("/api/auth-providers", {
+    method: "GET",
+    cache: "no-store",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
 
   return parseProvidersResponse<string[]>(response);
 }

@@ -10,7 +10,7 @@ type CallbackState =
   | { status: "idle" | "processing" | "success"; error?: undefined }
   | { status: "error"; error: string };
 
-export function useOAuthCallback(redirectTo = "/dashboard") {
+export function useOAuthCallback(redirectTo = "/area") {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get("code");

@@ -98,9 +98,12 @@ export function ServiceCard({
   };
 
   const handleConnectConfirm = () => {
-    setIsConnected(true);
     setConfirmAction(null);
-    onConnect?.();
+    if (onConnect) {
+      onConnect();
+      return;
+    }
+    setIsConnected(true);
   };
 
   const chipLabel = !isConnected ? action ?? "À connecter" : "";
