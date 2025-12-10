@@ -35,26 +35,34 @@ func (r *userProfileRepository) Create(
 	var u domain.UserProfile
 	err := r.db.QueryRow(
 		`INSERT INTO user_service_profiles (
-             user_id,
-             service,
-             provider_user_id,
-             access_token,
-             refresh_token,
-             expires_at,
-             raw_profile
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING
-             id,
-             user_id,
-             service,
-             provider_user_id,
-             access_token,
-             refresh_token,
-             expires_at,
-             raw_profile,
-             created_at,
-             updated_at`,
+			 user_id,
+			 service,
+			 provider_user_id,
+			 access_token,
+			 refresh_token,
+			 expires_at,
+			 raw_profile
+		 )
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 ON CONFLICT (user_id, service)
+		 DO UPDATE SET
+			 provider_user_id = EXCLUDED.provider_user_id,
+			 access_token     = EXCLUDED.access_token,
+			 refresh_token    = EXCLUDED.refresh_token,
+			 expires_at       = EXCLUDED.expires_at,
+			 raw_profile      = EXCLUDED.raw_profile,
+			 updated_at       = NOW()
+		 RETURNING
+			 id,
+			 user_id,
+			 service,
+			 provider_user_id,
+			 access_token,
+			 refresh_token,
+			 expires_at,
+			 raw_profile,
+			 created_at,
+			 updated_at`,
 		userId, service, providerUserId, accessToken, refreshToken, expiresAt, rawProfile,
 	).Scan(
 		&u.ID,
