@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
@@ -77,7 +77,6 @@ export function ServicesClient() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearch, setModalSearch] = useState("");
-  const isMountedRef = useRef(true);
 
   const filteredConnected = services.filter(
     (service) => service.connected && matchesSearch(service, searchTerm),
@@ -129,77 +128,54 @@ export function ServicesClient() {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
+    if (!authToken) {
+      return undefined;
+    }
+
+    async function loadServices() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        let nextServices: Service[] = [];
+
+        if (user?.id) {
+          const providers = await fetchUserProviders(user.id, authToken);
+          nextServices = providers.map((provider, index) =>
+            createService(provider.provider, provider.is_logged, index),
+          );
+        } else {
+          const providers = await fetchAvailableProviders(authToken);
+          nextServices = providers.map((provider, index) => createService(provider, false, index));
+        }
+
+        if (isMounted) {
+          setServices(nextServices);
+        }
+      } catch (err) {
+        if (isMounted) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger la liste des services pour le moment.";
+          setError(message);
+          setServices([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadServices();
+
     return () => {
-      isMountedRef.current = false;
+      isMounted = false;
     };
-  }, []);
-
-  const loadServices = useCallback(async () => {
-    if (!authToken || !isMountedRef.current) {
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      let nextServices: Service[] = [];
-
-      if (user?.id) {
-        const providers = await fetchUserProviders(user.id, authToken);
-        nextServices = providers.map((provider, index) =>
-          createService(provider.provider, provider.is_logged, index),
-        );
-      } else {
-        const providers = await fetchAvailableProviders(authToken);
-        nextServices = providers.map((provider, index) => createService(provider, false, index));
-      }
-
-      if (isMountedRef.current) {
-        setServices(nextServices);
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Impossible de charger la liste des services pour le moment.";
-        setError(message);
-        setServices([]);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
   }, [authToken, user?.id]);
-
-  useEffect(() => {
-    if (!authToken) return;
-    void loadServices();
-  }, [authToken, loadServices]);
-
-  const refreshOnFocus = useCallback(() => {
-    void loadServices();
-  }, [loadServices]);
-
-  useEffect(() => {
-    if (!authToken) return;
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void loadServices();
-      }
-    };
-
-    window.addEventListener("focus", refreshOnFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener("focus", refreshOnFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [authToken, loadServices, refreshOnFocus]);
 
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
