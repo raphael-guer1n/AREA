@@ -143,28 +143,58 @@ type OAuthAuthorizeMode = "login" | "link";
 
 export async function fetchOAuthAuthorizeUrl(
   provider: string,
-  options: { token?: string | null; mode?: OAuthAuthorizeMode } = {},
+  options: {
+    token?: string | null;
+    mode?: OAuthAuthorizeMode;
+    callbackUrl?: string;
+    platform?: string;
+  } = {},
 ): Promise<OAuthAuthorizeResponse> {
-  const { token, mode = "login" } = options;
+  const { mode = "login", callbackUrl, platform } = options;
 
-  if (mode === "link" && !token) {
-    throw new Error("Missing authentication token.");
+  if (mode === "link") {
+    const searchParams = new URLSearchParams({ provider });
+    if (callbackUrl) searchParams.set("callback_url", callbackUrl);
+    if (platform) searchParams.set("platform", platform);
+
+    const response = await fetch(
+      `${BACKEND_BASE_URL}/auth/oauth2/authorize?${searchParams.toString()}`,
+      {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+        headers: options.token
+          ? { Authorization: `Bearer ${options.token}` }
+          : undefined,
+      },
+    );
+
+    const body = (await response.json().catch(() => null)) as
+      | {
+          success?: boolean;
+          data?: { auth_url?: string; provider?: string };
+          error?: string;
+        }
+      | null;
+
+    if (!response.ok || !body?.success || !body.data?.auth_url) {
+      throw new Error(
+        body?.error ?? "Unable to retrieve the OAuth2 authorization URL.",
+      );
+    }
+
+    return {
+      auth_url: body.data.auth_url,
+      provider: body.data.provider ?? provider,
+    };
   }
 
-  const basePath =
-    mode === "login" ? "/auth/oauth2/login" : "/auth/oauth2/authorize";
   const response = await fetch(
-    `${BACKEND_BASE_URL}${basePath}?provider=${encodeURIComponent(provider)}`,
+    `${BACKEND_BASE_URL}/auth/oauth2/login?provider=${encodeURIComponent(provider)}`,
     {
       method: "GET",
       credentials: "include",
       cache: "no-store",
-      headers:
-        mode === "link" && token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined,
     },
   );
 

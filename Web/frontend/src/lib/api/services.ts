@@ -59,20 +59,28 @@ async function fetchWithFallback(
 }
 
 export async function fetchUserProviders(userId: string | number): Promise<ProviderStatus[]> {
-  const response = await fetchWithFallback(
-    [`/auth/oauth2/providers/${userId}`, `/oauth2/providers/${userId}`],
-    {
-      method: "GET",
-      cache: "no-store",
-    },
-  );
+  try {
+    const response = await fetchWithFallback(
+      [`/auth/oauth2/providers/${userId}`, `/oauth2/providers/${userId}`],
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+    );
 
-  const providers = await parseProvidersResponse<ProviderStatus[]>(response);
+    const providers = await parseProvidersResponse<ProviderStatus[]>(response);
 
-  return providers.map((provider) => ({
-    provider: provider.provider,
-    is_logged: Boolean(provider.is_logged),
-  }));
+    return providers.map((provider) => ({
+      provider: provider.provider,
+      is_logged: Boolean(provider.is_logged),
+    }));
+  } catch (error) {
+    const fallbackProviders = await fetchAvailableProviders();
+    return fallbackProviders.map((provider) => ({
+      provider,
+      is_logged: false,
+    }));
+  }
 }
 
 export async function fetchAvailableProviders(): Promise<string[]> {

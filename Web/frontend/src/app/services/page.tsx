@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchOAuthAuthorizeUrl } from "@/lib/api/auth";
 import { fetchAvailableProviders, fetchUserProviders } from "@/lib/api/services";
 import { normalizeSearchValue } from "@/lib/helpers";
 
@@ -67,10 +68,11 @@ function matchesSearch(service: Service, term: string) {
 }
 
 export function ServicesClient() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearch, setModalSearch] = useState("");
@@ -88,8 +90,41 @@ export function ServicesClient() {
     );
   };
 
-  const openConnectModal = () => setIsConnectModalOpen(true);
-  const closeConnectModal = () => setIsConnectModalOpen(false);
+  const openConnectModal = () => {
+    setConnectError(null);
+    setIsConnectModalOpen(true);
+  };
+  const closeConnectModal = () => {
+    setConnectError(null);
+    setIsConnectModalOpen(false);
+  };
+
+  const handleServiceConnect = useCallback(
+    async (providerId: string) => {
+      if (!token) {
+        setConnectError("Vous devez être connecté avant de lier un service.");
+        return;
+      }
+
+      setConnectError(null);
+
+      try {
+        const { auth_url } = await fetchOAuthAuthorizeUrl(providerId, {
+          token,
+          mode: "link",
+        });
+        setIsConnectModalOpen(false);
+        window.location.href = auth_url;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Impossible de démarrer la connexion OAuth2.";
+        setConnectError(message);
+      }
+    },
+    [token],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -209,6 +244,12 @@ export function ServicesClient() {
                   />
                 </div>
 
+                {connectError ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {connectError}
+                  </div>
+                ) : null}
+
                 <div className="rounded-2xl border-2 border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-6">
                   {isLoading ? (
                     <div className="flex min-h-[220px] items-center justify-center text-sm text-[var(--muted)]">
@@ -229,7 +270,9 @@ export function ServicesClient() {
                           reactions={service.reactions ?? []}
                           connected={service.connected}
                           action="À connecter"
-                          onConnect={() => updateConnection(service.id, true)}
+                          onConnect={() => {
+                            void handleServiceConnect(service.id);
+                          }}
                         />
                       ))}
                     </div>
