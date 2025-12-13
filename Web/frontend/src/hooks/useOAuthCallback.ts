@@ -10,12 +10,17 @@ type CallbackState =
   | { status: "idle" | "processing" | "success"; error?: undefined }
   | { status: "error"; error: string };
 
-export function useOAuthCallback(redirectTo = "/dashboard") {
+type UseOAuthCallbackOptions = {
+  enabled?: boolean;
+};
+
+export function useOAuthCallback(redirectTo = "/area", options: UseOAuthCallbackOptions = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get("code");
   const stateParam = searchParams.get("state");
   const errorParam = searchParams.get("error");
+  const enabled = options.enabled ?? true;
 
   const [callbackState, setCallbackState] = useState<CallbackState>({
     status: "idle",
@@ -24,7 +29,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
   const { status } = callbackState;
 
   useEffect(() => {
-    if (status !== "idle") return;
+    if (!enabled || status !== "idle") return;
 
     if (errorParam) {
       setCallbackState({
@@ -54,12 +59,17 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
       setCallbackState({ status: "processing" });
 
       try {
-        const { access_token } = await exchangeOAuthCallback({
+        const { access_token, token } = await exchangeOAuthCallback({
           code,
           state: stateParam,
         });
 
-        await persistSessionToken(access_token);
+        const sessionToken = token ?? access_token;
+        if (!sessionToken) {
+          throw new Error("The authentication server did not return a session token.");
+        }
+
+        await persistSessionToken(sessionToken);
         setCallbackState({ status: "success" });
         router.replace(redirectTo);
       } catch (err) {
@@ -72,7 +82,7 @@ export function useOAuthCallback(redirectTo = "/dashboard") {
     };
 
     void handleCallback();
-  }, [code, errorParam, redirectTo, router, stateParam, status]);
+  }, [code, enabled, errorParam, redirectTo, router, stateParam, status]);
 
   return callbackState;
 }

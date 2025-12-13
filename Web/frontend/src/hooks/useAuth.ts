@@ -81,7 +81,16 @@ export function useAuth(options: UseAuthOptions = {}) {
     setStatus("loading");
 
     try {
-      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/area`
+          : undefined;
+
+      const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+        mode: "login",
+        platform: "web",
+        callbackUrl,
+      });
       setStatus("idle");
       window.location.href = auth_url;
     } catch (err) {

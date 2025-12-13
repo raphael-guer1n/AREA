@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { AreaCard } from "@/components/area/AreaCard";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
+import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 
 import { mockAreas, type MockArea } from "./mockAreas";
 
@@ -37,12 +39,38 @@ function matchesAreaSearch(area: MockArea, normalizedTerm: string) {
 }
 
 export default function AreaPage() {
+  const searchParams = useSearchParams();
+  const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
+  const { status, error } = useOAuthCallback("/area", { enabled: hasOAuthParams });
+  const isProcessingOAuth = hasOAuthParams && status !== "error";
   const [searchTerm, setSearchTerm] = useState("");
   const normalizedSearch = normalizeSearchValue(searchTerm);
   const filteredAreas = mockAreas.filter((area) => matchesAreaSearch(area, normalizedSearch));
   const hasSearch = Boolean(normalizedSearch);
   const totalAreas = mockAreas.length;
   const activeCount = mockAreas.filter((area) => area.active).length;
+
+  if (hasOAuthParams) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-4 py-12">
+        <div className="w-full max-w-lg rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] px-8 py-10 shadow-[0_20px_60px_rgba(17,42,70,0.08)]">
+          <div className="space-y-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+              OAuth2 Authentication
+            </p>
+            <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+              {isProcessingOAuth ? "Signing you in..." : "Sign-in failed"}
+            </h1>
+            <p className="text-sm text-[var(--muted)]">
+              {isProcessingOAuth
+                ? "Please wait while we validate your account."
+                : error ?? "Unable to finish the OAuth2 login."}
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
