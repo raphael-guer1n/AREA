@@ -8,13 +8,14 @@ import (
 )
 
 type RegisteredRoute struct {
-	ServiceName  string
-	BaseURL      string
-	Path         string
-	Methods      []string
-	AuthRequired bool
-	Permissions  []string
-	InternalOnly bool
+	ServiceName    string
+	BaseURL        string
+	Path           string
+	NamespacedPath string
+	Methods        []string
+	AuthRequired   bool
+	Permissions    []string
+	InternalOnly   bool
 }
 
 type Registry struct {
@@ -39,13 +40,14 @@ func (r *Registry) Load(services []config.ServiceConfig) error {
 
 		for _, route := range svc.Routes {
 			r.routes = append(r.routes, RegisteredRoute{
-				ServiceName:  svc.Name,
-				BaseURL:      svc.BaseURL,
-				Path:         route.Path,
-				Methods:      route.Methods,
-				AuthRequired: route.AuthRequired,
-				Permissions:  route.Permissions,
-				InternalOnly: route.InternalOnly,
+				ServiceName:    svc.Name,
+				BaseURL:        svc.BaseURL,
+				Path:           route.Path,
+				NamespacedPath: "/" + svc.Name + route.Path,
+				Methods:        route.Methods,
+				AuthRequired:   route.AuthRequired,
+				Permissions:    route.Permissions,
+				InternalOnly:   route.InternalOnly,
 			})
 		}
 	}
@@ -77,7 +79,7 @@ func (r *Registry) FindRoute(path, method string) (*RegisteredRoute, error) {
 	defer r.mu.RUnlock()
 
 	for _, rt := range r.routes {
-		if rt.Path == path {
+		if rt.Path == path || rt.NamespacedPath == path {
 			if slices.Contains(rt.Methods, method) {
 				return &rt, nil
 			}

@@ -1,0 +1,34 @@
+{
+	"name": "service-service",
+	"base_url": "http://localhost:8084",
+	"routes": [
+		{
+			"path": "/health",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/services",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/oauth2-config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		}
+	]
+}
