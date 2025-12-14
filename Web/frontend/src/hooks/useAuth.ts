@@ -71,9 +71,10 @@ export function useAuth(options: UseAuthOptions = {}) {
   }, []);
 
   useEffect(() => {
-    if (initialSession?.token) return;
+    // If we have both token and user preloaded, skip refresh; otherwise try to refresh.
+    if (initialSession?.token && initialUser) return;
     void refreshSession();
-  }, [initialSession?.token, refreshSession]);
+  }, [initialSession?.token, initialUser, refreshSession]);
 
   const startOAuthLogin = useCallback(async (provider: string) => {
     setIsLoading(true);

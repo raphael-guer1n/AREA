@@ -97,7 +97,7 @@ export default function RegisterForm() {
     if (user) {
       setStatus("Account created. You can log in.");
       setButtonState("success");
-      router.push("/login");
+      router.push("/area");
       return;
     }
 
