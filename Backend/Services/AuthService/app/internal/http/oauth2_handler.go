@@ -217,7 +217,6 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	// Default platform to "web" if not specified
 	if platform == "" {
 		platform = "web"
 	}
