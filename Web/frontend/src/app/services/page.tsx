@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
+import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
+import { useAuth } from "@/hooks/useAuth";
 import { normalizeSearchValue } from "@/lib/helpers";
-import { mockServices, type MockService } from "./mockServices";
+import { gradients as gradientPalette, mockServices, type MockService } from "./mockServices";
+
+const serviceTemplatesById = new Map(mockServices.map((service) => [service.id, service]));
 
 function matchesSearch(service: MockService, term: string) {
   const normalizedTerm = normalizeSearchValue(term);
@@ -17,11 +21,95 @@ function matchesSearch(service: MockService, term: string) {
   return haystack.includes(normalizedTerm);
 }
 
+function formatServiceNameFromId(serviceId: string) {
+  return serviceId
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function buildBadge(name: string) {
+  const parts = name.split(" ").filter(Boolean);
+  const letters =
+    parts.length >= 2
+      ? `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`
+      : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+function mapBackendService(serviceId: string, index: number): MockService {
+  const template = serviceTemplatesById.get(serviceId);
+  const formattedName = formatServiceNameFromId(serviceId);
+  const name = template?.name ?? (formattedName || serviceId);
+  const badge = template?.badge ?? buildBadge(name || serviceId);
+  const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
+
+  return {
+    id: serviceId,
+    name,
+    url: template?.url ?? "#",
+    badge,
+    category: template?.category,
+    gradient,
+    actions: template?.actions ?? [],
+    reactions: template?.reactions ?? [],
+    connected: template?.connected ?? false,
+  };
+}
+
 export function ServicesClient() {
-  const [services, setServices] = useState(mockServices);
+  const { token, user, startOAuthConnect } = useAuth();
+  const [services, setServices] = useState<MockService[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearch, setModalSearch] = useState("");
+
+  const loadServices = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const serviceIds = await fetchServices();
+      const uniqueServiceIds = Array.from(new Set(serviceIds.filter(Boolean)));
+
+      let statusByService: Record<string, boolean> = {};
+      if (token && user?.id) {
+        try {
+          const statuses = await fetchUserServiceStatuses(token, user.id);
+          statusByService = statuses.reduce<Record<string, boolean>>((acc, current) => {
+            acc[current.provider] = Boolean(current.is_logged);
+            return acc;
+          }, {});
+        } catch (statusError) {
+          console.error(statusError);
+        }
+      }
+
+      const mappedServices = uniqueServiceIds.map((serviceId, index) =>
+        ({
+          ...mapBackendService(serviceId, index),
+          connected: Boolean(statusByService[serviceId]),
+        }),
+      );
+      setServices(mappedServices);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Impossible de récupérer les services.";
+      setError(message);
+      setServices([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, user?.id]);
+
+  useEffect(() => {
+    void loadServices();
+  }, [loadServices]);
 
   const filteredConnected = services.filter(
     (service) => service.connected && matchesSearch(service, searchTerm),
@@ -29,6 +117,14 @@ export function ServicesClient() {
   const connectableServices = services.filter(
     (service) => !service.connected && matchesSearch(service, modalSearch || searchTerm),
   );
+
+  const handleConnect = async (serviceId: string) => {
+    if (!token) {
+      setError("Vous devez être connecté pour lier un service.");
+      return;
+    }
+    await startOAuthConnect(serviceId);
+  };
 
   const updateConnection = (id: string, nextState: boolean) => {
     setServices((previous) =>
@@ -112,7 +208,27 @@ export function ServicesClient() {
                 </div>
 
                 <div className="rounded-2xl border-2 border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-6">
-                  {connectableServices.length ? (
+                  {isLoading ? (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                      <p className="text-base font-semibold text-[var(--foreground)]">
+                        Chargement des services...
+                      </p>
+                    </div>
+                  ) : error ? (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                      <p className="text-base font-semibold text-[var(--foreground)]">
+                        Impossible de charger les services
+                      </p>
+                      <p className="text-sm text-[var(--muted)]">{error}</p>
+                      <button
+                        type="button"
+                        onClick={loadServices}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                      >
+                        Réessayer
+                      </button>
+                    </div>
+                  ) : connectableServices.length ? (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {connectableServices.map((service) => (
                         <ServiceCard
@@ -123,16 +239,16 @@ export function ServicesClient() {
                           category={service.category}
                           gradientFrom={service.gradient.from}
                           gradientTo={service.gradient.to}
-                      actions={service.actions}
-                      reactions={service.reactions}
-                      connected={service.connected}
-                      action="À connecter"
-                      onConnect={() => updateConnection(service.id, true)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
+                          actions={service.actions}
+                          reactions={service.reactions}
+                          connected={service.connected}
+                          action="À connecter"
+                          onConnect={() => handleConnect(service.id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
                       <p className="text-base font-semibold text-[var(--foreground)]">
                         Aucun service à connecter trouvé
                       </p>
@@ -222,7 +338,31 @@ export function ServicesClient() {
             }
             className="relative w-full overflow-hidden rounded-[26px] border-[var(--surface-border)] bg-[var(--background)] ring-1 ring-[rgba(28,61,99,0.15)]"
           >
-            {filteredConnected.length ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-6 py-10 text-center">
+                <p className="text-lg font-semibold text-[var(--foreground)]">Chargement des services...</p>
+                <p className="text-sm text-[var(--muted)]">Nous récupérons vos services disponibles.</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-6 py-10 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]">
+                  <div className="h-6 w-6 rounded-full border-2 border-[var(--blue-primary-2)]" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-lg font-semibold text-[var(--foreground)]">
+                    Impossible de charger vos services
+                  </p>
+                  <p className="text-sm text-[var(--muted)]">{error}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadServices}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                >
+                  Réessayer
+                </button>
+              </div>
+            ) : filteredConnected.length ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredConnected.map((service) => (
                   <ServiceCard

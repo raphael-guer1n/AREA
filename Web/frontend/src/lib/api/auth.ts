@@ -5,10 +5,20 @@ import type {
   OAuthCallbackResponse,
 } from "@/types/auth";
 
-export const BACKEND_BASE_URL =
-  process.env.API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8080/auth-service";
+function normalizeAuthBase(): string {
+  const raw =
+    process.env.API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    "http://localhost:8080/auth-service";
+
+  const trimmed = raw.replace(/\/+$/, "");
+  if (/\/auth-service($|\/)/.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}/auth-service`;
+}
+
+export const BACKEND_BASE_URL = normalizeAuthBase();
 
 export type BackendUser = {
   id: number | string;
