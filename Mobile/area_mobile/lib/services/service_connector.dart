@@ -1,25 +1,32 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/service_model.dart';  // Add this import
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../models/service_model.dart';
 
 class ServiceConnector {
   final String baseUrl;
+  final _storage = const FlutterSecureStorage();
 
   ServiceConnector({required this.baseUrl});
 
   Future<List<ServiceModel>> fetchServices(int userId) async {
     try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null || token.isEmpty) {
+        throw Exception('JWT token missing — please log in again.');
+      }
+
+      final url = Uri.parse('$baseUrl/oauth2/providers/$userId');
       final response = await http.get(
-        Uri.parse('$baseUrl/oauth2/providers/$userId'),
+        url,
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
           final providers = data['data']['providers'] as List;
-          return providers
-              .map((p) => ServiceModel.fromJson(p))
-              .toList();
+          return providers.map((p) => ServiceModel.fromJson(p)).toList();
         }
       }
       throw Exception('Failed to load services');
@@ -29,37 +36,54 @@ class ServiceConnector {
   }
 
   Future<String> getAuthUrl(String serviceName, int userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-          '$baseUrl/oauth2/authorize?provider=$serviceName&user_id=$userId',
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true && data['data'] != null) {
-          return data['data']['auth_url'];
-        }
-      }
-      throw Exception('Failed to get auth URL');
-    } catch (e) {
-      throw Exception('Error getting auth URL: $e');
+  try {
+    final token = await _storage.read(key: 'jwt_token');
+    if (token == null || token.isEmpty) {
+      throw Exception('JWT token missing — please log in first.');
     }
+
+    const redirectUri =
+        'https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback';
+    final encodedRedirect = Uri.encodeComponent(redirectUri);
+
+    final uri = Uri.parse(
+      '$baseUrl/oauth2/authorize?provider=$serviceName&user_id=$userId'
+      '&callback_url=$encodedRedirect&platform=android',
+    );
+
+    print('[CONNECT SERVICE]');
+    print('Request URL: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Failed to get auth URL (${response.statusCode}): ${response.body}');
+    }
+
+    final data = jsonDecode(response.body);
+    if (data['success'] != true || data['data'] == null) {
+      throw Exception(data['error'] ?? 'Invalid backend response');
+    }
+
+    String authUrl = data['data']['auth_url']
+        .replaceAll('\\u0026', '&')
+        .replaceAll('\u0026', '&');
+
+    return authUrl;
+  } catch (e) {
+    throw Exception('Error getting auth URL: $e');
   }
+}
 
   Future<void> disconnectService(
-    String serviceName,
-    int userId,
-    String token,
-  ) async {
-    // Implement disconnect logic based on your backend API
-    // This is a placeholder
-    try {
-      // You might need to add a disconnect endpoint to your backend
-      throw UnimplementedError('Disconnect endpoint not implemented yet');
-    } catch (e) {
-      throw Exception('Error disconnecting service: $e');
-    }
+      String serviceName, int userId, String token) async {
+    throw UnimplementedError('Disconnect endpoint not implemented yet.');
   }
 }

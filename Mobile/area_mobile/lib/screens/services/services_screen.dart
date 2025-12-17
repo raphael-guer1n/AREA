@@ -30,7 +30,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   void initState() {
     super.initState();
     _connector = ServiceConnector(
-      baseUrl: dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8083',
+      baseUrl: dotenv.env['BASE_URL'] ?? 'https://nonbeatifically-stridulatory-denver.ngrok-free.dev',
     );
     _loadServices();
     _listenToDeepLinks();
