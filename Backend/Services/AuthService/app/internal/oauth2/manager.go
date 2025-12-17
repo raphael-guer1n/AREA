@@ -109,8 +109,10 @@ func (m *Manager) GetAuthURL(providerName string, userID int, callbackURL string
 
 	// Store state with metadata for validation
 	m.states.Set(state, &StateData{
-		Provider: providerName,
-		UserID:   userID,
+		Provider:    providerName,
+		UserID:      userID,
+		CallbackURL: callbackURL,
+		Platform:    platform,
 	})
 
 	// Generate authorization URL
@@ -134,7 +136,7 @@ func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse,
 	}
 
 	// Exchange code for access token
-	tokenResp, err := provider.ExchangeCode(code)
+	tokenResp, err := provider.ExchangeCode(code, stateData.CallbackURL)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to exchange code: %w", err)
 	}

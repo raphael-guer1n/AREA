@@ -2,9 +2,11 @@ package registry
 
 import (
 	"fmt"
-	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 	"slices"
+	"strings"
 	"sync"
+
+	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 )
 
 type RegisteredRoute struct {
@@ -78,6 +80,7 @@ func (r *Registry) FindRoute(path, method string) (*RegisteredRoute, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	// Exact match first.
 	for _, rt := range r.routes {
 		if rt.Path == path || rt.NamespacedPath == path {
 			if slices.Contains(rt.Methods, method) {
@@ -85,6 +88,22 @@ func (r *Registry) FindRoute(path, method string) (*RegisteredRoute, error) {
 			}
 		}
 	}
+
+	// Fallback for routes that allow dynamic suffixes (e.g. /oauth2/providers/{id}).
+	for _, rt := range r.routes {
+		if !slices.Contains(rt.Methods, method) {
+			continue
+		}
+
+		if strings.HasPrefix(path, rt.Path) && len(path) > len(rt.Path) && strings.HasPrefix(path[len(rt.Path):], "/") {
+			return &rt, nil
+		}
+
+		if strings.HasPrefix(path, rt.NamespacedPath) && len(path) > len(rt.NamespacedPath) && strings.HasPrefix(path[len(rt.NamespacedPath):], "/") {
+			return &rt, nil
+		}
+	}
+
 	return nil, fmt.Errorf("no route found for %s %s", method, path)
 }
 
