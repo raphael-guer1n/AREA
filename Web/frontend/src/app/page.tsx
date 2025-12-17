@@ -6,40 +6,40 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 const services = [
-  { name: "Mail", emoji: "✉️", from: "#4f46e5", to: "#22d3ee" },
-  { name: "Chat", emoji: "💬", from: "#0ea5e9", to: "#22c55e" },
-  { name: "Docs", emoji: "📁", from: "#7c3aed", to: "#4f46e5" },
-  { name: "Tasks", emoji: "✅", from: "#10b981", to: "#14b8a6" },
-  { name: "Social", emoji: "🐦", from: "#2563eb", to: "#60a5fa" },
-  { name: "Voice", emoji: "🎙️", from: "#f97316", to: "#fb7185" },
-  { name: "Plus", emoji: "+40", from: "#0f172a", to: "#1f2937" },
+  { name: "Gmail / Outlook", emoji: "✉️", color: "var(--card-color-3)" },
+  { name: "Slack / Discord", emoji: "💬", color: "var(--card-color-2)" },
+  { name: "Drive / Notion", emoji: "📁", color: "var(--card-color-1)" },
+  { name: "Trello / Jira", emoji: "✅", color: "var(--card-color-4)" },
+  { name: "X / LinkedIn", emoji: "🐦", color: "var(--card-color-5)" },
+  { name: "Twilio / SMS", emoji: "🎙️", color: "var(--card-color-3)" },
+  { name: "Et plus", emoji: "+40", color: "var(--card-color-2)" },
 ];
 
 const stats = [
-  { value: "50+", label: "Lorem ipsum dolor" },
-  { value: "10k+", label: "Sit amet consectetur" },
-  { value: "99.9%", label: "Adipiscing elit" },
+  { value: "40+", label: "Connecteurs prêts à l'emploi" },
+  { value: "< 5 min", label: "Pour mettre en prod une AREA" },
+  { value: "24/7", label: "Hooks surveillés en continu" },
 ];
 
 const features = [
   {
-    title: "Lorem ipsum dolor",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer ut magna eget lorem aliquet.",
+    title: "Builder no-code guidé",
+    body: "Assemblez vos AREAs en if/then, champs préremplis, validations et exemples de payload pour aller vite.",
     icon: "⚡",
   },
   {
-    title: "Consectetur amet",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus posuere velit eu lorem viverra.",
+    title: "Hooks fiabilisés",
+    body: "Webhooks, polling et retries avec backoff pour ne pas rater vos événements critiques.",
     icon: "🛡️",
   },
   {
-    title: "Sed do eiusmod",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut vitae lorem nisl nam lacinia.",
+    title: "Auth centralisée",
+    body: "OAuth2, renouvellement des tokens et stockage chiffré pour chaque compte connecté.",
     icon: "🎛️",
   },
   {
-    title: "Tempor incididunt",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce eu lacus porttitor, euismod nisl.",
+    title: "Suivi clair",
+    body: "Logs horodatés, statut d'exécution et alertes pour diagnostiquer et corriger rapidement.",
     icon: "🔗",
   },
 ];
@@ -47,21 +47,21 @@ const features = [
 const steps = [
   {
     id: "01",
-    title: "Lorem ipsum",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vel libero ut arcu.",
-    color: "bg-[#f87171]",
+    title: "Connecter vos services",
+    body: "Authentifiez Google, Discord, Trello... via OAuth2 sécurisé et scopes maîtrisés.",
+    color: "var(--card-color-1)",
   },
   {
     id: "02",
-    title: "Dolor sit amet",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam eu lorem ac augue aliquet.",
-    color: "bg-[#34d399]",
+    title: "Définir l'Action et la REAction",
+    body: "Choisissez le déclencheur, mappez les champs et ajoutez filtres ou conditions.",
+    color: "var(--card-color-2)",
   },
   {
     id: "03",
-    title: "Consectetur elit",
-    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vitae justo viverra, aliquet.",
-    color: "bg-[#a855f7]",
+    title: "Laisser tourner",
+    body: "AREA surveille les hooks, exécute en continu et vous alerte en cas d'échec.",
+    color: "var(--card-color-3)",
   },
 ];
 
@@ -94,10 +94,10 @@ export default function HomePage() {
       style={gridPattern}
     >
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-gradient-to-br from-[#22d3ee] to-[#4f46e5] blur-[120px] opacity-60" />
-        <div className="absolute right-6 top-10 h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-[#0ea5e9] to-[#22c55e] blur-[140px] opacity-50" />
-        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--surface)]/80 blur-[140px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(34,197,94,0.08),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,0.08),transparent_30%)]" />
+        <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-[var(--card-color-5)] blur-[140px] opacity-65" />
+        <div className="absolute right-6 top-10 h-[28rem] w-[28rem] rounded-full bg-[var(--card-color-2)] blur-[160px] opacity-55" />
+        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--card-color-1)]/30 blur-[160px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(229,218,218,0.08),transparent_35%)]" />
       </div>
 
       <header
@@ -131,7 +131,7 @@ export default function HomePage() {
             </Button>
           </Link>
           <Link href="/register">
-            <Button className="border-0 bg-gradient-to-r from-[#4f46e5] to-[#22d3ee] px-5 py-2 text-white shadow-[0_14px_30px_rgba(79,70,229,0.35)] transition-transform duration-300 hover:-translate-y-1 hover:opacity-95">
+            <Button className="border-0 bg-[var(--card-color-3)] px-5 py-2 text-white shadow-[0_14px_30px_rgba(2,4,15,0.45)] transition-transform duration-300 hover:-translate-y-1 hover:opacity-95">
               Signup
             </Button>
           </Link>
@@ -144,20 +144,20 @@ export default function HomePage() {
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] text-xs">
               ⚡
             </span>
-            <span className="text-[var(--muted)]">Lorem ipsum dolor</span>
+            <span className="text-[var(--muted)]">AREA, opéré en continu</span>
           </div>
 
-          <div className="space-y-6">
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl md:text-[3.25rem]">
-              Lorem ipsum dolor sit amet,{" "}
-              <span className="bg-gradient-to-r from-[#0ea5e9] via-[#22c55e] to-[#7c3aed] bg-clip-text text-transparent">
-                consectetur adipiscing
+          <div className="space-y-8">
+            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl md:text-[3.25rem] text-[var(--card-color-1)]">
+              AREA.
+              <br />
+              <span className="text-[var(--card-color-2)]">
+                When something happens, something reacts.
               </span>
             </h1>
             <p className="mx-auto max-w-3xl text-lg leading-relaxed text-[var(--muted)] sm:text-xl">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur pretium, justo at
-              suscipit bibendum, magna nunc tristique ante luctus auctor nisl velit in dolor eget
-              ligula elementum feugiat.
+              Déployez des scénarios AREA pour relier mails, chats, fichiers et réseaux sociaux.
+              Sélectionnez un hook, paramétrez la réaction, AREA orchestre, trace et alerte automatiquement.
             </p>
           </div>
 
@@ -193,7 +193,7 @@ export default function HomePage() {
           className="flex flex-col items-center gap-5 rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/85 px-6 py-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-            Lorem ipsum dolor
+            Connecteurs disponibles
           </span>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {services.map((service) => (
@@ -201,7 +201,7 @@ export default function HomePage() {
                 key={service.name}
                 className="group flex h-12 w-12 items-center justify-center rounded-2xl text-base font-semibold text-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(0,0,0,0.12)]"
                 style={{
-                  backgroundImage: `linear-gradient(135deg, ${service.from}, ${service.to})`,
+                  backgroundColor: service.color,
                 }}
                 aria-label={service.name}
               >
@@ -217,7 +217,7 @@ export default function HomePage() {
               key={stat.label}
               className="flex items-center gap-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]/95 p-5 shadow-[0_20px_40px_rgba(15,23,42,0.08)] backdrop-blur transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_rgba(15,23,42,0.12)]"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#0ea5e9] via-[#22c55e] to-[#4f46e5] text-white shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--card-color-3)] text-white shadow-sm">
                 📊
               </div>
               <div className="text-left">
@@ -230,10 +230,10 @@ export default function HomePage() {
 
         <section id="features" className="space-y-8">
           <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-semibold sm:text-4xl">Pourquoi Lorem Ipsum ?</h2>
+            <h2 className="text-3xl font-semibold sm:text-4xl">Pensée pour les équipes qui livrent</h2>
             <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris luctus vitae sapien at
-              tempus nulla facilisi sed viverra.
+              Inspirée d'IFTTT/Zapier et développée à Epitech : actions, réactions, hooks monitorés,
+              authentification centralisée et supervision prête à l'emploi.
             </p>
           </div>
 
@@ -243,7 +243,7 @@ export default function HomePage() {
                 key={item.title}
                 className="flex flex-col gap-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]/85 p-5 text-left shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(15,23,42,0.12)]"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#4f46e5] via-[#22d3ee] to-[#22c55e] text-white shadow-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--card-color-2)] text-white shadow-sm">
                   {item.icon}
                 </div>
                 <h3 className="text-lg font-semibold">{item.title}</h3>
@@ -255,10 +255,10 @@ export default function HomePage() {
 
         <section className="space-y-8">
           <div className="space-y-3 text-center">
-            <h2 className="text-3xl font-semibold sm:text-4xl">Comment ca marche ?</h2>
+            <h2 className="text-3xl font-semibold sm:text-4xl">Comment ça marche ?</h2>
             <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras id fringilla nisl nec
-              imperdiet lorem ipsum.
+              3 étapes : connecter vos comptes, choisir le déclencheur et la réaction, laisser AREA
+              surveiller et exécuter avec traçabilité.
             </p>
           </div>
 
@@ -268,7 +268,10 @@ export default function HomePage() {
                 key={step.id}
                 className="flex flex-col gap-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)]/85 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(15,23,42,0.12)]"
               >
-                <span className={`${step.color} inline-flex h-10 w-10 items-center justify-center rounded-2xl text-base font-semibold text-white shadow-sm`}>
+                <span
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-base font-semibold text-white shadow-sm"
+                  style={{ backgroundColor: step.color }}
+                >
                   {step.id}
                 </span>
                 <h3 className="text-lg font-semibold">{step.title}</h3>
@@ -278,16 +281,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-r from-[#0f172a] via-[#0b1e33] to-[#0a2f4f] p-12 text-center text-white shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+        <section className="overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/90 p-12 text-center shadow-[0_24px_80px_rgba(15,23,42,0.14)] backdrop-blur">
           <div className="mx-auto flex max-w-3xl flex-col items-center gap-6">
-            <h3 className="text-3xl font-semibold sm:text-4xl">Pret a lorem ipsum ?</h3>
-            <p className="text-lg text-white/90">
-              Lorem ipsum dolor sit amet consectetur adipiscing elit. Rejoignez lorem ipsum qui
-              gagnent du temps chaque jour.
+            <h3 className="text-3xl font-semibold sm:text-4xl text-[var(--foreground)]">
+              Prêt à lancer vos automations ?
+            </h3>
+            <p className="text-lg text-[var(--muted)]">
+              Créez votre première AREA, branchez vos services, laissez le moteur d'exécution et de
+              supervision travailler pour vous.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link href="/register">
-                <Button className="border-0 bg-white px-7 py-3 text-[var(--blue-primary-1)] shadow-[0_18px_50px_rgba(0,0,0,0.25)] transition-transform duration-300 hover:-translate-y-1 hover:bg-white/90">
+                <Button className="border-0 bg-[var(--card-color-3)] px-7 py-3 text-[var(--background)] shadow-[0_18px_50px_rgba(15,23,42,0.18)] transition-transform duration-300 hover:-translate-y-1 hover:opacity-90">
                   Signup
                   <svg
                     aria-hidden="true"
@@ -307,24 +312,24 @@ export default function HomePage() {
               <Link href="/login">
                 <Button
                   variant="secondary"
-                  className="border border-white/30 bg-transparent px-7 py-3 text-white transition-transform duration-300 hover:-translate-y-1 hover:bg-white/10 hover:text-white"
+                  className="border border-[var(--surface-border)] bg-transparent px-7 py-3 text-[var(--foreground)] transition-transform duration-300 hover:-translate-y-1 hover:bg-[var(--surface)]/70 hover:text-[var(--foreground)]"
                 >
                   Login
                 </Button>
               </Link>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/80">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-[var(--muted)]">
               <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
-                Lorem ipsum
+                <span className="h-2 w-2 rounded-full bg-[var(--card-color-3)]" aria-hidden="true" />
+                OAuth2 sécurisé
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
-                Dolor sit amet
+                <span className="h-2 w-2 rounded-full bg-[var(--card-color-2)]" aria-hidden="true" />
+                Hooks monitorés
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden="true" />
-                Consectetur elit
+                <span className="h-2 w-2 rounded-full bg-[var(--card-color-1)]" aria-hidden="true" />
+                Logs exploitables
               </span>
             </div>
           </div>
@@ -350,7 +355,9 @@ export default function HomePage() {
             </div>
             <span className="text-lg font-semibold tracking-tight">AREA</span>
           </div>
-          <span className="text-sm text-[var(--muted)]">© 2025 AREA. Lorem ipsum dolor sit amet.</span>
+          <span className="text-sm text-[var(--muted)]">
+            © 2025 AREA. Automatisation open-source portée par l'équipe Epitech.
+          </span>
         </div>
       </footer>
     </div>

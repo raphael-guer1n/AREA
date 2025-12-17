@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
@@ -48,7 +48,7 @@ function pickRandomGradient(): AreaGradient {
   return gradientPalette[index];
 }
 
-export default function AreaPage() {
+function AreaPageContent() {
   const { token, user } = useAuth();
   const searchParams = useSearchParams();
   const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
@@ -680,5 +680,19 @@ export default function AreaPage() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+export default function AreaPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6 py-12">
+          <p className="text-sm text-[var(--muted)]">Chargement...</p>
+        </main>
+      }
+    >
+      <AreaPageContent />
+    </Suspense>
   );
 }

@@ -10,6 +10,10 @@ export type OAuthCallbackPayload = {
   state: string;
 };
 
+export type OAuthCallbackOptions = {
+  callbackUrl?: string;
+};
+
 export type OAuthUserInfo = {
   id?: string;
   email?: string;

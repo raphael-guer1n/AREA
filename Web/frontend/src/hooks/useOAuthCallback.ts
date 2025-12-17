@@ -12,6 +12,7 @@ type CallbackState =
 
 type UseOAuthCallbackOptions = {
   enabled?: boolean;
+  callbackPath?: string;
 };
 
 export function useOAuthCallback(redirectTo = "/area", options: UseOAuthCallbackOptions = {}) {
@@ -21,6 +22,7 @@ export function useOAuthCallback(redirectTo = "/area", options: UseOAuthCallback
   const stateParam = searchParams.get("state");
   const errorParam = searchParams.get("error");
   const enabled = options.enabled ?? true;
+  const callbackPath = options.callbackPath ?? redirectTo;
 
   const [callbackState, setCallbackState] = useState<CallbackState>({
     status: "idle",
@@ -59,17 +61,25 @@ export function useOAuthCallback(redirectTo = "/area", options: UseOAuthCallback
       setCallbackState({ status: "processing" });
 
       try {
-        const { access_token, token } = await exchangeOAuthCallback({
-          code,
-          state: stateParam,
-        });
+        const callbackUrl =
+          typeof window !== "undefined"
+            ? `${window.location.origin}${callbackPath}`
+            : undefined;
 
-        const sessionToken = token ?? access_token;
-        if (!sessionToken) {
-          throw new Error("The authentication server did not return a session token.");
+        const { access_token, token } = await exchangeOAuthCallback(
+          {
+            code,
+            state: stateParam,
+          },
+          callbackUrl ? { callbackUrl } : {},
+        );
+
+        // For "connect" flows, backend may not return an app JWT. Only persist when we actually
+        // receive one to avoid clobbering the existing session with a provider access token.
+        if (token) {
+          await persistSessionToken(token);
         }
 
-        await persistSessionToken(sessionToken);
         setCallbackState({ status: "success" });
         router.replace(redirectTo);
       } catch (err) {
