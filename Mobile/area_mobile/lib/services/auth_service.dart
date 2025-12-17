@@ -7,8 +7,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
-  final String baseUrl =
-      dotenv.env['BASE_URL'] ?? 'https://nonbeatifically-stridulatory-denver.ngrok-free.dev';
+  final String baseUrl = dotenv.env['BASE_URL'] ??
+      'https://nonbeatifically-stridulatory-denver.ngrok-free.dev';
   final AppLinks _appLinks = AppLinks();
   final _storage = const FlutterSecureStorage();
 
@@ -106,31 +106,6 @@ class AuthService {
         '$baseUrl/oauth2/authorize?provider=$provider&user_id=$userId'
         '&callback_url=$encodedRedirect&platform=android';
 
-    final res = await http.get(
-      Uri.parse(fullUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (res.statusCode != 200) {
-      throw Exception(
-          'Échec récupération auth_url (${res.statusCode}) – ${res.body}');
-    }
-
-    final data = jsonDecode(res.body);
-    String? authUrl =
-        data['data']?['auth_url'] ?? data['auth_url'] ?? data['url'];
-
-    if (authUrl != null) {
-      authUrl =
-          authUrl.replaceAll('\\u0026', '&').replaceAll('\u0026', '&');
-    }
-
-    if (authUrl == null) throw Exception('URL d\'authentification invalide');
-
-    // Wait for deep-link callback
     final completer = Completer<Uri>();
     final sub = _appLinks.uriLinkStream.listen((uri) {
       if (uri.scheme == 'area' && uri.host == 'auth') {
@@ -139,42 +114,26 @@ class AuthService {
     });
 
     try {
-      final ok = await launchUrl(Uri.parse(authUrl),
+      final ok = await launchUrl(Uri.parse(fullUrl),
           mode: LaunchMode.externalApplication);
       if (!ok) throw Exception('Impossible d\'ouvrir le navigateur');
 
       final redirected =
           await completer.future.timeout(const Duration(minutes: 5));
 
-      final code = redirected.queryParameters['code'];
-      final state = redirected.queryParameters['state'];
+      final tokenParam = redirected.queryParameters['token'];
+      final providerParam = redirected.queryParameters['provider'];
 
-      if (code == null) throw Exception('Code d\'autorisation manquant');
-
-      final callbackUrl =
-          '$baseUrl/oauth2/callback?code=$code&state=${state ?? ""}'
-          '&redirect_uri=$encodedRedirect';
-
-      final response = await http.get(Uri.parse(callbackUrl),
-          headers: {'Content-Type': 'application/json'});
-
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Échec de l\'authentification (${response.statusCode}) ${response.body}');
+      if (tokenParam == null || tokenParam.isEmpty) {
+        throw Exception('Jeton manquant dans la redirection');
       }
 
-      final body = jsonDecode(response.body);
-      String? newToken = body['data']?['access_token'] ??
-          body['access_token'] ??
-          body['token'] ??
-          body['jwt'];
-      Map<String, dynamic>? user =
-          body['data']?['user_info'] ?? body['user_info'] ?? body['user'];
+      await _saveToken(tokenParam);
 
-      if (newToken == null) throw Exception('Token non trouvé');
-
-      await _saveToken(newToken);
-      return {'token': newToken, 'user': user};
+      return {
+        'token': tokenParam,
+        'provider': providerParam ?? provider,
+      };
     } finally {
       await sub.cancel();
     }
