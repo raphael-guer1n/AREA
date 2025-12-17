@@ -71,9 +71,10 @@ export function useAuth(options: UseAuthOptions = {}) {
   }, []);
 
   useEffect(() => {
-    if (initialSession?.token) return;
+    // If we have both token and user preloaded, skip refresh; otherwise try to refresh.
+    if (initialSession?.token && initialUser) return;
     void refreshSession();
-  }, [initialSession?.token, refreshSession]);
+  }, [initialSession?.token, initialUser, refreshSession]);
 
   const startOAuthLogin = useCallback(async (provider: string) => {
     setIsLoading(true);
@@ -81,7 +82,16 @@ export function useAuth(options: UseAuthOptions = {}) {
     setStatus("loading");
 
     try {
-      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/area`
+          : undefined;
+
+      const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+        mode: "login",
+        platform: "web",
+        callbackUrl,
+      });
       setStatus("idle");
       window.location.href = auth_url;
     } catch (err) {
@@ -95,6 +105,46 @@ export function useAuth(options: UseAuthOptions = {}) {
       setIsLoading(false);
     }
   }, []);
+
+  const startOAuthConnect = useCallback(
+    async (provider: string) => {
+      if (!session.token) {
+        setError("Vous devez être connecté pour lier un service.");
+        setStatus("unauthenticated");
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setStatus("loading");
+
+      try {
+        const callbackUrl =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/services`
+            : undefined;
+
+        const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+          mode: "connect",
+          platform: "web",
+          callbackUrl,
+          token: session.token,
+        });
+        setStatus("idle");
+        window.location.href = auth_url;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Impossible de démarrer la connexion du service.";
+        setError(message);
+        setStatus("error");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [session.token],
+  );
 
   const login = useCallback(async (payload: LoginPayload) => {
     setIsLoading(true);
@@ -174,6 +224,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     isLoading,
     error,
     startOAuthLogin,
+    startOAuthConnect,
     refreshSession,
     login,
     register,

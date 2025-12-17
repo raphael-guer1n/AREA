@@ -21,9 +21,10 @@ export type OAuthUserInfo = {
 export type OAuthCallbackResponse = {
   provider: string;
   user_info: OAuthUserInfo;
-  access_token: string;
+  access_token: string; // OAuth provider token
   token_type: string;
   expires_in: number;
+  token?: string; // JWT issued by our backend when using login-with
 };
 
 export type AuthSession = {

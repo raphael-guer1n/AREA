@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +22,7 @@ type SocialProvider = {
 };
 
 export default function LoginForm() {
+  const router = useRouter();
   const { login, startOAuthLogin, isLoading, error } = useAuth();
   const [credentials, setCredentials] = useState<LoginPayload>({
     email: "",
@@ -79,6 +81,7 @@ export default function LoginForm() {
     if (user) {
       setFeedback({ message: "Login successful.", tone: "success" });
       setButtonState("success");
+      router.push("/area");
       return;
     }
 

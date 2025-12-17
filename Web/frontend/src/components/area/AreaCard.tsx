@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { cn } from "@/lib/helpers";
 
@@ -14,6 +14,8 @@ type AreaCardProps = {
   gradientFrom?: string;
   gradientTo?: string;
   lastRun?: string;
+  href?: string;
+  onClick?: () => void;
   className?: string;
 };
 
@@ -28,13 +30,26 @@ export function AreaCard({
   gradientFrom = "#002642",
   gradientTo = "#e59500",
   lastRun,
+  href,
+  onClick,
   className,
 }: AreaCardProps) {
+  const Wrapper: ComponentType<any> = onClick ? "button" : Link;
+  const wrapperProps = onClick
+    ? {
+        type: "button",
+        onClick,
+        className:
+          "group block h-full w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--foreground)]",
+      }
+    : {
+        href: href ?? `/area/${id}`,
+        className:
+          "group block h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--foreground)]",
+      };
+
   return (
-    <Link
-      href={`/area/${id}`}
-      className="group block h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--foreground)]"
-    >
+    <Wrapper {...wrapperProps}>
       <article
         className={cn(
           "relative flex h-full flex-col gap-3.5 overflow-hidden rounded-xl px-4 py-4 text-white shadow-[0_10px_35px_rgba(0,0,0,0.08)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.14)] aspect-[16/10]",
@@ -71,7 +86,7 @@ export function AreaCard({
           ) : null}
         </div>
       </article>
-    </Link>
+    </Wrapper>
   );
 }
 

@@ -5,10 +5,20 @@ import type {
   OAuthCallbackResponse,
 } from "@/types/auth";
 
-export const BACKEND_BASE_URL =
-  process.env.API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://localhost:8080";
+function normalizeAuthBase(): string {
+  const raw =
+    process.env.API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    "http://localhost:8080/auth-service";
+
+  const trimmed = raw.replace(/\/+$/, "");
+  if (/\/auth-service($|\/)/.test(trimmed)) {
+    return trimmed;
+  }
+  return `${trimmed}/auth-service`;
+}
+
+export const BACKEND_BASE_URL = normalizeAuthBase();
 
 export type BackendUser = {
   id: number | string;
@@ -36,6 +46,13 @@ export type BackendAuthResponse = BackendAuthSuccess | BackendAuthError;
 type BackendResponse<T> = {
   status: number;
   body: T | null;
+};
+
+type OAuthAuthorizeOptions = {
+  callbackUrl?: string;
+  platform?: string;
+  mode?: "login" | "connect";
+  token?: string; // required when mode === "connect"
 };
 
 export function mapUser({ user, token }: BackendAuthSuccess["data"]): User {
@@ -141,15 +158,28 @@ export async function logoutRequest(): Promise<void> {
 
 export async function fetchOAuthAuthorizeUrl(
   provider: string,
+  options: OAuthAuthorizeOptions = {},
 ): Promise<OAuthAuthorizeResponse> {
-  const response = await fetch(
-    `${BACKEND_BASE_URL}/auth/oauth2/authorize?provider=${encodeURIComponent(provider)}`,
-    {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    },
-  );
+  const { callbackUrl, platform = "web", mode = "login", token } = options;
+  const params = new URLSearchParams({ provider, platform });
+  if (callbackUrl) params.set("callback_url", callbackUrl);
+
+  const path = mode === "connect" ? "/oauth2/authorize" : "/loginwith";
+  const headers: Record<string, string> = {};
+
+  if (mode === "connect") {
+    if (!token) {
+      throw new Error("Missing token for OAuth2 connection.");
+    }
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BACKEND_BASE_URL}${path}?${params.toString()}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+    headers,
+  });
 
   const body = (await response.json().catch(() => null)) as
     | {
@@ -174,7 +204,7 @@ export async function fetchOAuthAuthorizeUrl(
 export async function exchangeOAuthCallback(
   payload: OAuthCallbackPayload,
 ): Promise<OAuthCallbackResponse> {
-  const url = `${BACKEND_BASE_URL}/auth/oauth2/callback?code=${encodeURIComponent(
+  const url = `${BACKEND_BASE_URL}/oauth2/callback?code=${encodeURIComponent(
     payload.code,
   )}&state=${encodeURIComponent(payload.state)}`;
 
@@ -193,9 +223,7 @@ export async function exchangeOAuthCallback(
     | null;
 
   if (!body?.success || !body.data?.access_token) {
-    throw new Error(
-      body?.error ?? "Unable to complete OAuth2 authentication.",
-    );
+    throw new Error(body?.error ?? "Unable to complete OAuth2 authentication.");
   }
 
   return {
@@ -204,5 +232,6 @@ export async function exchangeOAuthCallback(
     access_token: body.data.access_token,
     token_type: body.data.token_type ?? "Bearer",
     expires_in: body.data.expires_in ?? 0,
+    token: body.data.token,
   };
 }
