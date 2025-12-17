@@ -76,16 +76,22 @@ export function useAuth(options: UseAuthOptions = {}) {
     void refreshSession();
   }, [initialSession?.token, initialUser, refreshSession]);
 
+  const resolveCallbackUrl = useCallback((path: string) => {
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      process.env.NEXT_PUBLIC_OAUTH_CALLBACK_BASE ??
+      (typeof window !== "undefined" ? window.location.origin : "");
+    if (!base) return undefined;
+    return `${base.replace(/\/+$/, "")}${path}`;
+  }, []);
+
   const startOAuthLogin = useCallback(async (provider: string) => {
     setIsLoading(true);
     setError(null);
     setStatus("loading");
 
     try {
-      const callbackUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/area`
-          : undefined;
+      const callbackUrl = resolveCallbackUrl("/area");
 
       const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
         mode: "login",
@@ -104,7 +110,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [resolveCallbackUrl]);
 
   const startOAuthConnect = useCallback(
     async (provider: string) => {
@@ -119,10 +125,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       setStatus("loading");
 
       try {
-        const callbackUrl =
-          typeof window !== "undefined"
-            ? `${window.location.origin}/services`
-            : undefined;
+        const callbackUrl = resolveCallbackUrl("/services");
 
         const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
           mode: "connect",
@@ -139,11 +142,12 @@ export function useAuth(options: UseAuthOptions = {}) {
             : "Impossible de démarrer la connexion du service.";
         setError(message);
         setStatus("error");
+        throw err instanceof Error ? err : new Error(message);
       } finally {
         setIsLoading(false);
       }
     },
-    [session.token],
+    [resolveCallbackUrl, session.token],
   );
 
   const login = useCallback(async (payload: LoginPayload) => {

@@ -1,6 +1,7 @@
 import type { LoginPayload, RegisterPayload, User } from "@/types/User";
 import type {
   OAuthAuthorizeResponse,
+  OAuthCallbackOptions,
   OAuthCallbackPayload,
   OAuthCallbackResponse,
 } from "@/types/auth";
@@ -203,10 +204,16 @@ export async function fetchOAuthAuthorizeUrl(
 
 export async function exchangeOAuthCallback(
   payload: OAuthCallbackPayload,
+  options: OAuthCallbackOptions = {},
 ): Promise<OAuthCallbackResponse> {
-  const url = `${BACKEND_BASE_URL}/oauth2/callback?code=${encodeURIComponent(
-    payload.code,
-  )}&state=${encodeURIComponent(payload.state)}`;
+  const params = new URLSearchParams({
+    code: payload.code,
+    state: payload.state,
+  });
+  if (options.callbackUrl) {
+    params.set("redirect_uri", options.callbackUrl);
+  }
+  const url = `${BACKEND_BASE_URL}/oauth2/callback?${params.toString()}`;
 
   const response = await fetch(url, {
     method: "GET",

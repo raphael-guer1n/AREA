@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
 import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
 import { useAuth } from "@/hooks/useAuth";
+import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { normalizeSearchValue } from "@/lib/helpers";
 import { gradients as gradientPalette, mockServices, type MockService } from "./mockServices";
 
@@ -60,6 +62,12 @@ function mapBackendService(serviceId: string, index: number): MockService {
 
 export function ServicesClient() {
   const { token, user, startOAuthConnect } = useAuth();
+  const searchParams = useSearchParams();
+  const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
+  const { status: oauthStatus, error: oauthError } = useOAuthCallback("/services", {
+    enabled: hasOAuthParams,
+  });
+  const isProcessingOAuth = hasOAuthParams && oauthStatus !== "error";
   const [services, setServices] = useState<MockService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +119,12 @@ export function ServicesClient() {
     void loadServices();
   }, [loadServices]);
 
+  useEffect(() => {
+    if (oauthError) {
+      setError(oauthError);
+    }
+  }, [oauthError]);
+
   const filteredConnected = services.filter(
     (service) => service.connected && matchesSearch(service, searchTerm),
   );
@@ -123,7 +137,16 @@ export function ServicesClient() {
       setError("Vous devez être connecté pour lier un service.");
       return;
     }
-    await startOAuthConnect(serviceId);
+    try {
+      setError(null);
+      await startOAuthConnect(serviceId);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de la connexion du service.";
+      setError(message);
+    }
   };
 
   const updateConnection = (id: string, nextState: boolean) => {
@@ -137,6 +160,13 @@ export function ServicesClient() {
 
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
+      {isProcessingOAuth ? (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.35)] backdrop-blur-sm">
+          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)] shadow-lg">
+            Connexion du service en cours...
+          </div>
+        </div>
+      ) : null}
       {isConnectModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.55)] px-4 py-10 backdrop-blur-sm"
@@ -409,4 +439,16 @@ export function ServicesClient() {
   );
 }
 
-export default ServicesClient;
+export default function ServicesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6 py-12">
+          <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
+        </main>
+      }
+    >
+      <ServicesClient />
+    </Suspense>
+  );
+}

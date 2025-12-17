@@ -122,7 +122,7 @@ func (m *Manager) GetAuthURL(providerName string, userID int, callbackURL string
 }
 
 // HandleCallback handles the OAuth2 callback with code and state, returns StateData
-func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse, *StateData, error) {
+func (m *Manager) HandleCallback(state, code string, overrideCallbackURL string) (*UserInfo, *TokenResponse, *StateData, error) {
 	// Validate state and get state data
 	stateData, ok := m.states.Get(state)
 	if !ok {
@@ -135,8 +135,13 @@ func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse,
 		return nil, nil, nil, err
 	}
 
+	callbackURL := stateData.CallbackURL
+	if overrideCallbackURL != "" {
+		callbackURL = overrideCallbackURL
+	}
+
 	// Exchange code for access token
-	tokenResp, err := provider.ExchangeCode(code, stateData.CallbackURL)
+	tokenResp, err := provider.ExchangeCode(code, callbackURL)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
