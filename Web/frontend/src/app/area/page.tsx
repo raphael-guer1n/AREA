@@ -89,15 +89,11 @@ function AreaPageContent() {
 
       let statusByService: Record<string, boolean> = {};
       if (token && user?.id) {
-        try {
-          const statuses = await fetchUserServiceStatuses(token, user.id);
-          statusByService = statuses.reduce<Record<string, boolean>>((acc, current) => {
-            acc[current.provider] = Boolean(current.is_logged);
-            return acc;
-          }, {});
-        } catch (statusError) {
-          console.error(statusError);
-        }
+        const statuses = await fetchUserServiceStatuses(token, user.id);
+        statusByService = statuses.reduce<Record<string, boolean>>((acc, current) => {
+          acc[current.provider] = Boolean(current.is_logged);
+          return acc;
+        }, {});
       }
 
       const mappedServices = uniqueServiceIds.map((serviceId, index) => {

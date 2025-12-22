@@ -58,6 +58,43 @@ func (p *Provider) GenerateAuthURL(state string, callbackUri string) string {
 	return fmt.Sprintf("%s?%s", p.config.AuthURL, params.Encode())
 }
 
+// ExchangeCodeWithRedirect exchanges an auth code for tokens using a specific redirect URI.
+func (p *Provider) ExchangeCodeWithRedirect(code, redirectURI string) (*TokenResponse, error) {
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", code)
+	data.Set("redirect_uri", redirectURI)
+	data.Set("client_id", p.config.ClientID)
+	data.Set("client_secret", p.config.ClientSecret)
+
+	req, err := http.NewRequest("POST", p.config.TokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange code: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("token exchange failed: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	var tokenResp TokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	return &tokenResp, nil
+}
+
 // ExchangeCode exchanges the authorization code for an access token
 func (p *Provider) ExchangeCode(code string, callbackUri string) (*TokenResponse, error) {
 	data := url.Values{}

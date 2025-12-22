@@ -74,18 +74,13 @@ export async function fetchUserServiceStatuses(
         : body?.error
           ? JSON.stringify(body.error)
           : null;
-    const errorMessage =
-      rawError ??
-      `Impossible de récupérer l'état de connexion des services (statut ${response.status}).`;
 
     if (!response.ok || !body?.success || !Array.isArray(body.data?.providers)) {
-      console.warn("fetchUserServiceStatuses response error:", errorMessage);
       return [];
     }
 
     return body.data.providers;
-  } catch (error) {
-    console.error("fetchUserServiceStatuses error:", error);
+  } catch {
     return [];
   }
 }
