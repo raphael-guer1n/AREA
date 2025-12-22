@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type GatewayConfig struct {
@@ -71,6 +72,15 @@ func LoadGatewayConfig() (*GatewayConfig, error) {
 	cfg.JwtSecret = os.Getenv("JWT_SECRET")
 	if cfg.JwtAlgorithm != "RS256" && cfg.JwtAlgorithm != "HS256" {
 	    return nil, fmt.Errorf("invalid JWT_ALGO: must be RS256 or HS256")
+	}
+
+	origins := os.Getenv("ALLOWED_ORIGINS")
+	if origins != "" {
+		for _, o := range strings.Split(origins, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				cfg.AllowedOrigins = append(cfg.AllowedOrigins, trimmed)
+			}
+		}
 	}
 
 	return cfg, nil

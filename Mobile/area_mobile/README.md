@@ -1,131 +1,53 @@
 
-The **AREA Mobile App** is the smartphone interface of the AREA platform — an automation system inspired by **IFTTT** and **Zapier**.  
-It allows users to connect their favorite online services and automate actions between them, anytime and anywhere.
+The AREA mobile app is a thin Flutter client for browsing services, authenticating users, and launching OAuth flows on the go. It talks directly to the backend APIs exposed by the gateway.
 
-## 🧩 Overview
+## Highlights
+- **Authentication:** Email/password login and signup, plus OAuth (Google/Apple/Facebook) via backend-issued URLs; tokens stored securely with `flutter_secure_storage`.
+- **Service catalog:** Fetches available providers for the signed-in user, launches external browser OAuth, and listens for deep-link callbacks to refresh connection status.
+- **Bottom-nav shell:** Dashboard, AREA placeholder, Services, and Profile tabs under a single `MainShell` scaffold.
+- **Profile:** Displays basic user metadata and supports logout.
 
-The mobile application is developed using **Flutter**, providing a smooth cross-platform experience on both **Android** and **iOS**.
+## Architecture (what’s in the code)
+- **Framework:** Flutter with Material 3 styling (`lib/theme`).
+- **State:** `Provider` (`AuthProvider`) drives authentication state, loading, and error feedback.
+- **Networking:** `http` package + `flutter_dotenv` for the API base URL (`BASE_URL`).
+- **Auth flow:** `AuthService` handles email/password endpoints and generic OAuth flows; listens to deep links via `app_links` with redirect URI `com.example.area_mobile:/oauth2redirect`.
+- **Services flow:** `ServiceConnector` hits `/oauth2/providers/{userId}` and `/oauth2/authorize` to start provider connections; disconnect is stubbed for now.
 
-It communicates directly with the **AREA Application Server** through a REST API to manage:
-- user authentication,
-- services connections,
-- creation of Actions and ReActions,
-- management of AREAs (automations).
+## Screens (lib/screens)
+- `auth/login_screen.dart` — Email/username + password login, Google OAuth button, validation, inline error banner.
+- `auth/register_screen.dart` — Signup form with validation and immediate navigation into the main shell.
+- `main_shell.dart` — Bottom navigation hosting:
+  - `home/home_screen.dart` (dashboard placeholder)
+  - `area/area_screen.dart` (automation placeholder)
+  - `services/services_screen.dart` (provider list, search, connect/disconnect UI)
+  - `profile/profile_screen.dart` (user info + logout)
 
-All business logic and data handling are managed by the backend server — the mobile app acts as a **thin client** responsible for user interaction and UX.
-
-## 🚀 Features
-
-- **User Authentication**
-  - Account creation and login via the AREA server  
-  - Secure token-based authentication  
-
-- **Service Management**
-  - Connect and disconnect third-party services  
-  - View connected services linked to your account  
-
-- **AREA Management**
-  - Create new *AREAs* (Action → Reaction workflows)  
-  - Configure conditions and linked services  
-  - View, edit, or delete existing AREAs  
-
-- **Responsive UI/UX**
-  - Modern Flutter UI optimized for phones and tablets  
-  - Dark/Light theme support  
-
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|------------|-------------|
-| Framework | Flutter (Dart) |
-| State Management | Provider / Riverpod / BLoC *(depending on setup)* |
-| Networking | `http` / `dio` |
-| Authentication | OAuth 2.0 / Token-based auth |
-| API | REST API (AREA Server) |
-| Environment Handling | `flutter_dotenv` |
-| CI/CD | GitHub Actions (build & test) |
-
-## 📦 Project Structure
-
-```text
-area_mobile/
-├── lib/
-│   ├── main.dart                # Application entry point
-│   ├── screens/                 # UI screens and navigation
-│   ├── widgets/                 # Reusable UI components
-│   ├── models/                  # Data models for Area, Action, Reaction, etc.
-│   ├── providers/               # State providers / Controllers
-│   ├── services/                # API calls & local storage logic
-│   └── utils/                   # Constants, themes, helpers
-├── assets/                      # Images, icons, translations
-├── test/                        # Unit and widget tests
-└── pubspec.yaml                 # Dependencies and project config
+## Project Structure
+```
+lib/
+├── main.dart          # App entry, Provider setup, routing
+├── providers/         # AuthProvider (session state + secure storage)
+├── services/          # AuthService, ServiceConnector (HTTP + OAuth helpers)
+├── screens/           # UI screens (auth, services, profile, shell)
+├── models/            # ServiceModel (provider data)
+└── theme/             # Colors, typography, theme
 ```
 
-## ⚙️ Getting Started
-
-### Prerequisites
-- **Flutter SDK** (>=3.0.0)
-- **Dart SDK**
-- Access to the AREA **backend API** (running locally or remotely)
-- Android Studio / VS Code configured with Flutter
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/AREA-Project/area_mobile.git
-   cd area_mobile
-   ```
-
-2. **Install dependencies**
-   ```bash
-   flutter pub get
-   ```
-
-3. **Create an environment file**
-   ```
-   cp .env.example .env
-   ```
-   Configure the API base URL and other keys if needed:
-   ```
-   API_BASE_URL=https://api.area-project.com
-   ```
-
-4. **Run the app**
-   ```bash
-   flutter run
-   ```
-
-## 🧪 Testing
-
-Run unit and widget tests:
-
+## Setup & Run
 ```bash
-flutter test
+cd Mobile/area_mobile
+echo "BASE_URL=http://10.0.2.2:8080/auth-service" > .env   # point to the gateway
+flutter pub get
+flutter run                      # choose your emulator/device
 ```
+Notes:
+- `BASE_URL` should be the gateway origin (e.g., `http://10.0.2.2:8080/auth-service` for the Android emulator).
+- OAuth redirect is hardcoded to `com.example.area_mobile:/oauth2redirect`; keep Android/iOS configs aligned.
 
-Or use the integrated GitHub Actions CI pipeline for continuous testing.
+## Testing & Release
+- Run tests: `flutter test`
+- Build artifacts: `flutter build apk --release` or `flutter build ios --release`
 
-## 📱 Building for Production
-
-To build release versions:
-
-```bash
-flutter build apk --release
-flutter build ios --release
-```
-
-Build artifacts can then be deployed to the Google Play Store or Apple App Store.
-
-## 👥 Contributors
-
-- Alexandre Guillaud – Developer  
-- Alexis Constantinopoulos – Developer  
-- Raphaël Guerin – Developer  
-- Clément-Alexis Fournier – Developer  
-
-## 📄 License – MIT License
-
-This project is licensed under the **MIT License**.  
-See the [LICENSE](../LICENSE) file for details.
+## Known Gaps
+- Service disconnect currently throws `UnimplementedError` in `ServiceConnector.disconnectService`; add a backend endpoint + hook it up to enable removal of linked accounts.

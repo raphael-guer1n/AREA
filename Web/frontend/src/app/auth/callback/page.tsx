@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 
 export const dynamic = "force-dynamic";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const { status, error } = useOAuthCallback("/dashboard");
   const isProcessing = status === "idle" || status === "processing" || status === "success";
 
@@ -37,6 +38,20 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-4 py-12">
+          <p className="text-sm text-[var(--muted)]">Chargement...</p>
+        </main>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
 

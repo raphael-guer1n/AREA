@@ -19,6 +19,13 @@
   --surface: var(--bg-secondary);
   --surface-border: var(--border-surface);
   --accent: var(--blue-primary-2);
+
+  /* Palette card/visuel */
+  --card-color-1: #002642;
+  --card-color-2: #840032;
+  --card-color-3: #e59500;
+  --card-color-4: #e5dada;
+  --card-color-5: #02040f;
 }
 
 :root[data-vision="tritanopia"] {
@@ -40,6 +47,13 @@
   --surface: var(--bg-secondary);
   --surface-border: var(--border-surface);
   --accent: var(--blue-primary-2);
+
+  /* Palette card/visuel tritanopia */
+  --card-color-1: #023e3d;
+  --card-color-2: #cd2828;
+  --card-color-3: #f0363c;
+  --card-color-4: #f87c81;
+  --card-color-5: #e9c9cb;
 }
 
 @theme inline {
@@ -69,6 +83,12 @@
     --surface: var(--bg-secondary);
     --surface-border: var(--border-surface);
     --accent: var(--blue-primary-2);
+
+    --card-color-1: #002642;
+    --card-color-2: #840032;
+    --card-color-3: #e59500;
+    --card-color-4: #e5dada;
+    --card-color-5: #02040f;
   }
 
   :root[data-vision="tritanopia"] {
@@ -90,6 +110,12 @@
     --surface: var(--bg-secondary);
     --surface-border: var(--border-surface);
     --accent: var(--blue-primary-2);
+
+    --card-color-1: #023e3d;
+    --card-color-2: #cd2828;
+    --card-color-3: #f0363c;
+    --card-color-4: #f87c81;
+    --card-color-5: #e9c9cb;
   }
 }
 

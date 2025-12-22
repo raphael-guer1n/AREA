@@ -322,7 +322,10 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	userInfo, tokenResp, stateData, err := h.oauth2Manager.HandleCallback(state, code)
+	// Handle OAuth2 callback - returns StateData with user_id
+	redirectOverride := req.URL.Query().Get("redirect_uri")
+
+	userInfo, tokenResp, stateData, err := h.oauth2Manager.HandleCallback(state, code, redirectOverride)
 	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,

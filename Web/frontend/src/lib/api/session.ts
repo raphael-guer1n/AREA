@@ -1,3 +1,6 @@
+/**
+ * Client-side calls to the internal /api/session route to sync the HTTP-only session cookie.
+ */
 import type { SessionStatusResponse } from "@/types/auth";
 
 export async function persistSessionToken(token: string): Promise<void> {

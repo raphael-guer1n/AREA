@@ -1,3 +1,4 @@
+// Client-side localStorage helpers (used only when a non-HTTP-only token is needed).
 const TOKEN_KEY = "area.token";
 
 export function storeToken(token: string): void {

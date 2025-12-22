@@ -1,3 +1,9 @@
+/**
+ * Client-side auth state machine.
+ * - Keeps user/session state in React.
+ * - Delegates network calls to lib/api (login, register, OAuth kicks).
+ * - Persists tokens through the internal /api/session proxy (HTTP-only cookie).
+ */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -71,9 +77,19 @@ export function useAuth(options: UseAuthOptions = {}) {
   }, []);
 
   useEffect(() => {
-    if (initialSession?.token) return;
+    // If we have both token and user preloaded, skip refresh; otherwise try to refresh.
+    if (initialSession?.token && initialUser) return;
     void refreshSession();
-  }, [initialSession?.token, refreshSession]);
+  }, [initialSession?.token, initialUser, refreshSession]);
+
+  const resolveCallbackUrl = useCallback((path: string) => {
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      process.env.NEXT_PUBLIC_OAUTH_CALLBACK_BASE ??
+      (typeof window !== "undefined" ? window.location.origin : "");
+    if (!base) return undefined;
+    return `${base.replace(/\/+$/, "")}${path}`;
+  }, []);
 
   const startOAuthLogin = useCallback(async (provider: string) => {
     setIsLoading(true);
@@ -81,7 +97,13 @@ export function useAuth(options: UseAuthOptions = {}) {
     setStatus("loading");
 
     try {
-      const { auth_url } = await fetchOAuthAuthorizeUrl(provider);
+      const callbackUrl = resolveCallbackUrl("/area");
+
+      const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+        mode: "login",
+        platform: "web",
+        callbackUrl,
+      });
       setStatus("idle");
       window.location.href = auth_url;
     } catch (err) {
@@ -94,7 +116,45 @@ export function useAuth(options: UseAuthOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [resolveCallbackUrl]);
+
+  const startOAuthConnect = useCallback(
+    async (provider: string) => {
+      if (!session.token) {
+        setError("Vous devez être connecté pour lier un service.");
+        setStatus("unauthenticated");
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      setStatus("loading");
+
+      try {
+        const callbackUrl = resolveCallbackUrl("/services");
+
+        const { auth_url } = await fetchOAuthAuthorizeUrl(provider, {
+          mode: "connect",
+          platform: "web",
+          callbackUrl,
+          token: session.token,
+        });
+        setStatus("idle");
+        window.location.href = auth_url;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Impossible de démarrer la connexion du service.";
+        setError(message);
+        setStatus("error");
+        throw err instanceof Error ? err : new Error(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [resolveCallbackUrl, session.token],
+  );
 
   const login = useCallback(async (payload: LoginPayload) => {
     setIsLoading(true);
@@ -174,6 +234,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     isLoading,
     error,
     startOAuthLogin,
+    startOAuthConnect,
     refreshSession,
     login,
     register,

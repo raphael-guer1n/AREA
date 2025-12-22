@@ -1,3 +1,4 @@
+// Proxy login route: forwards credentials to the auth service and relays its response.
 import { NextResponse } from "next/server";
 
 import { authenticateWithCredentials } from "@/lib/api/auth";

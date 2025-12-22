@@ -18,6 +18,8 @@ const gradients: Array<{ from: string; to: string }> = [
   { from: "#02040f", to: "#1b2640" },
 ];
 
+export { gradients };
+
 export const mockServices: MockService[] = [
   {
     id: "google",

@@ -111,9 +111,10 @@ func (m *Manager) GetAuthURL(providerName string, userID int, callbackURL string
 	return authURL, nil
 }
 
-// HandleCallback handles the OAuth2 callback with code and state, returns StateData
-func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse, *StateData, error) {
-	// Validate state and get associated metadata
+// HandleCallback handles the OAuth2 callback with code and state, returns StateData.
+// overrideCallbackURL is optional to allow callers to force the redirect_uri used during token exchange.
+func (m *Manager) HandleCallback(state, code string, overrideCallbackURL ...string) (*UserInfo, *TokenResponse, *StateData, error) {
+	// Validate state and get state data
 	stateData, ok := m.states.Get(state)
 	if !ok {
 		return nil, nil, nil, fmt.Errorf("invalid or expired state parameter")
@@ -124,16 +125,26 @@ func (m *Manager) HandleCallback(state, code string) (*UserInfo, *TokenResponse,
 		return nil, nil, nil, err
 	}
 
-	redirectURI := stateData.CallbackURL
-	if redirectURI == "" {
+	// Resolve redirect URI: prefer explicit override, then stored state callback,
+	// then provider config, finally fall back to PUBLIC_URL (dev default points to local backend).
+	var callbackURL string
+	if len(overrideCallbackURL) > 0 && overrideCallbackURL[0] != "" {
+		callbackURL = overrideCallbackURL[0]
+	} else {
+		callbackURL = stateData.CallbackURL
+	}
+	if callbackURL == "" {
+		callbackURL = provider.config.RedirectURI
+	}
+	if callbackURL == "" {
 		publicURL := os.Getenv("PUBLIC_URL")
 		if publicURL == "" {
 			publicURL = "http://localhost:8083"
 		}
-		redirectURI = publicURL + "/oauth2/callback"
+		callbackURL = publicURL + "/oauth2/callback"
 	}
 
-	tokenResp, err := provider.ExchangeCodeWithRedirect(code, redirectURI)
+	tokenResp, err := provider.ExchangeCodeWithRedirect(code, callbackURL)
 	if err != nil {
 		return nil, nil, nil,
 			fmt.Errorf("failed to exchange code: %w", err)

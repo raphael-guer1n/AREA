@@ -97,12 +97,16 @@ func (p *Provider) ExchangeCodeWithRedirect(code, redirectURI string) (*TokenRes
 	return &tokenResp, nil
 }
 
-// ExchangeCode exchanges the authorization code using the provider’s configured redirect URI.
-func (p *Provider) ExchangeCode(code string) (*TokenResponse, error) {
+// ExchangeCode exchanges the authorization code for an access token
+func (p *Provider) ExchangeCode(code string, callbackUri string) (*TokenResponse, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("code", code)
-	data.Set("redirect_uri", p.config.RedirectURI)
+	redirectURI := p.config.RedirectURI
+	if callbackUri != "" {
+		redirectURI = callbackUri
+	}
+	data.Set("redirect_uri", redirectURI)
 	data.Set("client_id", p.config.ClientID)
 	data.Set("client_secret", p.config.ClientSecret)
 
