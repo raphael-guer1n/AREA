@@ -30,7 +30,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
   void initState() {
     super.initState();
     _connector = ServiceConnector(
-      baseUrl: dotenv.env['BASE_URL'] ?? 'http://10.0.2.2:8083',
+      baseUrl: dotenv.env['BASE_URL'] ??
+          'https://nonbeatifically-stridulatory-denver.ngrok-free.dev',
     );
     _loadServices();
     _listenToDeepLinks();
@@ -45,7 +46,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   void _listenToDeepLinks() {
     _appLinks.uriLinkStream.listen((uri) {
       if (uri.scheme == 'area' && uri.host == 'auth') {
-        // OAuth callback received - reload services
+        debugPrint('[DEEP LINK] OAuth callback: $uri');
         _loadServices();
         setState(() {
           _connectingService = null;
@@ -108,8 +109,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         throw Exception('User not authenticated');
       }
 
-      final authUrl =
-          await _connector.getAuthUrl(serviceName, user['id']);
+      final authUrl = await _connector.getAuthUrl(serviceName, user['id']);
 
       if (!await launchUrl(
         Uri.parse(authUrl),
@@ -118,7 +118,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
         throw Exception('Could not launch browser');
       }
 
-      // Don't reset _connectingService here - wait for deep link callback
     } catch (e) {
       setState(() {
         _connectingService = null;
@@ -147,8 +146,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         throw Exception('User not authenticated');
       }
 
-      await _connector.disconnectService(
-          serviceName, user['id'], token);
+      await _connector.disconnectService(serviceName, user['id'], token);
 
       await _loadServices();
 
@@ -212,7 +210,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -232,8 +229,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 ],
               ),
             ),
-
-            // Search bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: TextField(
@@ -254,10 +249,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Content
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -294,10 +286,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       : RefreshIndicator(
                           onRefresh: _loadServices,
                           child: ListView(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 24),
                             children: [
-                              // Connected services
                               if (connectedServices.isNotEmpty) ...[
                                 Text(
                                   'Services connectés',
@@ -307,8 +298,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                 ...connectedServices.map(
                                   (service) => _ServiceCard(
                                     service: service,
-                                    isConnecting: _connectingService ==
-                                        service.name,
+                                    isConnecting:
+                                        _connectingService == service.name,
                                     onConnect: () =>
                                         _connectService(service.name),
                                     onDisconnect: () =>
@@ -317,8 +308,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                 ),
                                 const SizedBox(height: 32),
                               ],
-
-                              // Available services
                               if (availableServices.isNotEmpty) ...[
                                 Text(
                                   'Services disponibles',
@@ -328,8 +317,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                 ...availableServices.map(
                                   (service) => _ServiceCard(
                                     service: service,
-                                    isConnecting: _connectingService ==
-                                        service.name,
+                                    isConnecting:
+                                        _connectingService == service.name,
                                     onConnect: () =>
                                         _connectService(service.name),
                                     onDisconnect: () =>
@@ -337,7 +326,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                   ),
                                 ),
                               ],
-
                               if (_filteredServices.isEmpty) ...[
                                 const SizedBox(height: 64),
                                 Center(
@@ -357,7 +345,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                   ),
                                 ),
                               ],
-
                               const SizedBox(height: 24),
                             ],
                           ),
@@ -393,7 +380,6 @@ class _ServiceCard extends StatelessWidget {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            // Service icon
             Container(
               width: 48,
               height: 48,
@@ -405,10 +391,7 @@ class _ServiceCard extends StatelessWidget {
                 child: _getServiceIcon(service.name),
               ),
             ),
-
             const SizedBox(width: 16),
-
-            // Service name and status
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,9 +412,7 @@ class _ServiceCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                          color: Colors.green.shade200,
-                        ),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
                       child: Text(
                         'Connecté',
@@ -446,10 +427,7 @@ class _ServiceCard extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(width: 12),
-
-            // Connect/Disconnect button
             if (isConnecting)
               const SizedBox(
                 width: 24,

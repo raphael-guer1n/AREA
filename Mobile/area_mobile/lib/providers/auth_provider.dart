@@ -44,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
+
     try {
       final result = await _authService.loginWithEmail(email, password);
       _token = result['token'];
@@ -69,11 +70,8 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final result = await _authService.register(
-        name: name,
-        email: email,
-        password: password,
-      );
+      final result =
+          await _authService.register(name: name, email: email, password: password);
       _token = result['token'];
       _user = result['user'];
       _isAuthenticated = true;
@@ -88,56 +86,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Social logins now pass user.id
   Future<bool> loginWithGoogle() async {
     _error = null;
     _isLoading = true;
     notifyListeners();
+
     try {
       final userId = _user?['id'] ?? 0;
       final result = await _authService.loginWithGoogle(userId: userId);
-      _token = result['token'];
-      _user = result['user'];
-      _isAuthenticated = true;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> loginWithApple() async {
-    _error = null;
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final userId = _user?['id'] ?? 0;
-      final result = await _authService.loginWithApple(userId: userId);
-      _token = result['token'];
-      _user = result['user'];
-      _isAuthenticated = true;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> loginWithFacebook() async {
-    _error = null;
-    _isLoading = true;
-    notifyListeners();
-    try {
-      final userId = _user?['id'] ?? 0;
-      final result = await _authService.loginWithFacebook(userId: userId);
       _token = result['token'];
       _user = result['user'];
       _isAuthenticated = true;
@@ -157,11 +113,6 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     _isAuthenticated = false;
-    _error = null;
-    notifyListeners();
-  }
-
-  void clearError() {
     _error = null;
     notifyListeners();
   }

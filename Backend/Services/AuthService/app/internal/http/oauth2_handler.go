@@ -217,7 +217,6 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	// Default platform to "web" if not specified
 	if platform == "" {
 		platform = "web"
 	}
@@ -335,7 +334,6 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Marshal user info to JSON
 	userInfoJSON, err := json.Marshal(userInfo.RawData)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -345,14 +343,11 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Calculate expiration time
 	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
-	// If UserID == 0, this is a login-with flow: create or connect user
 	var userIDForStorage int = stateData.UserID
 	var jwtToken string
 	if stateData.UserID == 0 {
-		// Derive email and username from provider userInfo
 		email := strings.TrimSpace(userInfo.Email)
 		username := strings.TrimSpace(userInfo.Username)
 		if username == "" {
@@ -361,7 +356,6 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		if username == "" {
 			username = fmt.Sprintf("%s_user", stateData.Provider)
 		}
-		// Fallback if email missing: synthesize one using provider id
 		if email == "" {
 			if userInfo.ID != "" {
 				email = fmt.Sprintf("%s_%s@oauth.local", stateData.Provider, userInfo.ID)
@@ -370,10 +364,8 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 			}
 		}
 
-		// Try to find existing user by email
 		existingUser, findErr := h.authSvc.GetUserByEmail(email)
 		if findErr == nil && existingUser != nil {
-			// Generate JWT for existing user
 			token, genErr := auth.GenerateToken(existingUser.ID)
 			if genErr != nil {
 				respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -385,7 +377,6 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 			userIDForStorage = existingUser.ID
 			jwtToken = token
 		} else {
-			// Register a new user with a random password
 			randPass := fmt.Sprintf("oauth_%d_%s", time.Now().UnixNano(), userInfo.ID)
 			newUser, token, regErr := h.authSvc.Register(email, username, randPass)
 			if regErr != nil {
@@ -400,7 +391,6 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		}
 	}
 
-	// Store OAuth2 data with resolved user ID
 	err = h.oauth2StorageSvc.StoreOAuth2Response(
 		userIDForStorage,
 		stateData.Provider,
@@ -417,7 +407,28 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	// Return success with user info; include JWT when created/connected
+	// NEW: handle mobile platforms by redirecting to deep link
+	if stateData.Platform == "android" || stateData.Platform == "ios" {
+		redirect := fmt.Sprintf("area://auth?provider=%s&code=%s&state=%s&token=%s",
+			stateData.Provider, code, state, jwtToken)
+
+		html := fmt.Sprintf(`
+			<!DOCTYPE html>
+			<html>
+			<head><meta charset="utf-8"><title>AREA Redirect</title></head>
+			<body style="font-family:sans-serif;text-align:center;margin-top:2em;">
+				<h2>Returning to AREA app...</h2>
+				<p>If you are not redirected, <a href="%s">tap here</a>.</p>
+				<script>window.onload=function(){window.location="%s";}</script>
+			</body>
+			</html>`, redirect, redirect)
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(html))
+		return
+	}
+
 	respData := map[string]any{
 		"provider":     stateData.Provider,
 		"user_info":    userInfo,
@@ -447,7 +458,6 @@ func (h *OAuth2Handler) handleGetUserServices(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	// Extract userId from path
 	path := req.URL.Path
 	userIDStr := path[len("/oauth2/providers/"):]
 	if userIDStr == "" {

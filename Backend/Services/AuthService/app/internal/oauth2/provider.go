@@ -20,7 +20,7 @@ type TokenResponse struct {
 	Scope        string `json:"scope,omitempty"`
 }
 
-// UserInfo represents generic user information from OAuth2 provider
+// UserInfo represents generic user information returned by the provider
 type UserInfo struct {
 	ID       string                 `json:"id"`
 	Email    string                 `json:"email"`
@@ -29,7 +29,7 @@ type UserInfo struct {
 	RawData  map[string]interface{} `json:"raw_data"`
 }
 
-// Provider handles OAuth2 authentication flow for a specific provider
+// Provider handles OAuth2 flow for a specific provider
 type Provider struct {
 	config ProviderConfig
 }
@@ -39,15 +39,17 @@ func NewProvider(config ProviderConfig) *Provider {
 	return &Provider{config: config}
 }
 
-// GenerateAuthURL generates the OAuth2 authorization URL with state parameter
-func (p *Provider) GenerateAuthURL(state string, callbackUri string) string {
+// GenerateAuthURL builds the OAuth2 authorization URL with the given state
+func (p *Provider) GenerateAuthURL(state string, callbackURI string) string {
 	params := url.Values{}
 	params.Add("client_id", p.config.ClientID)
-	if callbackUri != "" {
-		params.Add("redirect_uri", callbackUri)
+
+	if callbackURI != "" {
+		params.Add("redirect_uri", callbackURI)
 	} else {
 		params.Add("redirect_uri", p.config.RedirectURI)
 	}
+
 	params.Add("response_type", "code")
 	params.Add("state", state)
 
@@ -163,35 +165,28 @@ func (p *Provider) GetUserInfo(accessToken string) (*UserInfo, error) {
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
-	userInfo := &UserInfo{
-		RawData: rawData,
-	}
-
-	// Extract common fields (providers may use different field names)
+	user := &UserInfo{RawData: rawData}
 	if id, ok := rawData["id"].(string); ok {
-		userInfo.ID = id
+		user.ID = id
 	} else if sub, ok := rawData["sub"].(string); ok {
-		userInfo.ID = sub
+		user.ID = sub
 	}
-
 	if email, ok := rawData["email"].(string); ok {
-		userInfo.Email = email
+		user.Email = email
 	}
-
 	if name, ok := rawData["name"].(string); ok {
-		userInfo.Name = name
+		user.Name = name
 	}
-
 	if username, ok := rawData["username"].(string); ok {
-		userInfo.Username = username
+		user.Username = username
 	} else if login, ok := rawData["login"].(string); ok {
-		userInfo.Username = login
+		user.Username = login
 	}
 
-	return userInfo, nil
+	return user, nil
 }
 
-// GenerateState generates a random state parameter for CSRF protection
+// GenerateState builds a random CSRF protection parameter
 func GenerateState() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
