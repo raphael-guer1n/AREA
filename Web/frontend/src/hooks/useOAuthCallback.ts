@@ -1,3 +1,7 @@
+/**
+ * Handles OAuth2 callback query params, exchanges the code, persists the app session token,
+ * then redirects to the intended page. Designed to run on client-only routes.
+ */
 "use client";
 
 import { useEffect, useState } from "react";

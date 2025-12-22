@@ -1,3 +1,9 @@
+/**
+ * Client-side auth state machine.
+ * - Keeps user/session state in React.
+ * - Delegates network calls to lib/api (login, register, OAuth kicks).
+ * - Persists tokens through the internal /api/session proxy (HTTP-only cookie).
+ */
 "use client";
 
 import { useCallback, useEffect, useState } from "react";

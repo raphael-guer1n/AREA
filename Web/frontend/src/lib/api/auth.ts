@@ -1,3 +1,7 @@
+/**
+ * Auth service client (credential auth, OAuth2 flows, /auth/me lookup).
+ * Centralizes base URL normalization so routes can be proxied through the gateway.
+ */
 import type { LoginPayload, RegisterPayload, User } from "@/types/User";
 import type {
   OAuthAuthorizeResponse,

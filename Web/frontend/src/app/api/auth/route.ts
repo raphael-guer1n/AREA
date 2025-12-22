@@ -1,3 +1,4 @@
+// Demo-only in-memory auth route. Real auth flows are proxied via api/auth/login and api/auth/register.
 import { NextResponse } from "next/server";
 
 type AuthAction = "login" | "register";

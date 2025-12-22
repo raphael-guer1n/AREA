@@ -1,3 +1,4 @@
+// Proxy registration route: forwards user creation to the auth service and returns the result.
 import { NextResponse } from "next/server";
 
 import { registerWithCredentials } from "@/lib/api/auth";

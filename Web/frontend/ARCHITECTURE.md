@@ -1,38 +1,35 @@
-# Architecture frontend AREA (Next.js 13+ App Router)
+# Frontend Architecture (Next.js App Router)
 
-Ce projet suit une séparation stricte entre UI, logique métier (hooks) et accès réseau (lib/api). Résumé des dossiers et de leur rôle :
+This frontend keeps UI, client business logic, and network access in separate layers. The key folders are:
 
-- `src/app/` : pages et routes API Next.js (App Router).
-  - Pages (`page.tsx`) : uniquement UI et orchestration via des hooks, jamais d'appels HTTP directs.
-  - Routes API (`app/api/**/route.ts`) : endpoints Next.js côté serveur qui font office de proxy vers le backend et gèrent les cookies/sessions.
-- `src/components/` : composants UI **sans logique métier**.
-  - `components/forms/` : formulaires qui délèguent la logique aux hooks (`useAuth`, etc.).
-  - `components/ui/` : primitives UI réutilisables.
-- `src/hooks/` : logique métier réutilisable côté client.
-  - `useAuth` gère l’authentification (login/register/logout, refresh session) en s’appuyant sur `lib/api`.
-  - `useOAuthCallback` gère le retour OAuth2, l’échange de code et la persistance de session.
-- `src/lib/` : utilitaires et accès réseau.
-  - `lib/api/` : **seul endroit** avec des appels HTTP (`fetch`).
-    - `auth.ts` : login/register/me, OAuth2 authorize/callback, mapping des réponses backend.
-    - `session.ts` : appels aux routes internes `/api/session` (persist/clear/fetch).
-  - `auth.ts` : helpers localStorage (stockage token côté client si nécessaire).
-  - `session.ts` : helpers cookies côté serveur (Next.js `cookies()`).
-  - `helpers.ts` : utilitaires génériques (ex. `cn`).
-- `src/types/` : modèles et interfaces partagées (ex. `User`, `AuthSession`, payloads).
-- `public/` : assets statiques.
+- `src/app/`: Routes (server and client) plus API routes.
+  - UI pages (`page.tsx`) orchestrate hooks and helpers; avoid inlining HTTP. The `area` and `services` pages currently call `lib/api` directly for data load/creation—wrap in hooks if you want stricter separation.
+  - API routes (`app/api/**/route.ts`) act as thin proxies to backend services and manage cookies/sessions server-side.
+- `src/components/`: UI-only components.
+  - `components/forms/`: forms that delegate logic to hooks such as `useAuth`.
+  - `components/ui/`: small reusable primitives.
+- `src/hooks/`: reusable client-side business logic.
+  - `useAuth` handles login/register/logout, session refresh, and OAuth kick-off using `lib/api`.
+  - `useOAuthCallback` processes OAuth2 callbacks and persists the session token.
+- `src/lib/`: shared utilities and network calls.
+  - `lib/api/**`: the only place with `fetch` to external/back-end services or internal routes (`auth`, `session`, `services`, `area`).
+  - `session.ts`: server helpers around `cookies()`; `auth.ts`: localStorage helpers; `helpers.ts`: misc utilities.
+- `src/types/`: shared models such as `User` and auth/session contracts.
+- `public/`: static assets.
 
-## Flux d’authentification (exemple)
-1. Une page ou un composant déclenche une action via le hook `useAuth` ou `useOAuthCallback`.
-2. Le hook appelle une fonction réseau dans `lib/api/…` :
-   - `lib/api/auth.ts` pour login/register/OAuth/me.
-   - `lib/api/session.ts` pour créer/supprimer/consulter la session côté Next.
-3. Les fonctions `lib/api` parlent soit directement au backend (ex. `/auth/login`), soit aux routes internes Next (`/api/session`).
-4. Les routes internes dans `src/app/api/**` agissent comme proxy vers le backend et gèrent les cookies (session HTTP-only).
-5. Le hook met à jour l’état React (user, token, status) et la UI réagit.
+## Data & Auth Flow (simplified)
+1. A page or component triggers a hook (`useAuth`, `useOAuthCallback`) or, in some cases, calls `lib/api` helpers directly.
+2. `lib/api` functions talk either to backend services (Auth, Services, Area) or to internal routes under `/api`.
+3. Internal API routes proxy requests and set/clear the HTTP-only session cookie.
+4. Hooks update React state (user, token, status); UI components react to that state.
 
-## Règles essentielles
-- Les pages (`app/`) ne font pas de `fetch` direct : elles utilisent des hooks.
-- Les composants (`components/`) restent UI-only : pas de logique métier ni d’appels API.
-- Toute logique métier est centralisée dans `hooks/`.
-- Tous les appels HTTP sortants résident dans `lib/api/**`.
-- Tous les modèles et types partagés sont dans `types/`.
+## Internal API routes
+- `api/session`: read/write the session cookie, proxy `/auth/me` to validate the token.
+- `api/auth/login` and `api/auth/register`: proxy credential-based auth to the backend.
+- `api/auth`: small in-memory demo endpoint (not used for real auth in production).
+
+## Configuration surface
+- Auth base URL: `API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` (defaults to `.../auth-service`).
+- Area service: `AREA_API_BASE_URL` / `NEXT_PUBLIC_AREA_API_BASE_URL`.
+- Services service: `SERVICES_API_BASE_URL` / `NEXT_PUBLIC_SERVICES_API_BASE_URL`.
+- OAuth/site URLs: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_OAUTH_CALLBACK_BASE`, `COOKIE_SECURE` flags.

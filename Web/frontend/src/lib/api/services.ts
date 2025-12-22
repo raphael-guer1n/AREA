@@ -1,3 +1,7 @@
+/**
+ * Service-service client (list providers and user connection state).
+ * Uses the gateway base so we can share the same API host as auth.
+ */
 import { BACKEND_BASE_URL } from "./auth";
 
 const DEFAULT_GATEWAY_URL = "http://localhost:8080";

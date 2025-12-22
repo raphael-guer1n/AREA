@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  frontend:
+    container_name: area-frontend
+    build:
+      context: .
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/auth-service}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area-service}
+        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/service-service}
+        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
+    ports:
+      - "3000:3000"
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/auth-service}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area-service}
+      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/service-service}
+      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

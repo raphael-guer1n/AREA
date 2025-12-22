@@ -1,3 +1,7 @@
+/**
+ * Area-service client (create event/action). Normalizes base URL with sensible defaults
+ * when env vars are not provided.
+ */
 import { BACKEND_BASE_URL as AUTH_BASE } from "./auth";
 
 const DEFAULT_AREA_BASE = "http://localhost:8085/area-service";

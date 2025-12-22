@@ -1,3 +1,5 @@
+// Internal session endpoint: stores/clears/reads the auth token via HTTP-only cookie
+// and validates it against the auth service.
 import { NextResponse } from "next/server";
 
 import { fetchAuthenticatedUser } from "@/lib/api/auth";

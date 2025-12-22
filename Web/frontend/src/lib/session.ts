@@ -1,3 +1,4 @@
+// Server-only helpers for reading/writing the session cookie via Next headers API.
 import "server-only";
 
 import { cookies } from "next/headers";
