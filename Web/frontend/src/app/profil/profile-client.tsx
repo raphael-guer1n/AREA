@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui/AreaCard";
 import { Button } from "@/components/ui/Button";
@@ -82,14 +83,16 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 }
 
 export function ProfileClient({ initialUser, initialSession }: ProfileClientProps) {
-  const { user, token, status } = useAuth({
+  const { user, token, status, logout } = useAuth({
     initialUser,
     initialSession,
   });
+  const router = useRouter();
 
   const [notifyApp, setNotifyApp] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifications, setNotifications] = useState<ProfileNotification[]>([]);
+  const [pendingAction, setPendingAction] = useState<"logout" | "switch" | "delete" | null>(null);
 
   const displayName = useMemo(
     () => user?.name || user?.username || user?.email || "Utilisateur",
@@ -152,8 +155,44 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
     setNotifications([]);
   };
 
+  const openConfirm = (action: "logout" | "switch" | "delete") => setPendingAction(action);
+
+  const actionCopy = {
+    logout: {
+      title: "Déconnexion",
+      body: "Vous serez redirigé vers l'accueil et la session sera vidée.",
+      confirm: "Se déconnecter",
+    },
+    switch: {
+      title: "Changer de compte",
+      body: "Vous serez déconnecté et redirigé vers la page de connexion.",
+      confirm: "Changer de compte",
+    },
+    delete: {
+      title: "Supprimer le compte",
+      body: "Aucune suppression réelle n'est déclenchée pour l'instant. Confirmez pour simuler l'action.",
+      confirm: "Supprimer",
+    },
+  } as const;
+
+  const performAction = async () => {
+    if (!pendingAction) return;
+    if (pendingAction === "delete") {
+      addNotification("Suppression demandée", "Aucune action backend configurée.", "warning");
+      setPendingAction(null);
+      return;
+    }
+    await logout();
+    setPendingAction(null);
+    if (pendingAction === "logout") {
+      router.push("/");
+    } else {
+      router.push("/login");
+    }
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-7">
       <section className="relative isolate overflow-hidden rounded-[22px] border border-[var(--surface-border)] bg-white px-6 py-6 shadow-sm ring-1 ring-[rgba(28,61,99,0.14)]">
         <div className="pointer-events-none absolute inset-0 -z-10 opacity-70">
           <div
@@ -195,6 +234,32 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
           </div>
         </div>
       </section>
+
+      <div className="flex flex-wrap items-center justify-center gap-6 py-3">
+        <Button
+          type="button"
+          variant="ghost"
+          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--blue-primary-2)]"
+          onClick={() => openConfirm("logout")}
+        >
+          Déconnexion
+        </Button>
+        <Button
+          type="button"
+          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--blue-primary-2)]"
+          onClick={() => openConfirm("switch")}
+        >
+          Changer de compte
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--card-color-2)]"
+          onClick={() => openConfirm("delete")}
+        >
+          Supprimer le compte
+        </Button>
+      </div>
 
       <Card
         title="Notifications"
@@ -310,6 +375,42 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
           <p>Si le problème persiste, capturez l&apos;horodatage, le service concerné et le message d&apos;erreur avant d&apos;ouvrir un ticket.</p>
         </div>
       </Card>
+
+      {pendingAction ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.55)] px-4 py-10 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-[var(--surface-border)] bg-white p-5 shadow-2xl ring-1 ring-[rgba(28,61,99,0.2)]">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-primary-3)]">
+                Confirmation
+              </p>
+              <h3 className="text-lg font-semibold text-[var(--foreground)]">{actionCopy[pendingAction].title}</h3>
+              <p className="text-sm text-[var(--muted)]">{actionCopy[pendingAction].body}</p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="ghost"
+                className="px-4 py-2 border border-[var(--surface-border)] bg-white text-[var(--foreground)]"
+                onClick={() => setPendingAction(null)}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="button"
+                className="px-5 py-2"
+                onClick={performAction}
+              >
+                {actionCopy[pendingAction].confirm}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
