@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { Card } from "@/components/ui/AreaCard";
@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { AuthStatus, AuthSession } from "@/types/auth";
 import type { User } from "@/types/User";
 
+type ConfirmAction = "logout" | "switch" | "delete";
 type ProfileClientProps = {
   initialUser: User | null;
   initialSession: AuthSession | null;
@@ -27,6 +28,14 @@ type ProfileNotification = {
   detail: string;
   createdAt: string;
   type: "area_created" | "info" | "warning";
+};
+
+type ProfileDraft = {
+  avatarUrl: string;
+  email: string;
+  username: string;
+  name: string;
+  password: string;
 };
 
 const statusStyles: Record<AuthStatus, StatusStyle> = {
@@ -75,7 +84,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         className={`inline-flex h-5 w-9 items-center rounded-full transition ${checked ? "bg-[var(--blue-primary-2)]" : "bg-[var(--surface-border)]"}`}
       >
         <span
-          className={`ml-[2px] inline-block h-4 w-4 rounded-full bg-white shadow transition ${checked ? "translate-x-[14px]" : ""}`}
+          className={`ml-[2px] inline-block h-4 w-4 rounded-full bg-[var(--background)] ring-1 ring-[var(--surface-border)] shadow transition ${checked ? "translate-x-[14px]" : ""}`}
         />
       </span>
     </button>
@@ -89,17 +98,54 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
   });
   const router = useRouter();
 
+  const [localProfile, setLocalProfile] = useState<User | null>(user);
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
+    avatarUrl: user?.avatarUrl ?? "",
+    email: user?.email ?? "",
+    username: user?.username ?? "",
+    name: user?.name ?? "",
+    password: "",
+  });
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatarUrl ?? null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const [notifyApp, setNotifyApp] = useState(true);
   const [notifyEmail, setNotifyEmail] = useState(true);
   const [notifications, setNotifications] = useState<ProfileNotification[]>([]);
-  const [pendingAction, setPendingAction] = useState<"logout" | "switch" | "delete" | null>(null);
+
+  useEffect(() => {
+    setLocalProfile(user);
+    setProfileDraft({
+      avatarUrl: user?.avatarUrl ?? "",
+      email: user?.email ?? "",
+      username: user?.username ?? "",
+      name: user?.name ?? "",
+      password: "",
+    });
+    setAvatarPreview(user?.avatarUrl ?? null);
+  }, [user]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
+  const profile = localProfile ?? user ?? initialUser;
+  const isGoogleAccount = useMemo(() => {
+    const id = profile?.id?.toString().toLowerCase() ?? "";
+    const email = profile?.email?.toLowerCase() ?? "";
+    return id.startsWith("google-") || email.includes("googleusercontent") || email.includes("google-oauth");
+  }, [profile?.email, profile?.id]);
 
   const displayName = useMemo(
-    () => user?.name || user?.username || user?.email || "Utilisateur",
-    [user],
+    () => profile?.name || profile?.username || profile?.email || "Utilisateur",
+    [profile?.email, profile?.name, profile?.username],
   );
   const initials = useMemo(() => displayName.slice(0, 2).toUpperCase(), [displayName]);
-  const displayEmail = user?.email || "Email indisponible";
+  const displayEmail = profile?.email || "Email indisponible";
   const statusMeta = statusStyles[status] ?? statusStyles.idle;
   const maskedToken =
     token && token.length > 18
@@ -155,60 +201,288 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
     setNotifications([]);
   };
 
-  const openConfirm = (action: "logout" | "switch" | "delete") => setPendingAction(action);
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
-  const actionCopy = {
+  const handleSwitchAccount = async () => {
+    await logout();
+    router.push("/login");
+  };
+
+  const handleDeleteAccount = () => {
+    addNotification("Suppression demandée", "Aucune action backend configurée.", "warning");
+  };
+
+  const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const nextPreview = URL.createObjectURL(file);
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    setAvatarPreview(nextPreview);
+    setProfileDraft((prev) => ({ ...prev, avatarUrl: nextPreview }));
+  };
+
+  const resetAvatar = () => {
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    const fallback = profile?.avatarUrl ?? "";
+    setAvatarPreview(fallback || null);
+    setProfileDraft((prev) => ({ ...prev, avatarUrl: fallback }));
+  };
+
+  const handleSaveProfile = () => {
+    const base: User = localProfile ?? user ?? {
+      id: initialUser?.id ?? "local-user",
+      email: profileDraft.email || "email@exemple.com",
+    };
+
+    const nextAvatar = avatarPreview ?? profileDraft.avatarUrl ?? base.avatarUrl ?? "";
+
+    const updatedProfile: User = {
+      ...base,
+      email: profileDraft.email || base.email,
+      username: profileDraft.username || base.username,
+      name: profileDraft.name || base.name || base.username || base.email,
+      avatarUrl: nextAvatar || undefined,
+    };
+
+    setLocalProfile(updatedProfile);
+    setProfileDraft({
+      avatarUrl: updatedProfile.avatarUrl ?? "",
+      email: updatedProfile.email ?? "",
+      username: updatedProfile.username ?? "",
+      name: updatedProfile.name ?? "",
+      password: "",
+    });
+    setAvatarPreview(nextAvatar || null);
+
+    addNotification("Profil mis à jour", "Modifications enregistrées localement (aucun appel backend).", "info");
+    setIsEditOpen(false);
+  };
+
+  const confirmCopy: Record<ConfirmAction, { title: string; description: string; confirmLabel: string }> = {
     logout: {
-      title: "Déconnexion",
-      body: "Vous serez redirigé vers l'accueil et la session sera vidée.",
-      confirm: "Se déconnecter",
+      title: "Déconnexion ?",
+      description: "Vous serez redirigé vers l'accueil et la session sera vidée.",
+      confirmLabel: "Se déconnecter",
     },
     switch: {
-      title: "Changer de compte",
-      body: "Vous serez déconnecté et redirigé vers la page de connexion.",
-      confirm: "Changer de compte",
+      title: "Changer de compte ?",
+      description: "Vous serez déconnecté puis redirigé vers la page de connexion.",
+      confirmLabel: "Changer de compte",
     },
     delete: {
-      title: "Supprimer le compte",
-      body: "Aucune suppression réelle n'est déclenchée pour l'instant. Confirmez pour simuler l'action.",
-      confirm: "Supprimer",
+      title: "Supprimer le compte ?",
+      description: "Aucune suppression réelle n'est déclenchée. Une notification locale sera ajoutée.",
+      confirmLabel: "Supprimer",
     },
-  } as const;
+  };
 
-  const performAction = async () => {
-    if (!pendingAction) return;
-    if (pendingAction === "delete") {
-      addNotification("Suppression demandée", "Aucune action backend configurée.", "warning");
-      setPendingAction(null);
+  const executeConfirmedAction = async (action: ConfirmAction) => {
+    setConfirmAction(null);
+    if (action === "logout") {
+      await handleLogout();
       return;
     }
-    await logout();
-    setPendingAction(null);
-    if (pendingAction === "logout") {
-      router.push("/");
-    } else {
-      router.push("/login");
+    if (action === "switch") {
+      await handleSwitchAccount();
+      return;
+    }
+    if (action === "delete") {
+      handleDeleteAccount();
     }
   };
 
+  const baseActionButton =
+    "px-8 py-4 text-lg border border-[var(--surface-border)] bg-[var(--background)] text-[var(--foreground)] hover:border-[var(--blue-primary-2)]";
+
   return (
     <div className="space-y-7">
-      <section className="relative isolate overflow-hidden rounded-[22px] border border-[var(--surface-border)] bg-white px-6 py-6 shadow-sm ring-1 ring-[rgba(28,61,99,0.14)]">
-        <div className="pointer-events-none absolute inset-0 -z-10 opacity-70">
+      {isEditOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
           <div
-            className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,var(--card-color-3)_0,transparent_70%)] blur-3xl"
+            className="absolute inset-0 bg-[rgba(4,7,15,0.45)] backdrop-blur-[2px]"
             aria-hidden
+            onClick={() => setIsEditOpen(false)}
           />
           <div
-            className="absolute left-4 top-14 h-32 w-32 rounded-full bg-[radial-gradient(circle_at_center,var(--card-color-4)_0,transparent_70%)] blur-3xl"
-            aria-hidden
-          />
-        </div>
+            role="dialog"
+            aria-modal="true"
+            className="relative z-10 w-full max-w-5xl overflow-hidden rounded-[26px] border border-[var(--surface-border)] bg-[var(--background)] shadow-[0_22px_68px_rgba(0,0,0,0.2)] ring-1 ring-[rgba(28,61,99,0.18)]"
+          >
+            <div
+              className="h-2 w-full"
+              style={{
+                background: "linear-gradient(135deg, var(--blue-primary-2), var(--card-color-3))",
+              }}
+            />
+            <div className="flex items-start justify-between gap-6 px-8 pb-4 pt-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
+                  Edition du profil
+                </p>
+                <p className="text-xl font-semibold text-[var(--foreground)]">Modifier le compte</p>
+                <p className="text-sm text-[var(--muted)]">
+                  Modifications locales uniquement. Email et mot de passe restent verrouillés pour les comptes Google.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-border)]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                aria-label="Fermer la fenêtre de modification"
+              >
+                ✕
+              </button>
+            </div>
 
-        <div className="rounded-[18px] border border-[var(--surface-border)] bg-white px-6 py-6 ring-1 ring-[rgba(28,61,99,0.1)]">
+            <div className="grid gap-8 border-t border-[var(--surface-border)] px-8 py-8 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="relative h-24 w-24 overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] text-lg font-semibold text-[var(--foreground)] ring-1 ring-[var(--surface-border)]">
+                    {avatarPreview || profileDraft.avatarUrl || profile?.avatarUrl ? (
+                      <img
+                        src={avatarPreview ?? profileDraft.avatarUrl ?? profile?.avatarUrl ?? ""}
+                        alt={`Avatar de ${displayName}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-xl">{initials}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-2)] focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--blue-primary-2)]">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarChange}
+                      />
+                      Changer la photo
+                    </label>
+                    <button
+                      type="button"
+                      onClick={resetAvatar}
+                      disabled={!avatarPreview && !profileDraft.avatarUrl && !profile?.avatarUrl}
+                      className="inline-flex items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Réinitialiser
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">
+                    Nom / affichage
+                  </label>
+                  <input
+                    type="text"
+                    value={profileDraft.name}
+                    onChange={(event) =>
+                      setProfileDraft((prev) => ({ ...prev, name: event.target.value }))
+                    }
+                    placeholder={displayName}
+                    className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] outline-none ring-1 ring-transparent transition focus:border-[var(--blue-primary-2)] focus:ring-[var(--blue-primary-2)]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={profileDraft.username}
+                    onChange={(event) =>
+                      setProfileDraft((prev) => ({ ...prev, username: event.target.value }))
+                    }
+                    placeholder={profile?.username ?? "username"}
+                    className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] outline-none ring-1 ring-transparent transition focus:border-[var(--blue-primary-2)] focus:ring-[var(--blue-primary-2)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">
+                    Adresse mail
+                  </label>
+                  <input
+                    type="email"
+                    value={profileDraft.email}
+                    onChange={(event) =>
+                      setProfileDraft((prev) => ({ ...prev, email: event.target.value }))
+                    }
+                    placeholder={profile?.email ?? "email@exemple.com"}
+                    disabled={isGoogleAccount}
+                    className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] outline-none ring-1 ring-transparent transition focus:border-[var(--blue-primary-2)] focus:ring-[var(--blue-primary-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-border)]/60"
+                  />
+                  <p className="text-[11px] font-medium text-[var(--muted)]">
+                    {isGoogleAccount
+                      ? "Email verrouillé car compte créé via Google (aucune requête envoyée)."
+                      : "Changement local uniquement : la donnée n'est pas envoyée au backend."}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">
+                    Mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={profileDraft.password}
+                    onChange={(event) =>
+                      setProfileDraft((prev) => ({ ...prev, password: event.target.value }))
+                    }
+                    placeholder="********"
+                    disabled={isGoogleAccount}
+                    className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] outline-none ring-1 ring-transparent transition focus:border-[var(--blue-primary-2)] focus:ring-[var(--blue-primary-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-border)]/60"
+                  />
+                  <p className="text-[11px] font-medium text-[var(--muted)]">
+                    Saisie mémorisée localement pour référence, aucune mise à jour réelle du compte.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="px-4 py-2"
+                    onClick={() => {
+                      setIsEditOpen(false);
+                      setProfileDraft((prev) => ({ ...prev, password: "" }));
+                    }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="button" className="px-5 py-2" onClick={handleSaveProfile}>
+                    Enregistrer localement
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <section className="relative isolate overflow-hidden rounded-[22px] border border-[var(--surface-border)] bg-[var(--background)] px-6 py-6 shadow-sm ring-1 ring-[rgba(28,61,99,0.14)]">
+        <div className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--background)] px-6 py-6 ring-1 ring-[rgba(28,61,99,0.1)]">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--card-color-1)] text-lg font-semibold text-white shadow-sm ring-1 ring-[var(--surface-border)]">
-              {initials}
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-[var(--card-color-1)] text-lg font-semibold text-white shadow-sm ring-1 ring-[var(--surface-border)]">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={`Avatar de ${displayName}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-primary-3)]">
@@ -218,13 +492,13 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
               <p className="text-sm text-[var(--muted)]">{displayEmail}</p>
             </div>
             <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-left">
+              <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">Username</p>
                 <p className="mt-2 text-base font-semibold text-[var(--foreground)]">
-                  {user?.username ?? "N/A"}
+                  {profile?.username ?? "N/A"}
                 </p>
               </div>
-              <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-left">
+              <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted)]">Email</p>
                 <p className="mt-2 break-words text-base font-semibold text-[var(--foreground)]">
                   {displayEmail}
@@ -239,23 +513,32 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
         <Button
           type="button"
           variant="ghost"
-          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--blue-primary-2)]"
-          onClick={() => openConfirm("logout")}
+          className={baseActionButton}
+          onClick={() => setIsEditOpen(true)}
+        >
+          Modifier le compte
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className={baseActionButton}
+          onClick={() => setConfirmAction("logout")}
         >
           Déconnexion
         </Button>
         <Button
           type="button"
-          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--blue-primary-2)]"
-          onClick={() => openConfirm("switch")}
+          variant="ghost"
+          className={baseActionButton}
+          onClick={() => setConfirmAction("switch")}
         >
           Changer de compte
         </Button>
         <Button
           type="button"
           variant="ghost"
-          className="px-8 py-4 text-lg border border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:border-[var(--card-color-2)]"
-          onClick={() => openConfirm("delete")}
+          className={baseActionButton}
+          onClick={() => setConfirmAction("delete")}
         >
           Supprimer le compte
         </Button>
@@ -264,12 +547,13 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
       <Card
         title="Notifications"
         subtitle="Historique local (JSON stocké en localStorage)"
-        className="rounded-[18px] border-[var(--surface-border)] bg-white ring-1 ring-[rgba(28,61,99,0.1)]"
+        tone="background"
+        className="rounded-[18px] border-[var(--surface-border)] ring-1 ring-[rgba(28,61,99,0.1)]"
       >
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--muted)] ring-1 ring-[var(--surface-border)]">
+              <span className="rounded-full bg-[var(--background)] px-3 py-1 text-xs font-semibold text-[var(--muted)] ring-1 ring-[var(--surface-border)]">
                 {notifications.length} notification{notifications.length > 1 ? "s" : ""}
               </span>
               <span className="text-xs text-[var(--muted)]">Key: area-notifications</span>
@@ -300,7 +584,7 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
               <p className="text-sm text-[var(--muted)]">Aucune notification pour le moment.</p>
             ) : null}
             {notifications.map((notif) => (
-              <div key={notif.id} className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 shadow-sm ring-1 ring-[rgba(28,61,99,0.06)]">
+              <div key={notif.id} className="rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 shadow-sm ring-1 ring-[rgba(28,61,99,0.06)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span
@@ -334,12 +618,13 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
         <Card
           title="Session & sécurité"
           subtitle={statusMeta.helper}
-          className="rounded-[18px] border-[var(--surface-border)] bg-white ring-1 ring-[rgba(28,61,99,0.1)]"
+          tone="background"
+          className="rounded-[18px] border-[var(--surface-border)] ring-1 ring-[rgba(28,61,99,0.1)]"
         >
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-[var(--muted)]">Statut</span>
-              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.toneClass} bg-white ring-1 ring-[var(--surface-border)]`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${statusMeta.toneClass} bg-[var(--background)] ring-1 ring-[var(--surface-border)]`}>
                 <span className={`h-2.5 w-2.5 rounded-full ${statusMeta.dotClass}`} aria-hidden />
                 {statusMeta.label}
               </span>
@@ -354,7 +639,8 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
         <Card
           title="Préférences"
           subtitle="Réglez vos notifications."
-          className="rounded-[18px] border-[var(--surface-border)] bg-white ring-1 ring-[rgba(28,61,99,0.1)]"
+          tone="background"
+          className="rounded-[18px] border-[var(--surface-border)] ring-1 ring-[rgba(28,61,99,0.1)]"
         >
           <div className="space-y-2">
             <Toggle label="Notifications in-app" checked={notifyApp} onChange={() => setNotifyApp((v) => !v)} />
@@ -366,7 +652,8 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
       <Card
         title="Support"
         subtitle="Aide et diagnostic rapide"
-        className="rounded-[18px] border-[var(--surface-border)] bg-white ring-1 ring-[rgba(28,61,99,0.1)]"
+        tone="background"
+        className="rounded-[18px] border-[var(--surface-border)] ring-1 ring-[rgba(28,61,99,0.1)]"
       >
         <div className="space-y-3 text-sm text-[var(--muted)]">
           <p>Consultez les logs dans Area pour repérer les erreurs d&apos;exécution et les payloads échoués.</p>
@@ -376,41 +663,70 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
         </div>
       </Card>
 
-      {pendingAction ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.55)] px-4 py-10 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="w-full max-w-md rounded-2xl border border-[var(--surface-border)] bg-white p-5 shadow-2xl ring-1 ring-[rgba(28,61,99,0.2)]">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--blue-primary-3)]">
-                Confirmation
-              </p>
-              <h3 className="text-lg font-semibold text-[var(--foreground)]">{actionCopy[pendingAction].title}</h3>
-              <p className="text-sm text-[var(--muted)]">{actionCopy[pendingAction].body}</p>
-            </div>
+      <ProfileConfirmModal
+        action={confirmAction}
+        copy={confirmCopy}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={executeConfirmedAction}
+      />
+    </div>
+  );
+}
 
-            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                className="px-4 py-2 border border-[var(--surface-border)] bg-white text-[var(--foreground)]"
-                onClick={() => setPendingAction(null)}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="button"
-                className="px-5 py-2"
-                onClick={performAction}
-              >
-                {actionCopy[pendingAction].confirm}
-              </Button>
-            </div>
+function ProfileConfirmModal({
+  action,
+  copy,
+  onCancel,
+  onConfirm,
+}: {
+  action: ConfirmAction | null;
+  copy: Record<ConfirmAction, { title: string; description: string; confirmLabel: string }>;
+  onCancel: () => void;
+  onConfirm: (action: ConfirmAction) => void | Promise<void>;
+}) {
+  if (!action) return null;
+
+  const meta = copy[action];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-[rgba(4,7,15,0.45)] backdrop-blur-[2px]" aria-hidden onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-[var(--surface-border)] bg-[var(--background)] shadow-[0_18px_48px_rgba(0,0,0,0.18)]">
+        <div className="flex items-start justify-between gap-4 px-6 pb-2 pt-5">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
+              Confirmation
+            </p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">{meta.title}</h3>
+            <p className="text-sm text-[var(--muted)]">{meta.description}</p>
           </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--foreground)] transition hover:bg-[var(--surface-border)]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+            aria-label="Fermer"
+          >
+            ✕
+          </button>
         </div>
-      ) : null}
+
+        <div className="flex items-center justify-end gap-3 border-t border-[var(--surface-border)] px-6 py-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(action)}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+          >
+            {meta.confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

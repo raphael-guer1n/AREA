@@ -10,6 +10,7 @@ type CardProps = {
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  tone?: "surface" | "background";
 };
 
 export function Card({
@@ -18,11 +19,15 @@ export function Card({
   action,
   children,
   className,
+  tone = "surface",
 }: CardProps) {
+  const toneClass = tone === "background" ? "bg-[var(--background)]" : "bg-[var(--surface)]";
+
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-6 shadow-sm",
+        "rounded-2xl border border-[var(--surface-border)] p-6 shadow-sm",
+        toneClass,
         className,
       )}
     >
