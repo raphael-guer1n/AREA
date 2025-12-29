@@ -18,7 +18,12 @@ function matchesSearch(service: MockService, term: string) {
   const normalizedTerm = normalizeSearchValue(term);
   if (!normalizedTerm) return true;
   const haystack = normalizeSearchValue(
-    [service.name, service.category ?? "", ...service.actions, ...service.reactions].join(" "),
+    [
+      service.name,
+      service.category ?? "",
+      ...service.actions.map((action) => action.label ?? action.title ?? action.id),
+      ...service.reactions.map((reaction) => reaction.label ?? reaction.title ?? reaction.id),
+    ].join(" "),
   );
   return haystack.includes(normalizedTerm);
 }
@@ -265,8 +270,8 @@ export function ServicesClient() {
                           category={service.category}
                           gradientFrom={service.gradient.from}
                           gradientTo={service.gradient.to}
-                          actions={service.actions}
-                          reactions={service.reactions}
+                          actions={service.actions.map((action) => action.label ?? action.id)}
+                          reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
                           connected={service.connected}
                           action="À connecter"
                           onConnect={() => handleConnect(service.id)}
@@ -399,8 +404,8 @@ export function ServicesClient() {
                     category={service.category}
                     gradientFrom={service.gradient.from}
                     gradientTo={service.gradient.to}
-                    actions={service.actions}
-                    reactions={service.reactions}
+                    actions={service.actions.map((action) => action.label ?? action.id)}
+                    reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
                     connected={service.connected}
                     action="Connecté"
                     onDisconnect={() => updateConnection(service.id, false)}
