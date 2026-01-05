@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"regexp"
@@ -127,6 +128,17 @@ func (s *AuthService) GetUserByEmail(email string) (*domain.User, error) {
 		return nil, fmt.Errorf("error finding user by email: %w", err)
 	}
 	return user, nil
+}
+
+// DeleteUserByID deletes a user account and related OAuth2 data.
+func (s *AuthService) DeleteUserByID(id int) error {
+	if err := s.repo.DeleteByID(id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return fmt.Errorf("error deleting user: %w", err)
+	}
+	return nil
 }
 
 // Helper functions for validation

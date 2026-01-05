@@ -17,4 +17,5 @@ type UserRepository interface {
 	FindByUsername(username string) (*User, error)
 	FindByEmailOrUsername(identifier string) (*User, error)
 	FindByID(id int) (*User, error)
+	DeleteByID(id int) error
 }

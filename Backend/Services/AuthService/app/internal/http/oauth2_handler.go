@@ -189,30 +189,11 @@ func (h *OAuth2Handler) handleOAuth2Authorize(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	authHeader := req.Header.Get("Authorization")
-	if authHeader == "" {
-		respondJSON(w, http.StatusUnauthorized, map[string]any{
-			"success": false,
-			"error":   "missing authorization header",
-		})
-		return
-	}
-
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		respondJSON(w, http.StatusUnauthorized, map[string]any{
-			"success": false,
-			"error":   "invalid authorization header format",
-		})
-		return
-	}
-
-	token := parts[1]
-	userID, err := auth.ValidateToken(token)
+	userID, err := getUserIDFromRequest(req)
 	if err != nil {
 		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
-			"error":   "invalid or expired token",
+			"error":   err.Error(),
 		})
 		return
 	}
