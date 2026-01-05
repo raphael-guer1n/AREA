@@ -7,7 +7,7 @@ class AuthProvider extends ChangeNotifier {
   final _storage = const FlutterSecureStorage();
 
   bool _isAuthenticated = false;
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _token;
   Map<String, dynamic>? _user;
   String? _error;
@@ -30,7 +30,13 @@ class AuthProvider extends ChangeNotifier {
       final savedToken = await _authService.getToken();
       if (savedToken != null) {
         _token = savedToken;
-        _isAuthenticated = true;
+        try {
+          final fetchedUser = await _authService.fetchCurrentUser();
+          _user = fetchedUser;
+          _isAuthenticated = true;
+        } catch (e) {
+          debugPrint('Failed to fetch current user: $e');
+        }
       }
     } catch (e) {
       debugPrint('Error checking auth status: $e');
@@ -69,6 +75,7 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _isLoading = true;
     notifyListeners();
+
     try {
       final result =
           await _authService.register(name: name, email: email, password: password);
@@ -86,17 +93,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> loginWithGoogle() async {
+  Future<bool> loginWithGoogleForLogin() async {
     _error = null;
     _isLoading = true;
     notifyListeners();
 
     try {
-      final userId = _user?['id'] ?? 0;
-      final result = await _authService.loginWithGoogle(userId: userId);
+      final result = await _authService.loginWithGoogleWithoutUser();
       _token = result['token'];
-      _user = result['user'];
+
+      final userData = await _authService.fetchCurrentUser();
+      _user = userData;
       _isAuthenticated = true;
+
       _isLoading = false;
       notifyListeners();
       return true;
