@@ -25,7 +25,7 @@
     },
     {
       "path": "/auth/me",
-      "methods": ["GET"],
+      "methods": ["GET", "DELETE"],
       "auth_required": true,
       "permissions": [],
       "internal_only": false
