@@ -1,95 +1,85 @@
 # AREA – Frontend (Next.js)
 
-Interface web pour créer et piloter les AREAs (automatisations type IFTTT/Zapier). Stack moderne, prête pour la prod et documentée.
+Interface web pour créer et piloter les AREAs. Stack moderne (Next.js 16, React 19, TypeScript, Tailwind CSS 4) avec des hooks d’authentification, des proxys API internes et des composants UI réutilisables.
 
-## En bref
+## Pile et dépendances
 - Next.js 16 (App Router) + React 19 + TypeScript.
-- Tailwind CSS 4 (variables CSS pour le thème + mode tritanopie via `ColorblindToggle`).
-- Auth/OAuth2 centralisée (`useAuth`, proxys `/api/session`).
-- Pages clés : landing, login/register, catalogue services, création d’AREAs, profil.
+- Tailwind CSS 4 via `@import` dans `globals.css` ; palette gérée par variables CSS (vision tritanopie activable via `ColorblindToggle`).
+- Zod pour la validation des formulaires.
 - Dockerfile + `docker-compose.yml` pour builder/servir en conteneur.
+- Pré-requis : Node.js 18.18+ (recommandé 20), npm (lockfile présent), accès au backend/gateway (par défaut sur `localhost:8080`).
 
 ## Arborescence rapide
 ```
 src/
-  app/                  # Routes Next (App Router) + API routes internes
-    area/               # Tableau + création d’AREAs (wizard)
-    services/           # Catalogue/connexion de services
-    login, register     # Auth email+mdp
-    profil/             # Profil (SSR + client)
-    auth/callback/      # Callback OAuth2
-    api/auth, api/session
+  app/                # Routes Next (App Router) + API routes
+    area/             # Tableau + création d’AREAs
+    services/         # Catalogue/connexion de services
+    login, register   # Auth email+mdp
+    profil/           # Profil utilisateur (SSR + client)
+    auth/callback/    # Callback OAuth2
+    api/auth, api/session # Proxys internes
     layout.tsx, globals.css
-  components/           # UI réutilisable (cartes, formulaires, navigation)
-  hooks/                # `useAuth`, `useOAuthCallback`, etc.
-  lib/                  # Appels API (`lib/api/*`), helpers, session
-  types/                # Modèles partagés (User, Auth, Services)
-public/                 # Assets statiques
+  components/         # UI réutilisable (cartes, formulaires, navigation)
+  hooks/              # `useAuth`, `useOAuthCallback`, etc.
+  lib/                # Appels API (`lib/api/*`), helpers, session
+  types/              # Modèles partagés (User, Auth, Services)
+public/               # Assets statiques (placeholders, logos)
 docker-compose.yml, Dockerfile, eslint.config.mjs, tsconfig.json
 ```
 
-## Variables d’environnement (mettes-les dans `.env.local`)
+## Configuration (backend/gateway)
+Créer un `.env.local` à la racine du front (variables en miroir côté serveur et client) :
 ```bash
-# Auth (gateway)
 API_BASE_URL=http://localhost:8080/auth-service
 NEXT_PUBLIC_API_BASE_URL=$API_BASE_URL
 
-# Area service
 AREA_API_BASE_URL=http://localhost:8080/area-service
 NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
 
-# Services service
 SERVICES_API_BASE_URL=http://localhost:8080/service-service
 NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
 
-# Site/OAuth
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_OAUTH_CALLBACK_BASE=http://localhost:3000
-COOKIE_SECURE=false        # true en prod si HTTPS
+COOKIE_SECURE=false # true en prod si HTTPS
 ```
-Notes : valeurs par défaut alignées avec le gateway exposé par `docker-compose` (backend sur `8080`). En conteneur, le front utilise `host.docker.internal` pour joindre le backend.
+Notes :
+- Les valeurs par défaut se basent sur le gateway exposé par `docker-compose` (backend sur `8080`).
+- Côté Docker, `host.docker.internal` est utilisé pour joindre le backend depuis le container.
 
-## Démarrage rapide (local)
+## Installation et lancement local
 ```bash
 cd Web/frontend
 npm install
-npm run dev        # http://localhost:3000
+npm run dev      # http://localhost:3000
 
-# Vérifier la qualité / build
-npm run lint
+# Production locale
 npm run build
-npm run start      # sert le build
+npm run start
+
+# Qualité
+npm run lint
 ```
 
-Scripts principaux :
-- `npm run dev` : dev server avec HMR.
-- `npm run lint` : ESLint (Next config).
-- `npm run build` : build de prod.
-- `npm run start` : sert le build.
-
-## Docker / Compose
+## Docker
 - Build : `docker build -t area-frontend .`
 - Run : `docker run --rm -p 3000:3000 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service area-frontend`
 - Compose (depuis ce dossier) : `docker compose up --build`
-  - Navigateur → `http://localhost:8080/{service}`
-  - Serveur Next (SSRs/fetch server) → `http://host.docker.internal:8080/{service}`
-  - Override en exportant les variables ci-dessus si le backend est ailleurs.
+  - Variables par défaut : navigateur → `http://localhost:8080/{service}`, serveur Next → `http://host.docker.internal:8080/{service}`.
+  - Override en exportant les variables avant le `compose` si le backend est ailleurs.
 
-## Pages & flux (résumé)
-- `/` : landing statique (CTA login/register).
-- `/login`, `/register` : formulaires email+mdp + OAuth Google (redirection).
-- `/services` : liste des services (GET providers), état de connexion par utilisateur (GET oauth2/providers/{id}), démarrage OAuth “connect”.
-- `/area` : wizard 3 étapes (action → réaction → détails) ; POST `createEvent` vers l’area-service.
-- `/profil` : profil utilisateur, logout, notifications locales.
-- Routes internes Next : `/api/session` (cookie HTTP-only, validation `auth/me`), `/api/auth` (démo en mémoire).
+## Captures / GIFs
+Dépose tes captures ou GIFs dans `public/docs/` (par ex. `home.png`, `services.png`, `area.png`). Les vignettes ci-dessous afficheront un placeholder tant que les fichiers ne sont pas fournis.
 
-## Style & accessibilité
-- Tailwind 4 via `@import` dans `globals.css` + variables CSS (`--background`, `--foreground`, etc.).
-- Palette alternative tritanopie via `ColorblindToggle` (attribut `data-vision="tritanopia"` sur `<html>`).
-- Composants UI réutilisables : `AreaCard`, `ServiceCard`, `Button`, `Card`, `AreaNavigation`, formulaires auth.
+![Accueil](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture accueil dans public/docs/home.png</text></svg>)
+
+![Services](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture services dans public/docs/services.png</text></svg>)
+
+![Création d'area](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture creation dans public/docs/area.png</text></svg>)
 
 ## Liens utiles
-- Architecture : `ARCHITECTURE.md`
+- Architecture détaillée : `ARCHITECTURE.md`
 - Composants : `COMPONENTS.md`
 - Pages et routes : `PAGES_ROUTES.md`
 - Contribution front : `HOWTOCONTRIBUTE.md`
