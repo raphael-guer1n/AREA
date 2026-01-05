@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/domain"
 )
@@ -88,4 +89,36 @@ func (r *userRepository) FindByID(id int) (*domain.User, error) {
 		return nil, err
 	}
 	return &u, nil
+}
+
+func (r *userRepository) DeleteByID(id int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if _, err := tx.Exec(`DELETE FROM user_service_profiles WHERE user_id = $1`, id); err != nil {
+		return fmt.Errorf("failed to delete user profiles: %w", err)
+	}
+
+	res, err := tx.Exec(`DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read delete result: %w", err)
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
