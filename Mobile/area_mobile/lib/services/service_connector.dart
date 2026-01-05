@@ -16,7 +16,7 @@ class ServiceConnector {
         throw Exception('JWT token missing — please log in again.');
       }
 
-      final url = Uri.parse('$baseUrl/oauth2/providers/$userId');
+      final url = Uri.parse('$baseUrl/auth-service/oauth2/providers/$userId');
       final response = await http.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
@@ -36,51 +36,51 @@ class ServiceConnector {
   }
 
   Future<String> getAuthUrl(String serviceName, int userId) async {
-  try {
-    final token = await _storage.read(key: 'jwt_token');
-    if (token == null || token.isEmpty) {
-      throw Exception('JWT token missing — please log in first.');
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null || token.isEmpty) {
+        throw Exception('JWT token missing — please log in first.');
+      }
+
+      const redirectUri =
+          'https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback';
+      final encodedRedirect = Uri.encodeComponent(redirectUri);
+
+      final uri = Uri.parse(
+        '$baseUrl/auth-service/oauth2/authorize?provider=$serviceName&user_id=$userId'
+        '&callback_url=$encodedRedirect&platform=android',
+      );
+
+      print('[CONNECT SERVICE]');
+      print('Request URL: $uri');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Failed to get auth URL (${response.statusCode}): ${response.body}');
+      }
+
+      final data = jsonDecode(response.body);
+      if (data['success'] != true || data['data'] == null) {
+        throw Exception(data['error'] ?? 'Invalid backend response');
+      }
+
+      String authUrl = data['data']['auth_url']
+          .replaceAll('\\u0026', '&')
+          .replaceAll('\u0026', '&');
+
+      return authUrl;
+    } catch (e) {
+      throw Exception('Error getting auth URL: $e');
     }
-
-    const redirectUri =
-        'https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback';
-    final encodedRedirect = Uri.encodeComponent(redirectUri);
-
-    final uri = Uri.parse(
-      '$baseUrl/oauth2/authorize?provider=$serviceName&user_id=$userId'
-      '&callback_url=$encodedRedirect&platform=android',
-    );
-
-    print('[CONNECT SERVICE]');
-    print('Request URL: $uri');
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception(
-          'Failed to get auth URL (${response.statusCode}): ${response.body}');
-    }
-
-    final data = jsonDecode(response.body);
-    if (data['success'] != true || data['data'] == null) {
-      throw Exception(data['error'] ?? 'Invalid backend response');
-    }
-
-    String authUrl = data['data']['auth_url']
-        .replaceAll('\\u0026', '&')
-        .replaceAll('\u0026', '&');
-
-    return authUrl;
-  } catch (e) {
-    throw Exception('Error getting auth URL: $e');
   }
-}
 
   Future<void> disconnectService(
       String serviceName, int userId, String token) async {

@@ -7,8 +7,9 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AuthService {
-  final String baseUrl = dotenv.env['BASE_URL'] ??
-      'https://nonbeatifically-stridulatory-denver.ngrok-free.dev';
+  final String baseUrl =
+      dotenv.env['BASE_URL'] ?? 'http://localhost:8080';
+
   final AppLinks _appLinks = AppLinks();
   final _storage = const FlutterSecureStorage();
 
@@ -26,7 +27,7 @@ class AuthService {
       String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse('$baseUrl/auth-service/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'emailOrUsername': email,
@@ -43,13 +44,13 @@ class AuthService {
           await _saveToken(token);
           return {'token': token, 'user': user};
         }
-        throw Exception('Format de réponse invalide');
+        throw Exception('Invalid response format');
       } else {
         final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Identifiants incorrects');
+        throw Exception(body['error'] ?? 'Invalid credentials');
       }
     } catch (e) {
-      throw Exception('Erreur de connexion: $e');
+      throw Exception('Login error: $e');
     }
   }
 
@@ -60,7 +61,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
+        Uri.parse('$baseUrl/auth-service/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': name,
@@ -78,13 +79,13 @@ class AuthService {
           await _saveToken(token);
           return {'token': token, 'user': user};
         }
-        throw Exception('Format de réponse invalide');
+        throw Exception('Invalid response format');
       } else {
         final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Erreur lors de la création du compte');
+        throw Exception(body['error'] ?? 'Registration failed');
       }
     } catch (e) {
-      throw Exception('Erreur d\'inscription: $e');
+      throw Exception('Registration error: $e');
     }
   }
 
@@ -95,7 +96,7 @@ class AuthService {
     final token = await _storage.read(key: 'jwt_token');
 
     if (token == null || token.isEmpty) {
-      throw Exception('No JWT token found in secure storage. Login first.');
+      throw Exception('No JWT token found. Login first.');
     }
     if (userId <= 0) {
       throw Exception('Invalid user ID ($userId)');
@@ -103,7 +104,7 @@ class AuthService {
 
     final encodedRedirect = Uri.encodeComponent(redirectUri);
     final fullUrl =
-        '$baseUrl/oauth2/authorize?provider=$provider&user_id=$userId'
+        '$baseUrl/auth-service/oauth2/authorize?provider=$provider&user_id=$userId'
         '&callback_url=$encodedRedirect&platform=android';
 
     final completer = Completer<Uri>();
@@ -114,18 +115,17 @@ class AuthService {
     });
 
     try {
-      final ok = await launchUrl(Uri.parse(fullUrl),
-          mode: LaunchMode.externalApplication);
-      if (!ok) throw Exception('Impossible d\'ouvrir le navigateur');
+      final ok =
+          await launchUrl(Uri.parse(fullUrl), mode: LaunchMode.externalApplication);
+      if (!ok) throw Exception('Cannot open browser');
 
-      final redirected =
-          await completer.future.timeout(const Duration(minutes: 5));
+      final redirected = await completer.future.timeout(const Duration(minutes: 5));
 
       final tokenParam = redirected.queryParameters['token'];
       final providerParam = redirected.queryParameters['provider'];
 
       if (tokenParam == null || tokenParam.isEmpty) {
-        throw Exception('Jeton manquant dans la redirection');
+        throw Exception('Missing token after redirect');
       }
 
       await _saveToken(tokenParam);
