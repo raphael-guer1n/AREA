@@ -96,6 +96,34 @@ The AREA project aims to teach:
 
 <br>
 
+## 🚀 Docker Compose (stack complet)
+
+Lancer tout le projet (backend + gateway + web) en Docker :
+```bash
+cd Backend
+cp Services/AuthService/.env.example Services/AuthService/.env
+cp Services/ServiceService/.env.example Services/ServiceService/.env
+cp Services/AreaService/.env.example Services/AreaService/.env
+cd ..
+docker network create area_network || true
+docker compose up -d --build
+```
+Ports exposés : gateway `8080`, frontend `3000`, services `8083/8084/8085`, bases Postgres `5433/5434/5435`.  
+Arrêt + purge des volumes : `docker compose down -v`.  
+Si ton backend est ailleurs, override les URLs à la volée : `NEXT_PUBLIC_API_BASE_URL=http://monhost:8080/auth-service docker compose up -d`.
+
+### Mobile (build APK via Docker)
+```bash
+cd Mobile/area_mobile
+# optionnel : choisir l’URL du gateway depuis l’émulateur (10.0.2.2 pointe sur l’hôte)
+export MOBILE_BASE_URL=http://10.0.2.2:8080/auth-service
+cd ../..
+docker compose --profile mobile up -d --build mobile
+# récupérer l’APK
+docker cp area_mobile:/app/build/app/outputs/apk/release/app-release.apk ./app-release.apk
+```
+⚠️ L’image Flutter est tirée depuis Docker Hub (`cirruslabs/flutter:3.24.0-android`) : il faut un accès réseau. Sans réseau ou si tu veux seulement backend+web, ne passe pas le profil `mobile`.
+
 ## 📄 License – MIT License
 
 MIT License
@@ -123,4 +151,3 @@ SOFTWARE.
 <br>
 
 <div align="center"> <sub>{Epitech} — 2025</sub> </div>
-
