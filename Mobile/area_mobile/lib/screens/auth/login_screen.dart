@@ -15,7 +15,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
   bool _obscurePassword = true;
 
   @override
@@ -41,88 +40,72 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loginWithGoogle() async {
     final authProvider = context.read<AuthProvider>();
-    final success = await authProvider.loginWithGoogle();
+    final success = await authProvider.loginWithGoogleForLogin();
 
     if (success && mounted) {
       Navigator.of(context).pushReplacementNamed('/main');
+    } else {
+      if (mounted && authProvider.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${authProvider.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                final isLoading = authProvider.isLoading;
-                final error = authProvider.error;
+              builder: (context, auth, _) {
+                final isLoading = auth.isLoading;
+                final error = auth.error;
 
                 return Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        'CONNEXION',
-                        style: theme.textTheme.displayLarge,
-                        textAlign: TextAlign.center,
-                      ),
+                      Text('CONNEXION', style: theme.textTheme.displayLarge),
                       const SizedBox(height: 8),
-                      Container(
-                        height: 2,
-                        width: 50,
-                        color: AppColors.deepBlue,
-                      ),
-                      const SizedBox(height: 32),
+                      Container(height: 2, width: 50, color: AppColors.deepBlue),
+                      const SizedBox(height: 24),
 
-                      if (error != null) ...[
+                      if (error != null)
                         Container(
                           padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.red.shade200),
                           ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error_outline,
-                                  color: Colors.red.shade700, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  error,
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          child: Text(error,
+                              style: TextStyle(color: Colors.red.shade700)),
                         ),
-                        const SizedBox(height: 16),
-                      ],
 
                       _SocialLoginButton(
                         icon: FontAwesomeIcons.google,
                         label: 'Continuer avec Google',
                         onPressed: isLoading ? null : _loginWithGoogle,
                       ),
-                      const SizedBox(height: 12),
-                      
                       const SizedBox(height: 24),
+
                       Row(
                         children: const [
                           Expanded(child: Divider(color: AppColors.grey)),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
+                            padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
                               'OU',
                               style: TextStyle(
@@ -138,20 +121,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       TextFormField(
                         controller: _emailController,
-                        keyboardType: TextInputType.text,
                         textInputAction: TextInputAction.next,
-                        enabled: !isLoading,
                         decoration: const InputDecoration(
                           labelText: 'EMAIL OU NOM D\'UTILISATEUR',
-                          hintText: 'email@exemple.com ou nom_utilisateur',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Veuillez entrer votre email ou nom d\'utilisateur';
-                          }
-                          return null;
-                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Entrez un identifiant' : null,
                       ),
                       const SizedBox(height: 16),
 
@@ -159,17 +135,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         textInputAction: TextInputAction.done,
-                        enabled: !isLoading,
-                        onFieldSubmitted: (_) => _loginWithEmail(),
                         decoration: InputDecoration(
                           labelText: 'MOT DE PASSE',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined),
                             onPressed: () {
                               setState(() {
                                 _obscurePassword = !_obscurePassword;
@@ -177,17 +149,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Veuillez entrer votre mot de passe';
-                          }
-                          if (value.length < 6) {
-                            return 'Le mot de passe doit contenir au moins 6 caractères';
-                          }
-                          return null;
-                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Entrez votre mot de passe' : null,
+                        onFieldSubmitted: (_) => _loginWithEmail(),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
                       SizedBox(
                         width: double.infinity,
@@ -195,45 +161,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: isLoading ? null : _loginWithEmail,
                           child: isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
+                              ? const CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
                                 )
                               : const Text('Se connecter'),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).pushNamed('/register');
-                              },
-                        child: const Text(
-                          'CRÉER UN COMPTE',
-                          style: TextStyle(
-                            color: AppColors.deepBlue,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).pop();
-                              },
-                        icon: const Icon(Icons.arrow_back, size: 16),
-                        label: const Text('Retour'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.darkGrey,
                         ),
                       ),
                     ],
@@ -265,20 +197,15 @@ class _SocialLoginButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       child: ElevatedButton.icon(
-        icon: FaIcon(icon, size: 18),
+        icon: Icon(icon, size: 18),
         label: Text(label),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.white,
-          foregroundColor: AppColors.almostBlack,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: AppColors.grey),
-          ),
-          textStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 15,
-          ),
+          side: const BorderSide(color: AppColors.grey),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: onPressed,
       ),
