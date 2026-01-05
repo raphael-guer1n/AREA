@@ -17,10 +17,10 @@ export function AreaNavigation() {
   return (
     <div className="relative w-full max-w-[min(88vw,36rem)]">
       <div
-        className="absolute inset-0 -z-10 mx-auto max-w-[min(88vw,36rem)] rounded-3xl bg-white"
+        className="absolute inset-0 -z-10 mx-auto max-w-[min(88vw,36rem)] rounded-3xl bg-[var(--background)]"
         aria-hidden
       />
-      <nav className="flex items-center justify-center gap-3 sm:gap-4 rounded-3xl border border-[var(--surface-border)] bg-white px-[clamp(8px,2.5vw,14px)] py-[clamp(8px,2vw,12px)]">
+      <nav className="flex items-center justify-center gap-3 sm:gap-4 rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] px-[clamp(8px,2.5vw,14px)] py-[clamp(8px,2vw,12px)]">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
