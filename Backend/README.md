@@ -26,17 +26,24 @@ Backend/
 ## Quick Start (Docker)
 ```bash
 cd Backend
-# Optional: copy env templates inside each service if missing
-# AuthService/.env.example, ServiceService/.env.example, AreaService/.env.example
+# seed env files if missing
+cp Services/AuthService/.env.example Services/AuthService/.env
+cp Services/ServiceService/.env.example Services/ServiceService/.env
+cp Services/AreaService/.env.example Services/AreaService/.env
 
-# Launch gateway + services
-./start-backend.sh
+# Launch gateway + all services + their DBs
+docker compose up -d --build
 
-# Options:
-#   --restart-db  restart running DB containers for each service
-#   --reset-db    stop services and drop DB volumes before starting (data loss)
+# Shut everything down (and drop DB volumes)
+docker compose down -v
 ```
-This script creates the shared Docker network `area_network`, ensures `.env` files exist, starts AuthService and ServiceService (with Postgres), then boots the gateway. Logs can be tailed with `docker compose -f Backend/Services/AuthService/docker-compose.yml logs -f`.
+Ports exposed on your host by default:
+- Gateway: `8080`
+- AuthService: `8083` (Postgres `5433`)
+- ServiceService: `8084` (Postgres `5434`)
+- AreaService: `8085` (Postgres `5435`)
+
+Use `./start-backend.sh` as a convenience wrapper: it auto-copies missing `.env` files and runs the same `docker compose up -d --build`. Pass `--reset-db` if you want it to `down -v` before starting.
 
 ## Running a Single Service Manually
 Each service ships with:

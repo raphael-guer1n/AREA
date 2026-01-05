@@ -6,8 +6,16 @@ services:
     container_name: area_gateway
     env_file:
       - ./configs/gateway.env
-    network_mode: host
+    ports:
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
     volumes:
       - ./services-config:/root/services-config:ro
       - ./configs:/root/configs:ro
+    networks:
+      - area_network
     restart: unless-stopped
+
+networks:
+  area_network:
+    external: true
+    name: area_network
