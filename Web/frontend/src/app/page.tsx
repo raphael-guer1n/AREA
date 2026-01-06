@@ -74,6 +74,7 @@ const gridPattern = {
 
 export default function HomePage() {
   const [scrollDir, setScrollDir] = useState<"up" | "down" | null>(null);
+  const [isTop, setIsTop] = useState(true);
 
   useEffect(() => {
     let lastY = window.scrollY;
@@ -82,6 +83,8 @@ export default function HomePage() {
       const current = window.scrollY;
       if (Math.abs(current - lastY) < 2) return;
       setScrollDir(current > lastY ? "down" : "up");
+      const trigger = Math.max(48, window.innerHeight * 0.4);
+      setIsTop(current < trigger);
       lastY = current;
     };
 
@@ -89,103 +92,119 @@ export default function HomePage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  return (
-    <div
-      className="relative min-h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]"
-      style={gridPattern}
-    >
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-[var(--card-color-5)] blur-[140px] opacity-65" />
-        <div className="absolute right-6 top-10 h-[28rem] w-[28rem] rounded-full bg-[var(--card-color-2)] blur-[160px] opacity-55" />
-        <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--card-color-1)]/30 blur-[160px]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(229,218,218,0.08),transparent_35%)]" />
-      </div>
+  useEffect(() => {
+    const revealTargets = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    if (revealTargets.length === 0) return;
 
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+
+    revealTargets.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <header
-        className={`sticky top-0 z-50 mx-auto flex max-w-6xl items-center justify-between px-6 py-6 transition-all ${
-          scrollDir === "down"
-            ? "backdrop-blur-3xl bg-[var(--background)]/92 shadow-[0_12px_30px_rgba(0,0,0,0.06)]"
-            : "bg-transparent"
+        className={`pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-6 py-5 transition-all ${
+          isTop ? "opacity-0 -translate-y-2" : "opacity-100 translate-y-0"
         }`}
       >
-        <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-white/90 shadow-sm">
-            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-1" priority />
+        <div className="pointer-events-auto flex items-center gap-3">
+          <div className="relative h-11 w-11 overflow-hidden rounded-xl bg-white/90 shadow-sm">
+            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-1.5" priority />
           </div>
-          <span className="text-lg font-semibold tracking-tight">AREA</span>
+          <span className="text-base font-semibold tracking-tight text-black drop-shadow-md">AREA</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" className="px-4 py-2 transition-transform duration-300 hover:-translate-y-1">
-              Login
-            </Button>
-          </Link>
+        <div className="pointer-events-auto flex items-center gap-3">
           <Link href="/register">
             <Button className="border-0 bg-[var(--card-color-3)] px-5 py-2 text-white shadow-[0_14px_30px_rgba(2,4,15,0.45)] transition-transform duration-300 hover:-translate-y-1 hover:opacity-95">
               Signup
             </Button>
           </Link>
+          <Link href="/login">
+            <Button variant="ghost" className="px-4 py-2 transition-transform duration-300 hover:-translate-y-1">
+              Login
+            </Button>
+          </Link>
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-20 px-6 pb-24 pt-10">
-        <section className="flex flex-col items-center gap-9 text-center">
-          <div className="inline-flex items-center gap-3 rounded-full border border-[var(--surface-border)] bg-[var(--surface)]/70 px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--foreground)] text-[var(--background)] text-xs">
-              ⚡
-            </span>
-            <span className="text-[var(--muted)]">AREA, opéré en continu</span>
+      <section className="relative isolate flex min-h-screen flex-col justify-center overflow-hidden">
+        <div
+          className="absolute inset-0 -z-20 scale-[1.02] bg-cover bg-center bg-no-repeat blur-[4px]"
+          style={{ backgroundImage: "var(--hero-bg)" }}
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/32 via-[#0b1b2f]/48 to-[var(--background)]/85" />
+
+        <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center gap-10 px-6 pt-20 text-center text-white">
+          <div className="reveal relative h-20 w-20 overflow-hidden rounded-2xl bg-white/90 shadow-[0_16px_60px_rgba(0,0,0,0.28)]">
+            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-3" />
           </div>
 
-          <div className="relative h-24 w-24 overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
-            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-4" priority />
-          </div>
-
-          <div className="space-y-8">
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl md:text-[3.25rem] text-[var(--card-color-1)]">
-              AREA.
-              <br />
-              <span className="text-[var(--card-color-2)]">
-                When something happens, something reacts.
+          <div className="reveal space-y-4">
+            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl md:text-[3.6rem]">
+              Connectez vos applications,{" "}
+              <span className="bg-gradient-to-r from-[var(--card-color-1)] via-[var(--card-color-3)] to-[var(--card-color-2)] bg-clip-text text-transparent">
+                simplifiez votre vie
               </span>
             </h1>
-            <p className="mx-auto max-w-3xl text-lg leading-relaxed text-[var(--muted)] sm:text-xl">
-              Déployez des scénarios AREA pour relier mails, chats, fichiers et réseaux sociaux.
-              Sélectionnez un hook, paramétrez la réaction, AREA orchestre, trace et alerte automatiquement.
+            <p className="mx-auto max-w-3xl text-lg leading-relaxed text-white/85 sm:text-xl">
+              AREA orchestre vos automatisations puissantes entre vos services favoris. Gagnez du temps,
+              gardez le contrôle, et concentrez-vous sur ce qui compte vraiment.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="reveal flex flex-wrap items-center justify-center gap-4">
             <Link href="/register">
-              <Button className="border-0 bg-[var(--foreground)] px-7 py-3 text-[var(--background)] shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition-transform duration-300 hover:-translate-y-1 hover:opacity-90">
-                Signup
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
+              <Button className="border-0 bg-white/95 px-7 py-3 text-[var(--card-color-1)] shadow-[0_18px_40px_rgba(15,23,42,0.22)] transition-all duration-300 hover:-translate-y-1 hover:opacity-95">
+                S'inscrire
               </Button>
             </Link>
             <Link href="/login">
-              <Button variant="secondary" className="px-7 py-3 transition-transform duration-300 hover:-translate-y-1">
-                Login
+              <Button
+                variant="secondary"
+                className="bg-white/15 px-7 py-3 text-white backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:bg-white/25"
+              >
+                Connexion
               </Button>
             </Link>
           </div>
-        </section>
 
-        <section
-          id="integrations"
-          className="flex flex-col items-center gap-5 rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/85 px-6 py-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur"
-        >
+          <a
+            href="#content-start"
+            className="reveal mt-6 flex h-12 w-12 items-center justify-center rounded-full border border-white/30 text-white/85 transition hover:-translate-y-1 hover:border-white/60"
+            aria-label="Découvrir"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <div id="content-start" className="relative" style={gridPattern}>
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute -left-32 top-0 h-96 w-96 rounded-full bg-[var(--card-color-5)] blur-[140px] opacity-65" />
+          <div className="absolute right-6 top-10 h-[28rem] w-[28rem] rounded-full bg-[var(--card-color-2)] blur-[160px] opacity-55" />
+          <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--card-color-1)]/30 blur-[160px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(229,218,218,0.08),transparent_35%)]" />
+        </div>
+
+        <main className="mx-auto flex max-w-6xl flex-col gap-28 px-6 pb-32 pt-24">
+          <section
+            id="integrations"
+            className="reveal flex flex-col items-center gap-5 rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/85 px-6 py-8 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur"
+          >
           <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
             Connecteurs disponibles
           </span>
@@ -205,7 +224,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="grid w-full gap-6 md:grid-cols-3">
+        <section className="reveal grid w-full gap-6 md:grid-cols-3">
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -222,7 +241,7 @@ export default function HomePage() {
           ))}
         </section>
 
-        <section id="features" className="space-y-8">
+        <section id="features" className="reveal space-y-8">
           <div className="space-y-3 text-center">
             <h2 className="text-3xl font-semibold sm:text-4xl">Pensée pour les équipes qui livrent</h2>
             <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
@@ -247,7 +266,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="space-y-8">
+        <section className="reveal space-y-8">
           <div className="space-y-3 text-center">
             <h2 className="text-3xl font-semibold sm:text-4xl">Comment ça marche ?</h2>
             <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
@@ -275,7 +294,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/90 p-12 text-center shadow-[0_24px_80px_rgba(15,23,42,0.14)] backdrop-blur">
+        <section className="reveal overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)]/90 p-12 text-center shadow-[0_24px_80px_rgba(15,23,42,0.14)] backdrop-blur">
           <div className="mx-auto flex max-w-3xl flex-col items-center gap-6">
             <h3 className="text-3xl font-semibold sm:text-4xl text-[var(--foreground)]">
               Prêt à lancer vos automations ?
@@ -343,6 +362,7 @@ export default function HomePage() {
           </span>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

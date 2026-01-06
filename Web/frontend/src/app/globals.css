@@ -2,6 +2,7 @@
 
 :root {
   color-scheme: light;
+  --hero-bg: url("/backlogo_with.jpg");
   --bg-primary: #ffffff;
   --bg-secondary: #f5f7fa;
   --border-surface: #e2e8f0;
@@ -66,6 +67,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
+    --hero-bg: url("/backlogo.jpg");
     --bg-primary: #0a0f14;
     --bg-secondary: #0f1a24;
     --border-surface: #1c2a36;
@@ -122,5 +124,47 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Josefin Sans", Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(0.99);
+  filter: blur(6px);
+  will-change: transform, opacity, filter;
+}
+
+.reveal.revealed {
+  animation: fade-lift 0.55s cubic-bezier(0.25, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes fade-lift {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+    filter: blur(6px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    animation: none;
+  }
 }
