@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -108,19 +109,8 @@ export default function HomePage() {
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)] shadow-sm">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="h-6 w-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
-            </svg>
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-white/90 shadow-sm">
+            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-1" priority />
           </div>
           <span className="text-lg font-semibold tracking-tight">AREA</span>
         </div>
@@ -145,6 +135,10 @@ export default function HomePage() {
               ⚡
             </span>
             <span className="text-[var(--muted)]">AREA, opéré en continu</span>
+          </div>
+
+          <div className="relative h-24 w-24 overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-white/90 shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+            <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-4" priority />
           </div>
 
           <div className="space-y-8">
@@ -339,19 +333,8 @@ export default function HomePage() {
       <footer className="border-t border-[var(--surface-border)] bg-[var(--background)]/80 py-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--foreground)] text-[var(--background)] shadow-sm">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
-              </svg>
+            <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-white/90 shadow-sm">
+              <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-1" />
             </div>
             <span className="text-lg font-semibold tracking-tight">AREA</span>
           </div>
