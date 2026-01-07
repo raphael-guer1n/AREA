@@ -43,46 +43,58 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 
 	routes := rt.registry.ListAllRoutes()
 
+	proxies := make(map[string]http.Handler)
 	for _, route := range routes {
-		proxy := NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
+		if _, exists := proxies[route.ServiceName]; exists {
+			continue
+		}
+		proxies[route.ServiceName] = NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
+	}
 
-		var handler http.Handler = proxy
+	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route, err := rt.registry.FindRouteByPath(r.URL.Path)
+		if err != nil {
+			core.WriteError(
+				w,
+				http.StatusNotFound,
+				core.ErrNotFound,
+				"Route not found",
+			)
+			return
+		}
 
-		handler = rt.permMW.Handler(handler)
+		if !methodAllowed(r.Method, route.Methods) {
+			core.WriteError(
+				w,
+				http.StatusMethodNotAllowed,
+				core.ErrForbidden,
+				"Method not allowed",
+			)
+			return
+		}
+
+		proxy, ok := proxies[route.ServiceName]
+		if !ok {
+			proxy = NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
+			proxies[route.ServiceName] = proxy
+		}
+
+		handler := rt.permMW.Handler(proxy)
 		handler = rt.authMW.Handler(handler)
 		handler = rt.internalMW.Handler(handler)
 		handler = rt.loggingMW.Handler(handler)
 
-		methods := make(map[string]struct{})
-		for _, m := range route.Methods {
-			methods[strings.ToUpper(m)] = struct{}{}
-		}
-
-		finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := methods[r.Method]; !ok {
-				core.WriteError(
-					w,
-					http.StatusMethodNotAllowed,
-					core.ErrForbidden,
-					"Method not allowed",
-				)
-				return
-			}
-			handler.ServeHTTP(w, r)
-		})
-
-		namespacedPath := "/" + route.ServiceName + route.Path
-		rt.mux.Handle(namespacedPath, finalHandler)
-	}
-
-	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		core.WriteError(
-			w,
-			http.StatusNotFound,
-			core.ErrNotFound,
-			"Route not found",
-		)
+		handler.ServeHTTP(w, r)
 	}))
 
 	return rt.mux, nil
+}
+
+func methodAllowed(method string, allowed []string) bool {
+	for _, m := range allowed {
+		if strings.EqualFold(m, method) {
+			return true
+		}
+	}
+	return false
 }
