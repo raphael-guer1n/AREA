@@ -1,6 +1,6 @@
 {
 	"name": "service-service",
-	"base_url": "http://localhost:8084",
+	"base_url": "http://service-service:8084",
 	"routes": [
 		{
 			"path": "/health",
