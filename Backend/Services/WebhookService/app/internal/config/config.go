@@ -48,10 +48,15 @@ type FieldConfig struct {
 }
 
 type WebhookSignatureConfig struct {
-	Type           string `json:"type"`
-	Header         string `json:"header"`
-	Prefix         string `json:"prefix"`
-	SecretJSONPath string `json:"secret_json_path"`
+	Type                      string `json:"type"`
+	Header                    string `json:"header"`
+	Prefix                    string `json:"prefix"`
+	SecretJSONPath            string `json:"secret_json_path"`
+	Algorithm                 string `json:"algorithm,omitempty"`
+	Encoding                  string `json:"encoding,omitempty"`
+	SigningStringTemplate     string `json:"signing_string_template,omitempty"`
+	TimestampHeader           string `json:"timestamp_header,omitempty"`
+	TimestampToleranceSeconds int    `json:"timestamp_tolerance_seconds,omitempty"`
 }
 
 type WebhookProviderAuthConfig struct {
