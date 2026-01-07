@@ -6,14 +6,16 @@ import (
 )
 
 type Router struct {
-	mux             *http.ServeMux
-	providerHandler *ProviderHandler
+	mux                    *http.ServeMux
+	providerHandler        *ProviderHandler
+	webhookProviderHandler *WebhookProviderHandler
 }
 
-func NewRouter(providerHandler *ProviderHandler) *Router {
+func NewRouter(providerHandler *ProviderHandler, webhookProviderHandler *WebhookProviderHandler) *Router {
 	r := &Router{
-		mux:             http.NewServeMux(),
-		providerHandler: providerHandler,
+		mux:                    http.NewServeMux(),
+		providerHandler:        providerHandler,
+		webhookProviderHandler: webhookProviderHandler,
 	}
 
 	r.routes()
@@ -27,6 +29,10 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/providers/services", r.providerHandler.HandleGetServices)
 	r.mux.HandleFunc("/providers/oauth2-config", r.providerHandler.HandleGetOAuth2Config)
 	r.mux.HandleFunc("/providers/config", r.providerHandler.HandleGetProviderConfig)
+
+	// Webhook provider configuration endpoints
+	r.mux.HandleFunc("/webhooks/providers", r.webhookProviderHandler.HandleGetProviders)
+	r.mux.HandleFunc("/webhooks/providers/config", r.webhookProviderHandler.HandleGetProviderConfig)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
