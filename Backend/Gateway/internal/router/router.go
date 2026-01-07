@@ -2,7 +2,6 @@ package router
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
@@ -52,23 +51,23 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 	}
 
 	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route, err := rt.registry.FindRouteByPath(r.URL.Path)
+		route, err := rt.registry.FindRoute(r.URL.Path, r.Method)
 		if err != nil {
+			if _, pathErr := rt.registry.FindRouteByPath(r.URL.Path); pathErr == nil {
+				core.WriteError(
+					w,
+					http.StatusMethodNotAllowed,
+					core.ErrForbidden,
+					"Method not allowed",
+				)
+				return
+			}
+
 			core.WriteError(
 				w,
 				http.StatusNotFound,
 				core.ErrNotFound,
 				"Route not found",
-			)
-			return
-		}
-
-		if !methodAllowed(r.Method, route.Methods) {
-			core.WriteError(
-				w,
-				http.StatusMethodNotAllowed,
-				core.ErrForbidden,
-				"Method not allowed",
 			)
 			return
 		}
@@ -88,13 +87,4 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 	}))
 
 	return rt.mux, nil
-}
-
-func methodAllowed(method string, allowed []string) bool {
-	for _, m := range allowed {
-		if strings.EqualFold(m, method) {
-			return true
-		}
-	}
-	return false
 }
