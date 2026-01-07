@@ -59,7 +59,7 @@
       "internal_only": false
     },
     {
-      "path": "/oauth2/providers/",
+      "path": "/oauth2/providers/{userId}",
       "methods": ["GET"],
       "auth_required": false,
       "permissions": [],

@@ -17,14 +17,14 @@
       "internal_only": false
     },
     {
-      "path": "/subscriptions/",
+      "path": "/subscriptions/{hookId}",
       "methods": ["GET", "DELETE"],
       "auth_required": false,
       "permissions": [],
       "internal_only": false
     },
     {
-      "path": "/webhooks/",
+      "path": "/webhooks/{provider}/{hookId}",
       "methods": ["POST"],
       "auth_required": false,
       "permissions": [],
