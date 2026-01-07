@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Config struct {
@@ -58,10 +59,15 @@ type ProviderConfig struct {
 }
 
 type WebhookSignatureConfig struct {
-	Type           string `json:"type"`
-	Header         string `json:"header"`
-	Prefix         string `json:"prefix"`
-	SecretJSONPath string `json:"secret_json_path"`
+	Type                      string `json:"type"`
+	Header                    string `json:"header"`
+	Prefix                    string `json:"prefix"`
+	SecretJSONPath            string `json:"secret_json_path"`
+	Algorithm                 string `json:"algorithm,omitempty"`
+	Encoding                  string `json:"encoding,omitempty"`
+	SigningStringTemplate     string `json:"signing_string_template,omitempty"`
+	TimestampHeader           string `json:"timestamp_header,omitempty"`
+	TimestampToleranceSeconds int    `json:"timestamp_tolerance_seconds,omitempty"`
 }
 
 type WebhookProviderAuthConfig struct {
@@ -177,22 +183,8 @@ func LoadWebhookProviderConfigs(dir string) (map[string]WebhookProviderConfig, e
 			return nil, fmt.Errorf("webhook provider file %s: missing name", path)
 		}
 
-		if cfg.Signature != nil {
-			if cfg.Signature.Type == "" {
-				return nil, fmt.Errorf("webhook provider %s: signature type is required", cfg.Name)
-			}
-			if cfg.Signature.Header == "" {
-				return nil, fmt.Errorf("webhook provider %s: signature header is required", cfg.Name)
-			}
-			if cfg.Signature.SecretJSONPath == "" {
-				return nil, fmt.Errorf("webhook provider %s: signature secret_json_path is required", cfg.Name)
-			}
-
-			switch cfg.Signature.Type {
-			case "hmac-sha256", "hmac-sha1":
-			default:
-				return nil, fmt.Errorf("webhook provider %s: unsupported signature type %q", cfg.Name, cfg.Signature.Type)
-			}
+		if err := validateWebhookSignatureConfig(cfg.Name, cfg.Signature); err != nil {
+			return nil, err
 		}
 
 		if err := validateWebhookProviderAction(cfg.Name, "setup", cfg.Setup); err != nil {
@@ -252,4 +244,70 @@ func validateWebhookProviderAction(providerName, label string, action *WebhookPr
 		}
 	}
 	return nil
+}
+
+func validateWebhookSignatureConfig(providerName string, sig *WebhookSignatureConfig) error {
+	if sig == nil {
+		return nil
+	}
+
+	if sig.Type == "" {
+		return fmt.Errorf("webhook provider %s: signature type is required", providerName)
+	}
+
+	signatureType, algorithm := normalizeSignatureType(sig)
+	if signatureType == "token" {
+		signatureType = "header"
+	}
+
+	switch signatureType {
+	case "hmac":
+		if sig.Header == "" {
+			return fmt.Errorf("webhook provider %s: signature header is required", providerName)
+		}
+		if sig.SecretJSONPath == "" {
+			return fmt.Errorf("webhook provider %s: signature secret_json_path is required", providerName)
+		}
+		if algorithm == "" {
+			algorithm = "sha256"
+		}
+		switch algorithm {
+		case "sha1", "sha256", "sha512":
+		default:
+			return fmt.Errorf("webhook provider %s: unsupported signature algorithm %q", providerName, algorithm)
+		}
+		if sig.Encoding != "" {
+			switch strings.ToLower(sig.Encoding) {
+			case "hex", "base64":
+			default:
+				return fmt.Errorf("webhook provider %s: unsupported signature encoding %q", providerName, sig.Encoding)
+			}
+		}
+		if sig.TimestampToleranceSeconds < 0 {
+			return fmt.Errorf("webhook provider %s: timestamp_tolerance_seconds must be >= 0", providerName)
+		}
+	case "header":
+		if sig.Header == "" {
+			return fmt.Errorf("webhook provider %s: signature header is required", providerName)
+		}
+		if sig.SecretJSONPath == "" {
+			return fmt.Errorf("webhook provider %s: signature secret_json_path is required", providerName)
+		}
+	default:
+		return fmt.Errorf("webhook provider %s: unsupported signature type %q", providerName, sig.Type)
+	}
+
+	return nil
+}
+
+func normalizeSignatureType(sig *WebhookSignatureConfig) (string, string) {
+	signatureType := strings.ToLower(sig.Type)
+	algorithm := strings.ToLower(sig.Algorithm)
+
+	if strings.HasPrefix(signatureType, "hmac-") {
+		algorithm = strings.TrimPrefix(signatureType, "hmac-")
+		signatureType = "hmac"
+	}
+
+	return signatureType, algorithm
 }
