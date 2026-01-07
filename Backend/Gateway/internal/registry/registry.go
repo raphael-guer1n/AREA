@@ -80,31 +80,74 @@ func (r *Registry) FindRoute(path, method string) (*RegisteredRoute, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	// Exact match first.
 	for _, rt := range r.routes {
-		if rt.Path == path || rt.NamespacedPath == path {
-			if slices.Contains(rt.Methods, method) {
-				return &rt, nil
-			}
-		}
-	}
-
-	// Fallback for routes that allow dynamic suffixes (e.g. /oauth2/providers/{id}).
-	for _, rt := range r.routes {
-		if !slices.Contains(rt.Methods, method) {
+		if method != "" && !slices.Contains(rt.Methods, method) {
 			continue
 		}
 
-		if strings.HasPrefix(path, rt.Path) && len(path) > len(rt.Path) && strings.HasPrefix(path[len(rt.Path):], "/") {
+		if pathMatchesPattern(path, rt.Path) {
 			return &rt, nil
 		}
 
-		if strings.HasPrefix(path, rt.NamespacedPath) && len(path) > len(rt.NamespacedPath) && strings.HasPrefix(path[len(rt.NamespacedPath):], "/") {
+		if pathMatchesPattern(path, rt.NamespacedPath) {
 			return &rt, nil
 		}
 	}
 
 	return nil, fmt.Errorf("no route found for %s %s", method, path)
+}
+
+func (r *Registry) FindRouteByPath(path string) (*RegisteredRoute, error) {
+	return r.FindRoute(path, "")
+}
+
+func pathMatchesPattern(path, pattern string) bool {
+	if pattern == "" {
+		return false
+	}
+
+	if path == pattern {
+		return true
+	}
+
+	trimmedPath := strings.Trim(path, "/")
+	trimmedPattern := strings.Trim(pattern, "/")
+
+	if trimmedPath == trimmedPattern {
+		return true
+	}
+
+	pathSegments := splitPathSegments(trimmedPath)
+	patternSegments := splitPathSegments(trimmedPattern)
+
+	if len(pathSegments) != len(patternSegments) {
+		return false
+	}
+
+	for i, segment := range patternSegments {
+		if isParamSegment(segment) {
+			if pathSegments[i] == "" {
+				return false
+			}
+			continue
+		}
+		if segment != pathSegments[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func splitPathSegments(path string) []string {
+	if path == "" {
+		return []string{}
+	}
+	return strings.Split(path, "/")
+}
+
+func isParamSegment(segment string) bool {
+	return strings.HasPrefix(segment, "{") && strings.HasSuffix(segment, "}") && len(segment) > 2
 }
 
 func (r *Registry) ListAllRoutes() []RegisteredRoute {
