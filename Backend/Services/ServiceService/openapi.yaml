@@ -306,6 +306,21 @@ components:
         secret_json_path:
           type: string
           example: secret
+        algorithm:
+          type: string
+          example: sha256
+        encoding:
+          type: string
+          example: hex
+        signing_string_template:
+          type: string
+          example: "v0:{{headers.X-Slack-Request-Timestamp}}:{{body}}"
+        timestamp_header:
+          type: string
+          example: X-Slack-Request-Timestamp
+        timestamp_tolerance_seconds:
+          type: integer
+          example: 300
 
     WebhookProviderConfig:
       type: object
