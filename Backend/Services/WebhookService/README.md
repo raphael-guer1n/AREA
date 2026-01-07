@@ -40,3 +40,31 @@ PUBLIC_BASE_URL=https://api.example.com/webhook-service
 Webhook providers (signature rules, event headers, mappings, setup templates) are configured in `Services/ServiceService/app/internal/config/webhooks/*.json` and served by ServiceService. If a provider defines a `setup` block with OAuth2 auth, WebhookService will create the webhook automatically using the user's OAuth2 token from AuthService.
 
 When running behind the gateway, `PUBLIC_BASE_URL` must include the `/webhook-service` prefix so providers call the gateway route rather than the service directly.
+
+## Signature Support
+
+WebhookService supports multiple signature styles via provider config:
+- `hmac` (algorithms: `sha1`, `sha256`, `sha512`; encodings: `hex`, `base64`)
+- `header` (token comparison using a header value)
+- Legacy types `hmac-sha256` and `hmac-sha1` still work.
+
+For `hmac`, you can customize the signed payload with `signing_string_template`.
+Available placeholders:
+- `{{body}}` (raw request body)
+- `{{headers.<Header-Name>}}`
+- `{{method}}`, `{{path}}`, `{{url}}`, `{{query}}`
+
+Example (Slack-style):
+```json
+{
+  "type": "hmac",
+  "algorithm": "sha256",
+  "encoding": "hex",
+  "header": "X-Slack-Signature",
+  "prefix": "v0=",
+  "timestamp_header": "X-Slack-Request-Timestamp",
+  "timestamp_tolerance_seconds": 300,
+  "signing_string_template": "v0:{{headers.X-Slack-Request-Timestamp}}:{{body}}",
+  "secret_json_path": "secret"
+}
+```
