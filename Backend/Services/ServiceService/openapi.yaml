@@ -150,6 +150,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /webhooks/providers:
+    get:
+      summary: Get all available webhook providers
+      description: Returns a list of all configured webhook providers
+      operationId: getWebhookProviders
+      tags:
+        - Webhooks
+      responses:
+        '200':
+          description: Successfully retrieved provider list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      providers:
+                        type: array
+                        items:
+                          type: string
+                        example: ["github", "generic"]
+
+  /webhooks/providers/config:
+    get:
+      summary: Get webhook provider configuration
+      description: Returns the webhook validation and mapping configuration for a provider
+      operationId: getWebhookProviderConfig
+      tags:
+        - Webhooks
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          description: The name of the webhook provider
+          schema:
+            type: string
+            example: github
+      responses:
+        '200':
+          description: Successfully retrieved webhook provider configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/WebhookProviderConfig'
+        '400':
+          description: Bad request - Missing provider parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
 
@@ -206,6 +274,9 @@ components:
           type: string
           enum: [string, number, boolean, json]
           example: string
+        optional:
+          type: boolean
+          example: true
 
     ProviderConfig:
       type: object
@@ -220,8 +291,83 @@ components:
           items:
             $ref: '#/components/schemas/FieldMapping'
 
+    WebhookSignatureConfig:
+      type: object
+      properties:
+        type:
+          type: string
+          example: hmac-sha256
+        header:
+          type: string
+          example: X-Hub-Signature-256
+        prefix:
+          type: string
+          example: sha256=
+        secret_json_path:
+          type: string
+          example: secret
+
+    WebhookProviderConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          example: github
+        signature:
+          $ref: '#/components/schemas/WebhookSignatureConfig'
+        event_header:
+          type: string
+          example: X-GitHub-Event
+        event_json_path:
+          type: string
+          example: type
+        mappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldMapping'
+        setup:
+          $ref: '#/components/schemas/WebhookProviderSetupConfig'
+        teardown:
+          $ref: '#/components/schemas/WebhookProviderSetupConfig'
+
+    WebhookProviderAuthConfig:
+      type: object
+      properties:
+        type:
+          type: string
+          example: oauth2
+        header:
+          type: string
+          example: Authorization
+        prefix:
+          type: string
+          example: Bearer 
+
+    WebhookProviderSetupConfig:
+      type: object
+      properties:
+        method:
+          type: string
+          example: POST
+        url_template:
+          type: string
+          example: https://api.github.com/repos/{{config.repository}}/hooks
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        auth:
+          $ref: '#/components/schemas/WebhookProviderAuthConfig'
+        body_template:
+          type: object
+        response_id_json_path:
+          type: string
+          example: id
+
 tags:
   - name: Health
     description: Health check endpoints
   - name: Providers
     description: OAuth2 provider configuration endpoints
+  - name: Webhooks
+    description: Webhook provider configuration endpoints
