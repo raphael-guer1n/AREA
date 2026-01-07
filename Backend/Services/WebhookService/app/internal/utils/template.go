@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -14,6 +15,12 @@ type TemplateContext struct {
 	UserID         int
 	AreaID         int
 	Config         any
+	Body           string
+	Headers        http.Header
+	Method         string
+	Path           string
+	URL            string
+	Query          string
 }
 
 var placeholderRegexp = regexp.MustCompile(`\{\{\s*([^}]+)\s*\}\}`)
@@ -102,6 +109,29 @@ func resolvePlaceholder(key string, ctx TemplateContext) (any, bool) {
 		return ctx.AreaID, true
 	case "config":
 		return ctx.Config, ctx.Config != nil
+	case "body":
+		return ctx.Body, ctx.Body != ""
+	case "method":
+		return ctx.Method, ctx.Method != ""
+	case "path":
+		return ctx.Path, ctx.Path != ""
+	case "url":
+		return ctx.URL, ctx.URL != ""
+	case "query":
+		return ctx.Query, ctx.Query != ""
+	}
+
+	if strings.HasPrefix(key, "headers.") || strings.HasPrefix(key, "header.") {
+		headerName := strings.TrimPrefix(key, "headers.")
+		headerName = strings.TrimPrefix(headerName, "header.")
+		if headerName == "" || ctx.Headers == nil {
+			return nil, false
+		}
+		value := ctx.Headers.Get(headerName)
+		if value == "" {
+			return nil, false
+		}
+		return value, true
 	}
 
 	if strings.HasPrefix(key, "config.") {
