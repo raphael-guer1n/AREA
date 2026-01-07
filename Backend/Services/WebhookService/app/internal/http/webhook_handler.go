@@ -4,12 +4,16 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,7 +126,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			return
 		}
 
-		if err := validateSignature(providerConfig.Signature, req.Header, fmt.Sprint(secretValue), body); err != nil {
+		if err := validateSignature(providerConfig.Signature, req, fmt.Sprint(secretValue), body); err != nil {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   err.Error(),
@@ -196,15 +200,26 @@ func readBody(req *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func validateSignature(sig *config.WebhookSignatureConfig, headers http.Header, secret string, body []byte) error {
+func validateSignature(sig *config.WebhookSignatureConfig, req *http.Request, secret string, body []byte) error {
+	signatureType, algorithm := normalizeSignatureType(sig)
+	if signatureType == "token" {
+		signatureType = "header"
+	}
+
+	switch signatureType {
+	case "hmac":
+		return validateHMACSignature(sig, algorithm, req, secret, body)
+	case "header":
+		return validateHeaderSignature(sig, req.Header, secret)
+	default:
+		return fmt.Errorf("unsupported signature type")
+	}
+}
+
+func validateHeaderSignature(sig *config.WebhookSignatureConfig, headers http.Header, secret string) error {
 	received := headers.Get(sig.Header)
 	if received == "" {
 		return fmt.Errorf("missing signature header")
-	}
-
-	expected, err := computeSignature(sig.Type, secret, body)
-	if err != nil {
-		return err
 	}
 
 	if sig.Prefix != "" {
@@ -214,6 +229,54 @@ func validateSignature(sig *config.WebhookSignatureConfig, headers http.Header, 
 		received = strings.TrimPrefix(received, sig.Prefix)
 	}
 
+	if !hmac.Equal([]byte(received), []byte(secret)) {
+		return fmt.Errorf("signature mismatch")
+	}
+
+	return nil
+}
+
+func validateHMACSignature(sig *config.WebhookSignatureConfig, algorithm string, req *http.Request, secret string, body []byte) error {
+	received := req.Header.Get(sig.Header)
+	if received == "" {
+		return fmt.Errorf("missing signature header")
+	}
+
+	if sig.Prefix != "" {
+		if !strings.HasPrefix(received, sig.Prefix) {
+			return fmt.Errorf("signature prefix mismatch")
+		}
+		received = strings.TrimPrefix(received, sig.Prefix)
+	}
+
+	if sig.TimestampHeader != "" {
+		if err := validateTimestamp(sig, req.Header); err != nil {
+			return err
+		}
+	}
+
+	signingInput := body
+	if sig.SigningStringTemplate != "" {
+		ctx := utils.TemplateContext{
+			Body:    string(body),
+			Headers: req.Header,
+			Method:  req.Method,
+			Path:    req.URL.Path,
+			URL:     buildRequestURL(req),
+			Query:   req.URL.RawQuery,
+		}
+		rendered, err := utils.RenderTemplateString(sig.SigningStringTemplate, ctx)
+		if err != nil {
+			return err
+		}
+		signingInput = []byte(fmt.Sprint(rendered))
+	}
+
+	expected, err := computeHMACSignature(algorithm, sig.Encoding, secret, signingInput)
+	if err != nil {
+		return err
+	}
+
 	if !hmac.Equal([]byte(received), []byte(expected)) {
 		return fmt.Errorf("signature mismatch")
 	}
@@ -221,22 +284,103 @@ func validateSignature(sig *config.WebhookSignatureConfig, headers http.Header, 
 	return nil
 }
 
-func computeSignature(sigType, secret string, body []byte) (string, error) {
-	var hash []byte
-	switch sigType {
-	case "hmac-sha256":
-		mac := hmac.New(sha256.New, []byte(secret))
-		_, _ = mac.Write(body)
-		hash = mac.Sum(nil)
-	case "hmac-sha1":
-		mac := hmac.New(sha1.New, []byte(secret))
-		_, _ = mac.Write(body)
-		hash = mac.Sum(nil)
-	default:
-		return "", fmt.Errorf("unsupported signature type")
+func validateTimestamp(sig *config.WebhookSignatureConfig, headers http.Header) error {
+	value := headers.Get(sig.TimestampHeader)
+	if value == "" {
+		return fmt.Errorf("missing timestamp header")
 	}
 
-	return hex.EncodeToString(hash), nil
+	timestamp, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid timestamp header")
+	}
+
+	tolerance := sig.TimestampToleranceSeconds
+	if tolerance <= 0 {
+		tolerance = 300
+	}
+
+	now := time.Now().Unix()
+	diff := now - timestamp
+	if diff < 0 {
+		diff = -diff
+	}
+
+	if diff > int64(tolerance) {
+		return fmt.Errorf("timestamp outside allowed window")
+	}
+
+	return nil
+}
+
+func computeHMACSignature(algorithm, encoding, secret string, payload []byte) (string, error) {
+	if algorithm == "" {
+		algorithm = "sha256"
+	}
+
+	var mac hashFunc
+	switch strings.ToLower(algorithm) {
+	case "sha1":
+		mac = sha1.New
+	case "sha256":
+		mac = sha256.New
+	case "sha512":
+		mac = sha512.New
+	default:
+		return "", fmt.Errorf("unsupported signature algorithm")
+	}
+
+	h := hmac.New(mac, []byte(secret))
+	_, _ = h.Write(payload)
+	sum := h.Sum(nil)
+
+	if encoding == "" {
+		encoding = "hex"
+	}
+
+	switch strings.ToLower(encoding) {
+	case "hex":
+		return hex.EncodeToString(sum), nil
+	case "base64":
+		return base64.StdEncoding.EncodeToString(sum), nil
+	default:
+		return "", fmt.Errorf("unsupported signature encoding")
+	}
+}
+
+type hashFunc func() hash.Hash
+
+func normalizeSignatureType(sig *config.WebhookSignatureConfig) (string, string) {
+	signatureType := strings.ToLower(sig.Type)
+	algorithm := strings.ToLower(sig.Algorithm)
+
+	if strings.HasPrefix(signatureType, "hmac-") {
+		algorithm = strings.TrimPrefix(signatureType, "hmac-")
+		signatureType = "hmac"
+	}
+
+	return signatureType, algorithm
+}
+
+func buildRequestURL(req *http.Request) string {
+	scheme := "http"
+	if req.TLS != nil {
+		scheme = "https"
+	}
+	if forwardedProto := req.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		scheme = forwardedProto
+	}
+
+	host := req.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = req.Host
+	}
+
+	if host == "" {
+		return req.URL.RequestURI()
+	}
+
+	return scheme + "://" + host + req.URL.RequestURI()
 }
 
 func buildMappings(payload any, mappings []config.FieldConfig) (map[string]any, error) {
