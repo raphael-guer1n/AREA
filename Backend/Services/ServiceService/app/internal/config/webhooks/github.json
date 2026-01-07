@@ -1,7 +1,9 @@
 {
   "name": "github",
   "signature": {
-    "type": "hmac-sha256",
+    "type": "hmac",
+    "algorithm": "sha256",
+    "encoding": "hex",
     "header": "X-Hub-Signature-256",
     "prefix": "sha256=",
     "secret_json_path": "secret"
