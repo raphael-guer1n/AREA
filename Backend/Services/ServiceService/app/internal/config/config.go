@@ -44,16 +44,16 @@ type OAuth2Config struct {
 	UserInfoURL  string   `json:"user_info_url"`
 }
 
-type FieldConfig struct {
+type MappingConfig struct {
 	FieldKey string `json:"field_key"`
 	JSONPath string `json:"json_path"`
 	Type     string `json:"type"`
 }
 
 type ProviderConfig struct {
-	Name     string        `json:"name"`
-	OAuth2   OAuth2Config  `json:"oauth2"`
-	Mappings []FieldConfig `json:"mappings"`
+	Name     string          `json:"name"`
+	OAuth2   OAuth2Config    `json:"oauth2"`
+	Mappings []MappingConfig `json:"mappings"`
 }
 
 // LoadProviderConfigs loads all *.json provider configs from the given directory.
@@ -102,4 +102,73 @@ func LoadProviderConfigs(dir string) (map[string]ProviderConfig, error) {
 	}
 
 	return providers, nil
+}
+
+type FieldConfig struct {
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Label         string `json:"label"`
+	Required      bool   `json:"required"`
+	DefaultValuer string `json:"default"`
+}
+
+type OutputField struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Label string `json:"label"`
+}
+
+type ActionConfig struct {
+	Title        string        `json:"title"`
+	Label        string        `json:"label"`
+	Type         string        `json:"type"`
+	Fields       []FieldConfig `json:"fields"`
+	OutputFields []OutputField `json:"output_fields"`
+}
+
+type ReactionConfig struct {
+	Title      string          `json:"title"`
+	Label      string          `json:"label"`
+	Url        string          `json:"url"`
+	Fields     []FieldConfig   `json:"fields"`
+	Method     string          `json:"method"`
+	BodyType   string          `json:"bodyType"`
+	BodyStruct json.RawMessage `json:"body_struct"`
+}
+
+type ServiceConfig struct {
+	Provider  string           `json:"provider"`
+	Name      string           `json:"name"`
+	IconURL   string           `json:"icon_url"`
+	Label     string           `json:"label"`
+	Actions   []ActionConfig   `json:"actions"`
+	Reactions []ReactionConfig `json:"reactions"`
+}
+
+func LoadServiceConfig(dir string) (map[string]ServiceConfig, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read services dir: %w", err)
+	}
+
+	services := make(map[string]ServiceConfig)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read service file %s: %w", path, err)
+		}
+		var cfg ServiceConfig
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("unmarshal service file %s: %w", path, err)
+		}
+		services[cfg.Name] = cfg
+	}
+	return services, nil
 }

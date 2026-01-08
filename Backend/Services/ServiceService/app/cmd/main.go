@@ -13,7 +13,7 @@ func main() {
 	cfg := config.Load()
 
 	// Provider config service
-	providerConfigSvc, err := service.NewProviderConfigService("internal/config/providers")
+	providerConfigSvc, err := service.NewProviderConfigService("internal/config/providers", "internal/config/services")
 	if err != nil {
 		log.Fatalf("Failed to load provider configs: %v", err)
 	}
