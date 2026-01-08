@@ -1,0 +1,18 @@
+version: "1.0"
+
+# Global AREA Microservices Configuration
+# This file defines the planned microservices architecture
+# Use 'make new-service NAME=<service> PORT=<port>' to create services
+
+# Planned Services (uncomment and use as needed):
+services:
+  # Authentication & User Management
+  # auth:
+  #   name: auth-service
+  #   description: "User authentication and JWT token management"
+  #   port: 8081
+  #   path: "/api/auth"
+  #   database:
+  #     name: auth_db
+  #     port: 5432
+  #   healthcheck: "/health"

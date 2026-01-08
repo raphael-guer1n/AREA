@@ -1,0 +1,34 @@
+{
+  "name": "area_webhook_api",
+  "base_url": "http://area_webhook_api:8086",
+  "routes": [
+    {
+      "path": "/health",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/subscriptions",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/subscriptions/{hookId}",
+      "methods": ["GET", "DELETE"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/webhooks/{provider}/{hookId}",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    }
+  ]
+}

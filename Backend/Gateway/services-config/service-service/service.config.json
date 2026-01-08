@@ -1,0 +1,48 @@
+{
+	"name": "area_service_api",
+	"base_url": "http://area_service_api:8084",
+	"routes": [
+		{
+			"path": "/health",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/services",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/oauth2-config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/providers/config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/webhooks/providers",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/webhooks/providers/config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		}
+	]
+}

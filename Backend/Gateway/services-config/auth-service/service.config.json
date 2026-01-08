@@ -1,0 +1,83 @@
+{
+  "name": "area_auth_api",
+  "base_url": "http://area_auth_api:8083",
+  "routes": [
+    {
+      "path": "/health",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/register",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/login",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/auth/me",
+      "methods": ["GET", "DELETE"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/providers",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/authorize",
+      "methods": ["GET"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/callback",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/store",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/providers/{userId}",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/oauth2/provider/token/",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/loginwith",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    }
+  ]
+}

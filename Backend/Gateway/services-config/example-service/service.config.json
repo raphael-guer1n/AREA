@@ -1,0 +1,15 @@
+{
+  "name": "example-service",
+  "base_url": "http://localhost:9999/api",
+  "routes": [
+    {
+      "path": "/test",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    }
+  ]
+}

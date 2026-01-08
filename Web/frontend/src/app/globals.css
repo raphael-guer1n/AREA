@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --hero-bg: url("/backlogo_with.jpg");
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --border-surface: #e2e8f0;
+  --text-secondary: #4a4a4a;
+  --text-primary: #0d0d0d;
+  --blue-primary-1: #0a1a2f;
+  --blue-primary-2: #112a46;
+  --blue-primary-3: #1c3d63;
+  --blue-soft: #41556b;
+  --placeholder: #9aa6b3;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--bg-secondary);
+  --surface-border: var(--border-surface);
+  --accent: var(--blue-primary-2);
+
+  /* Palette card/visuel */
+  --card-color-1: #002642;
+  --card-color-2: #840032;
+  --card-color-3: #e59500;
+  --card-color-4: #e5dada;
+  --card-color-5: #02040f;
+}
+
+:root[data-vision="tritanopia"] {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f9;
+  --border-surface: #e4e3ed;
+  --text-secondary: #4a4a4a;
+  --text-primary: #0d0d0d;
+  --blue-primary-1: #0a2525;
+  --blue-primary-2: #123938;
+  --blue-primary-3: #1d5250;
+  --blue-soft: #426160;
+  --placeholder: #9aa6b3;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --muted: var(--text-secondary);
+  --surface: var(--bg-secondary);
+  --surface-border: var(--border-surface);
+  --accent: var(--blue-primary-2);
+
+  /* Palette card/visuel tritanopia */
+  --card-color-1: #023e3d;
+  --card-color-2: #cd2828;
+  --card-color-3: #f0363c;
+  --card-color-4: #f87c81;
+  --card-color-5: #e9c9cb;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --hero-bg: url("/backlogo.jpg");
+    --bg-primary: #0a0f14;
+    --bg-secondary: #0f1a24;
+    --border-surface: #1c2a36;
+    --text-secondary: #a8b4c0;
+    --text-primary: #e8edf2;
+    --blue-primary-1: #0d253a;
+    --blue-primary-2: #163a59;
+    --blue-primary-3: #1e4c73;
+    --blue-soft: #7b8fa3;
+    --placeholder: #6f7f92;
+
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --muted: var(--text-secondary);
+    --surface: var(--bg-secondary);
+    --surface-border: var(--border-surface);
+    --accent: var(--blue-primary-2);
+
+    --card-color-1: #002642;
+    --card-color-2: #840032;
+    --card-color-3: #e59500;
+    --card-color-4: #e5dada;
+    --card-color-5: #02040f;
+  }
+
+  :root[data-vision="tritanopia"] {
+    color-scheme: dark;
+    --bg-primary: #0a1111;
+    --bg-secondary: #0f1f1f;
+    --border-surface: #1c3030;
+    --text-secondary: #a8baba;
+    --text-primary: #e8efef;
+    --blue-primary-1: #206260;
+    --blue-primary-2: #174b4a;
+    --blue-primary-3: #0e3030;
+    --blue-soft: #7c9a99;
+    --placeholder: #6f7f92;
+
+    --background: var(--bg-primary);
+    --foreground: var(--text-primary);
+    --muted: var(--text-secondary);
+    --surface: var(--bg-secondary);
+    --surface-border: var(--border-surface);
+    --accent: var(--blue-primary-2);
+
+    --card-color-1: #023e3d;
+    --card-color-2: #cd2828;
+    --card-color-3: #f0363c;
+    --card-color-4: #f87c81;
+    --card-color-5: #e9c9cb;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Josefin Sans", Arial, Helvetica, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(0.99);
+  filter: blur(6px);
+  will-change: transform, opacity, filter;
+}
+
+.reveal.revealed {
+  animation: fade-lift 0.55s cubic-bezier(0.25, 0.9, 0.2, 1) forwards;
+}
+
+@keyframes fade-lift {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+    filter: blur(6px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1);
+    filter: blur(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    animation: none;
+  }
+}
