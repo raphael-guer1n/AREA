@@ -30,6 +30,7 @@ COPY --from=builder /build/main .
 
 # Copy provider config files
 COPY --from=builder /build/internal/config/providers ./internal/config/providers
+COPY --from=builder /build/internal/config/services ./internal/config/services
 
 # Run the application
 CMD ["./main"]
