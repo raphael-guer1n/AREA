@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "name": "timer",
+  "label": "Timer",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "delay_action",
+      "label": "Delay Action",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "delay",
+          "type": "number",
+          "label": "Delay (seconds)",
+          "required": true,
+          "default": "0"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "delay",
+          "type": "number",
+          "label": "Delay (seconds)"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}
