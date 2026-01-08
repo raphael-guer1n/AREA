@@ -1,6 +1,6 @@
 {
-	"name": "service-service",
-	"base_url": "http://service-service:8084",
+	"name": "area_service_api",
+	"base_url": "http://area_service_api:8084",
 	"routes": [
 		{
 			"path": "/health",
@@ -25,6 +25,20 @@
 		},
 		{
 			"path": "/providers/config",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/webhooks/providers",
+			"methods": ["GET"],
+			"auth_required": false,
+			"permissions": [],
+			"internal_only": false
+		},
+		{
+			"path": "/webhooks/providers/config",
 			"methods": ["GET"],
 			"auth_required": false,
 			"permissions": [],

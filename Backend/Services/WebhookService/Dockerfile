@@ -28,10 +28,5 @@ WORKDIR /root/
 # Copy the binary from builder
 COPY --from=builder /build/main .
 
-# Copy provider config files
-COPY --from=builder /build/internal/config/providers ./internal/config/providers
-# Copy webhook provider config files
-COPY --from=builder /build/internal/config/webhooks ./internal/config/webhooks
-
 # Run the application
 CMD ["./main"]

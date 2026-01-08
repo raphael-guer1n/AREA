@@ -1,6 +1,6 @@
 {
-  "name": "auth-service",
-  "base_url": "http://auth-service:8083",
+  "name": "area_auth_api",
+  "base_url": "http://area_auth_api:8083",
   "routes": [
     {
       "path": "/health",
@@ -59,7 +59,7 @@
       "internal_only": false
     },
     {
-      "path": "/oauth2/providers/",
+      "path": "/oauth2/providers/{userId}",
       "methods": ["GET"],
       "auth_required": false,
       "permissions": [],

@@ -1,0 +1,308 @@
+openapi: 3.1.0
+info:
+  title: Webhook Service API
+  description: Webhook receiver and subscription service for AREA
+  version: 1.0.0
+  contact:
+    name: AREA Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8085
+    description: Local development server
+  - url: http://api:8085
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /subscriptions:
+    post:
+      summary: Create a webhook subscription
+      description: Creates a subscription tied to a user, AREA, and provider
+      operationId: createSubscription
+      tags:
+        - Subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSubscriptionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Provider not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions/{hookId}:
+    get:
+      summary: Get a webhook subscription
+      description: Returns subscription details by hookId
+      operationId: getSubscription
+      tags:
+        - Subscriptions
+      parameters:
+        - name: hookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Subscription'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a webhook subscription
+      description: Deletes a subscription by hookId
+      operationId: deleteSubscription
+      tags:
+        - Subscriptions
+      parameters:
+        - name: hookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhooks/{provider}/{hookId}:
+    post:
+      summary: Receive webhook
+      description: Receives and validates a provider webhook
+      operationId: receiveWebhook
+      tags:
+        - Webhooks
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: hookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      hook_id:
+                        type: string
+                      event:
+                        type: string
+                      mapped:
+                        type: object
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Signature invalid or missing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Webhook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy
+
+    CreateSubscriptionRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 42
+        area_id:
+          type: integer
+          example: 7
+        provider:
+          type: string
+          example: github
+        config:
+          type: object
+          example:
+            repository: my-org/my-repo
+            events: ["push"]
+            branch: main
+            secret: supersecret
+      required:
+        - user_id
+        - area_id
+        - provider
+
+    CreateSubscriptionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            hook_id:
+              type: string
+              example: 9f1c9d4c3f0c4e3ea2b9b0e0d2f5a9c1
+            provider_hook_id:
+              type: string
+              example: "123456789"
+            provider:
+              type: string
+              example: github
+            webhook_url:
+              type: string
+              example: https://api.example.com/webhooks/github/9f1c9d4c3f0c4e3ea2b9b0e0d2f5a9c1
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        hook_id:
+          type: string
+        provider_hook_id:
+          type: string
+        user_id:
+          type: integer
+        area_id:
+          type: integer
+        provider:
+          type: string
+        config:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: An error occurred
+      required:
+        - success
+        - error
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Subscriptions
+    description: Subscription management endpoints (intended for internal use)
+  - name: Webhooks
+    description: Webhook receiver endpoints

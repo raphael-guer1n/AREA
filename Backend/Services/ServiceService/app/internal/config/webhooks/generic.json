@@ -1,0 +1,21 @@
+{
+  "name": "generic",
+  "event_json_path": "type",
+  "mappings": [
+    {
+      "field_key": "id",
+      "json_path": "id",
+      "type": "string"
+    },
+    {
+      "field_key": "timestamp",
+      "json_path": "created_at",
+      "type": "string"
+    },
+    {
+      "field_key": "payload",
+      "json_path": "data",
+      "type": "json"
+    }
+  ]
+}
