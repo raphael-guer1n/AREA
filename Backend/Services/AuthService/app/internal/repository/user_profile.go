@@ -12,6 +12,26 @@ type userProfileRepository struct {
 	db *sql.DB
 }
 
+func (r *userProfileRepository) GetProviderProfileProfileByServiceByUser(userId int, service string) (domain.UserProfile, error) {
+	var userProfile domain.UserProfile
+	err := r.db.QueryRow(
+		`SELECT id, user_id, service, provider_user_id, access_token, refresh_token, expires_at, raw_profile, created_at, updated_at FROM user_service_profiles WHERE user_id = $1 AND service = $2`,
+		userId, service,
+	).Scan(
+		&userProfile.ID,
+		&userProfile.UserId,
+		&userProfile.Service,
+		&userProfile.ProviderUserId,
+		&userProfile.AccessToken,
+		&userProfile.RefreshToken,
+		&userProfile.ExpiresAt,
+		&userProfile.RawProfile,
+		&userProfile.CreatedAt,
+		&userProfile.UpdatedAt,
+	)
+	return userProfile, err
+}
+
 func (r *userProfileRepository) GetProviderUserTokenByServiceByUserId(userId int, service string) (string, error) {
 	var providerToken string
 
