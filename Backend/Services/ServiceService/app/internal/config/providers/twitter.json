@@ -1,0 +1,38 @@
+{
+  "name": "twitter",
+  "oauth2": {
+    "client_id": "TWITTER_CLIENT_ID",
+    "client_secret": "TWITTER_CLIENT_SECRET",
+    "auth_url": "https://twitter.com/i/oauth2/authorize",
+    "token_url": "https://api.twitter.com/2/oauth2/token",
+    "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "scopes": [
+      "tweet.read",
+      "users.read",
+      "offline.access"
+    ],
+    "user_info_url": "https://api.twitter.com/2/users/me?user.fields=profile_image_url,name,username"
+  },
+  "mappings": [
+    {
+      "field_key": "provider_user_id",
+      "json_path": "data.id",
+      "type": "string"
+    },
+    {
+      "field_key": "display_name",
+      "json_path": "data.name",
+      "type": "string"
+    },
+    {
+      "field_key": "username",
+      "json_path": "data.username",
+      "type": "string"
+    },
+    {
+      "field_key": "avatar_url",
+      "json_path": "data.profile_image_url",
+      "type": "string"
+    }
+  ]
+}

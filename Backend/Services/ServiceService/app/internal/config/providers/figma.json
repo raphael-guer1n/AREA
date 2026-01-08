@@ -1,0 +1,40 @@
+{
+  "name": "figma",
+  "oauth2": {
+    "client_id": "FIGMA_CLIENT_ID",
+    "client_secret": "FIGMA_CLIENT_SECRET",
+    "auth_url": "https://www.figma.com/oauth",
+    "token_url": "https://www.figma.com/api/oauth/token",
+    "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "scopes": [
+      "current_user:read",
+      "file_content:read",
+      "file_metadata:read",
+      "file_versions:read",
+      "file_comments:read"
+    ],
+    "user_info_url": "https://api.figma.com/v1/me"
+  },
+  "mappings": [
+    {
+      "field_key": "provider_user_id",
+      "json_path": "id",
+      "type": "string"
+    },
+    {
+      "field_key": "display_name",
+      "json_path": "handle",
+      "type": "string"
+    },
+    {
+      "field_key": "email",
+      "json_path": "email",
+      "type": "string"
+    },
+    {
+      "field_key": "avatar_url",
+      "json_path": "img_url",
+      "type": "string"
+    }
+  ]
+}
