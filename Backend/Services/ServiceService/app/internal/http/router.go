@@ -24,9 +24,11 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/health", r.handleHealth)
 
 	// Provider configuration endpoints
-	r.mux.HandleFunc("/providers/services", r.providerHandler.HandleGetServices)
+	r.mux.HandleFunc("/providers/services", r.providerHandler.HandleGetProviders)
 	r.mux.HandleFunc("/providers/oauth2-config", r.providerHandler.HandleGetOAuth2Config)
 	r.mux.HandleFunc("/providers/config", r.providerHandler.HandleGetProviderConfig)
+	r.mux.HandleFunc("/services/services", r.providerHandler.HandleGetServices)
+	r.mux.HandleFunc("/services/service-config", r.providerHandler.HandleGetServiceConfig)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
