@@ -1,3 +1,30 @@
+export type FieldDefinition = {
+  name: string;
+  type: "text" | "number" | "date";
+  label: string;
+  required?: boolean;
+  default?: string | number;
+  private?: boolean;
+};
+
+export type ActionDefinition = {
+  id: string;
+  title: string;
+  label: string;
+  type: string;
+  fields: FieldDefinition[];
+  output_fields?: FieldDefinition[];
+};
+
+export type ReactionDefinition = {
+  id: string;
+  title: string;
+  label: string;
+  url?: string;
+  method?: string;
+  fields: FieldDefinition[];
+};
+
 export type MockService = {
   id: string;
   name: string;
@@ -5,8 +32,8 @@ export type MockService = {
   badge: string;
   category?: string;
   gradient: { from: string; to: string };
-  actions: string[];
-  reactions: string[];
+  actions: ActionDefinition[];
+  reactions: ReactionDefinition[];
   connected: boolean;
 };
 
@@ -22,25 +49,94 @@ export { gradients };
 
 export const mockServices: MockService[] = [
   {
+    id: "timer",
+    name: "Timer",
+    url: "#",
+    badge: "Tm",
+    category: "Interne",
+    gradient: gradients[0],
+    actions: [
+      {
+        id: "cron_action",
+        title: "cron action",
+        label: "Timer",
+        type: "cron",
+        fields: [
+          {
+            name: "delay",
+            type: "number",
+            label: "Delay (seconds)",
+            required: true,
+            default: 0,
+          },
+        ],
+        output_fields: [
+          {
+            name: "delay",
+            type: "number",
+            label: "Delay (seconds)",
+            private: false,
+          },
+        ],
+      },
+    ],
+    reactions: [],
+    connected: true,
+  },
+  {
     id: "google",
     name: "Google",
     url: "https://www.google.com",
     badge: "G",
-    category: "Recherche",
-    gradient: gradients[0],
-    actions: ["Nouvelle recherche tendance", "Formulaire Google soumis", "Nouveau fichier Drive"],
-    reactions: ["Créer un événement Agenda", "Envoyer un email Gmail", "Ajouter une tâche Keep"],
-    connected: true,
-  },
-  {
-    id: "slack",
-    name: "Slack",
-    url: "https://slack.com",
-    badge: "Sl",
-    category: "Communication",
+    category: "Productivité",
     gradient: gradients[1],
-    actions: ["Message posté dans un canal", "Réaction ajoutée", "Nouveau membre dans l'espace"],
-    reactions: ["Poster un message", "Épingler un message", "Créer un rappel"],
+    actions: [],
+    reactions: [
+      {
+        id: "create_event",
+        title: "create_event",
+        label: "Create Event",
+        url: "https://www.googleapis.com/calendar/v3/calendars/{google_calendar}/events",
+        method: "POST",
+        fields: [
+          {
+            name: "summary",
+            type: "text",
+            label: "Event title",
+            required: true,
+            default: "",
+          },
+          {
+            name: "description",
+            type: "text",
+            label: "Event description",
+            required: false,
+            default: "",
+          },
+          {
+            name: "start_time",
+            type: "date",
+            label: "Start Time",
+            required: true,
+            default: "",
+          },
+          {
+            name: "end_time",
+            type: "date",
+            label: "End Time",
+            required: true,
+            default: "",
+          },
+          {
+            name: "calendar",
+            type: "text",
+            label: "Calendar",
+            required: true,
+            default: "primary",
+          },
+        ],
+      },
+    ],
     connected: true,
   },
   {
@@ -50,63 +146,8 @@ export const mockServices: MockService[] = [
     badge: "Gh",
     category: "Développeurs",
     gradient: gradients[2],
-    actions: ["Nouveau push sur la branche", "Ouverture d'une issue", "Pull request créée"],
-    reactions: ["Créer une issue", "Commenter une PR", "Ouvrir une discussion"],
+    actions: [],
+    reactions: [],
     connected: true,
-  },
-  {
-    id: "discord",
-    name: "Discord",
-    url: "https://discord.com",
-    badge: "Di",
-    category: "Communication",
-    gradient: gradients[3],
-    actions: ["Message posté dans un salon", "Nouvel utilisateur rejoint", "Réaction ajoutée"],
-    reactions: ["Envoyer un message bot", "Attribuer un rôle", "Envoyer un DM"],
-    connected: false,
-  },
-  {
-    id: "notion",
-    name: "Notion",
-    url: "https://www.notion.so",
-    badge: "No",
-    category: "Organisation",
-    gradient: gradients[4],
-    actions: ["Nouvelle page ajoutée", "Propriété mise à jour", "Commentaire ajouté"],
-    reactions: ["Créer une page", "Mettre à jour un statut", "Ajouter un rappel daté"],
-    connected: true,
-  },
-  {
-    id: "dropbox",
-    name: "Dropbox",
-    url: "https://www.dropbox.com",
-    badge: "Db",
-    category: "Stockage",
-    gradient: gradients[1],
-    actions: ["Nouveau fichier déposé", "Fichier mis à jour", "Dossier partagé"],
-    reactions: ["Créer un lien partagé", "Déplacer un fichier", "Ajouter un commentaire"],
-    connected: false,
-  },
-  {
-    id: "jira",
-    name: "Jira",
-    url: "https://www.atlassian.com/software/jira",
-    badge: "Ji",
-    category: "Productivité",
-    gradient: gradients[0],
-    actions: ["Ticket créé", "Statut changé", "Commentaire ajouté"],
-    reactions: ["Créer un ticket", "Ajouter un commentaire", "Mettre à jour le statut"],
-    connected: true,
-  },
-  {
-    id: "trello",
-    name: "Trello",
-    url: "https://trello.com",
-    badge: "Tr",
-    category: "Organisation",
-    gradient: gradients[2],
-    actions: ["Carte créée", "Échéance proche", "Membre ajouté à une carte"],
-    reactions: ["Créer une carte", "Déplacer une carte", "Ajouter une checklist"],
-    connected: false,
   },
 ];

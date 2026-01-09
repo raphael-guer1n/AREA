@@ -8,7 +8,8 @@
         "redirect_uri": "http://localhost:8083/oauth2/callback",
         "scopes": [
             "read:user",
-            "user:email"
+            "user:email",
+            "admin:repo_hook"
         ],
         "user_info_url": "https://api.github.com/user",
         "user_emails_url": "https://api.github.com/user/emails"

@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -62,10 +63,57 @@ func (p *Provider) GenerateAuthURL(state string, callbackURI string) string {
 
 // ExchangeCodeWithRedirect exchanges an auth code for tokens using a specific redirect URI.
 func (p *Provider) ExchangeCodeWithRedirect(code, redirectURI string) (*TokenResponse, error) {
+	redirect := redirectURI
+	if redirect == "" {
+		redirect = p.config.RedirectURI
+	}
+
+	// Notion requires Basic auth + JSON payload for the token exchange endpoint.
+	if strings.Contains(p.config.TokenURL, "notion.com") && p.config.Name == "notion" {
+		payload := map[string]string{
+			"grant_type":   "authorization_code",
+			"code":         code,
+			"redirect_uri": redirect,
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal token request: %w", err)
+		}
+
+		req, err := http.NewRequest("POST", p.config.TokenURL, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create token request: %w", err)
+		}
+
+		basic := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", p.config.ClientID, p.config.ClientSecret)))
+		req.Header.Set("Authorization", "Basic "+basic)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to exchange code: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("token exchange failed: status=%d, body=%s", resp.StatusCode, string(body))
+		}
+
+		var tokenResp TokenResponse
+		if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+			return nil, fmt.Errorf("failed to decode token response: %w", err)
+		}
+
+		return &tokenResp, nil
+	}
+
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("code", code)
-	data.Set("redirect_uri", redirectURI)
+	data.Set("redirect_uri", redirect)
 	data.Set("client_id", p.config.ClientID)
 	data.Set("client_secret", p.config.ClientSecret)
 
@@ -140,13 +188,30 @@ func (p *Provider) ExchangeCode(code string, callbackUri string) (*TokenResponse
 
 // GetUserInfo retrieves user information using the access token
 func (p *Provider) GetUserInfo(accessToken string) (*UserInfo, error) {
-	req, err := http.NewRequest("GET", p.config.UserInfoURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user info request: %w", err)
+	var (
+		req *http.Request
+		err error
+	)
+
+	// Dropbox users/get_current_account requires POST with an empty body.
+	if strings.Contains(p.config.UserInfoURL, "dropboxapi.com/2/users/get_current_account") || p.config.Name == "dropbox" {
+		req, err = http.NewRequest("POST", p.config.UserInfoURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create user info request: %w", err)
+		}
+	} else {
+		req, err = http.NewRequest("GET", p.config.UserInfoURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create user info request: %w", err)
+		}
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 	req.Header.Set("Accept", "application/json")
+	// Notion requires the Notion-Version header on every API call.
+	if strings.Contains(p.config.UserInfoURL, "notion.com") || p.config.Name == "notion" {
+		req.Header.Set("Notion-Version", "2022-06-28")
+	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

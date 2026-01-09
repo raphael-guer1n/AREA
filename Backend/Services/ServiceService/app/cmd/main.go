@@ -18,10 +18,16 @@ func main() {
 		log.Fatalf("Failed to load provider configs: %v", err)
 	}
 
+	webhookProviderConfigSvc, err := service.NewWebhookProviderConfigService("internal/config/webhooks")
+	if err != nil {
+		log.Fatalf("Failed to load webhook provider configs: %v", err)
+	}
+
 	// HTTP handlers
 	providerHandler := httphandler.NewProviderHandler(providerConfigSvc)
+	webhookProviderHandler := httphandler.NewWebhookProviderHandler(webhookProviderConfigSvc)
 
-	router := httphandler.NewRouter(providerHandler)
+	router := httphandler.NewRouter(providerHandler, webhookProviderHandler)
 
 	addr := ":" + cfg.HTTPPort
 	log.Printf("Starting server on %s", addr)

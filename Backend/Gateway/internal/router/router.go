@@ -2,7 +2,6 @@ package router
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/config"
 	"github.com/raphael-guer1n/AREA/area-gateway/internal/core"
@@ -43,23 +42,18 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 
 	routes := rt.registry.ListAllRoutes()
 
+	proxies := make(map[string]http.Handler)
 	for _, route := range routes {
-		proxy := NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
-
-		var handler http.Handler = proxy
-
-		handler = rt.permMW.Handler(handler)
-		handler = rt.authMW.Handler(handler)
-		handler = rt.internalMW.Handler(handler)
-		handler = rt.loggingMW.Handler(handler)
-
-		methods := make(map[string]struct{})
-		for _, m := range route.Methods {
-			methods[strings.ToUpper(m)] = struct{}{}
+		if _, exists := proxies[route.ServiceName]; exists {
+			continue
 		}
+		proxies[route.ServiceName] = NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
+	}
 
-		finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if _, ok := methods[r.Method]; !ok {
+	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		route, err := rt.registry.FindRoute(r.URL.Path, r.Method)
+		if err != nil {
+			if _, pathErr := rt.registry.FindRouteByPath(r.URL.Path); pathErr == nil {
 				core.WriteError(
 					w,
 					http.StatusMethodNotAllowed,
@@ -68,20 +62,28 @@ func (rt *Router) Build() (*http.ServeMux, error) {
 				)
 				return
 			}
-			handler.ServeHTTP(w, r)
-		})
 
-		namespacedPath := "/" + route.ServiceName + route.Path
-		rt.mux.Handle(namespacedPath, finalHandler)
-	}
+			core.WriteError(
+				w,
+				http.StatusNotFound,
+				core.ErrNotFound,
+				"Route not found",
+			)
+			return
+		}
 
-	rt.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		core.WriteError(
-			w,
-			http.StatusNotFound,
-			core.ErrNotFound,
-			"Route not found",
-		)
+		proxy, ok := proxies[route.ServiceName]
+		if !ok {
+			proxy = NewReverseProxy(route.BaseURL, "/"+route.ServiceName)
+			proxies[route.ServiceName] = proxy
+		}
+
+		handler := rt.permMW.Handler(proxy)
+		handler = rt.authMW.Handler(handler)
+		handler = rt.internalMW.Handler(handler)
+		handler = rt.loggingMW.Handler(handler)
+
+		handler.ServeHTTP(w, r)
 	}))
 
 	return rt.mux, nil

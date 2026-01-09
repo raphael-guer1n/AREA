@@ -1,0 +1,42 @@
+{
+  "name": "discord",
+  "oauth2": {
+    "client_id": "DISCORD_CLIENT_ID",
+    "client_secret": "DISCORD_CLIENT_SECRET",
+    "auth_url": "https://discord.com/oauth2/authorize",
+    "token_url": "https://discord.com/api/oauth2/token",
+    "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "scopes": [
+      "identify",
+      "email"
+    ],
+    "user_info_url": "https://discord.com/api/users/@me"
+  },
+  "mappings": [
+    {
+      "field_key": "provider_user_id",
+      "json_path": "id",
+      "type": "string"
+    },
+    {
+      "field_key": "username",
+      "json_path": "username",
+      "type": "string"
+    },
+    {
+      "field_key": "display_name",
+      "json_path": "global_name",
+      "type": "string"
+    },
+    {
+      "field_key": "email",
+      "json_path": "email",
+      "type": "string"
+    },
+    {
+      "field_key": "avatar_url",
+      "json_path": "avatar",
+      "type": "string"
+    }
+  ]
+}

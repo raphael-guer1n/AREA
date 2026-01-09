@@ -1,0 +1,75 @@
+{
+  "name": "github",
+  "signature": {
+    "type": "hmac",
+    "algorithm": "sha256",
+    "encoding": "hex",
+    "header": "X-Hub-Signature-256",
+    "prefix": "sha256=",
+    "secret_json_path": "secret"
+  },
+  "event_header": "X-GitHub-Event",
+  "mappings": [
+    {
+      "field_key": "repository",
+      "json_path": "repository.full_name",
+      "type": "string"
+    },
+    {
+      "field_key": "action",
+      "json_path": "action",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "ref",
+      "json_path": "ref",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "sender",
+      "json_path": "sender.login",
+      "type": "string"
+    }
+  ],
+  "setup": {
+    "method": "POST",
+    "url_template": "https://api.github.com/repos/{{config.repository}}/hooks",
+    "headers": {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "AREA-WebhookService"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer "
+    },
+    "body_template": {
+      "name": "web",
+      "active": true,
+      "events": "{{config.events}}",
+      "config": {
+        "url": "{{hook_url}}",
+        "content_type": "json",
+        "secret": "{{config.secret}}"
+      }
+    },
+    "response_id_json_path": "id"
+  },
+  "teardown": {
+    "method": "DELETE",
+    "url_template": "https://api.github.com/repos/{{config.repository}}/hooks/{{provider_hook_id}}",
+    "headers": {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "AREA-WebhookService"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer "
+    }
+  }
+}

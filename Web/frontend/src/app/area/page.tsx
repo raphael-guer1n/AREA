@@ -12,7 +12,14 @@ import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { createEventArea } from "@/lib/api/area";
 import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
 
-import { gradients as gradientPalette, mockServices, type MockService } from "../services/mockServices";
+import {
+  gradients as gradientPalette,
+  mockServices,
+  type ActionDefinition,
+  type FieldDefinition,
+  type MockService,
+  type ReactionDefinition,
+} from "../services/mockServices";
 
 type AreaService = MockService;
 type AreaGradient = { from: string; to: string };
@@ -48,6 +55,25 @@ function pickRandomGradient(): AreaGradient {
   return gradientPalette[index];
 }
 
+function initializeFieldValues(fields: FieldDefinition[]): Record<string, string> {
+  return fields.reduce<Record<string, string>>((acc, field) => {
+    const defaultValue = field.default ?? "";
+    acc[field.name] = typeof defaultValue === "number" ? String(defaultValue) : String(defaultValue);
+    return acc;
+  }, {});
+}
+
+function areRequiredFieldsFilled(
+  fields: FieldDefinition[],
+  values: Record<string, string>,
+): boolean {
+  return fields.every((field) => {
+    if (!field.required) return true;
+    const value = values[field.name];
+    return value !== undefined && String(value).trim().length > 0;
+  });
+}
+
 function AreaPageContent() {
   const { token, user } = useAuth();
   const searchParams = useSearchParams();
@@ -59,12 +85,14 @@ function AreaPageContent() {
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<AreaService | null>(null);
-  const [delay, setDelay] = useState<number>(0);
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [summary, setSummary] = useState("");
-  const [description, setDescription] = useState("");
+  const [actionService, setActionService] = useState<AreaService | null>(null);
+  const [reactionService, setReactionService] = useState<AreaService | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ActionDefinition | null>(null);
+  const [selectedReaction, setSelectedReaction] = useState<ReactionDefinition | null>(null);
+  const [actionFieldValues, setActionFieldValues] = useState<Record<string, string>>({});
+  const [reactionFieldValues, setReactionFieldValues] = useState<Record<string, string>>({});
+  const [areaName, setAreaName] = useState("");
+  const [wizardStep, setWizardStep] = useState<"action" | "reaction" | "details">("action");
   const [selectedAreaDetail, setSelectedAreaDetail] = useState<CreatedArea | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -79,13 +107,90 @@ function AreaPageContent() {
     [services],
   );
 
+  const renderFieldInputs = (
+    fields: FieldDefinition[],
+    values: Record<string, string>,
+    onChange: (name: string, value: string) => void,
+  ) => (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {fields.map((field) => {
+        const value = values[field.name] ?? "";
+        const baseClasses =
+          "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25";
+
+        if (field.type === "number") {
+          return (
+            <label key={field.name} className="space-y-1 text-sm">
+              <span className="text-[var(--muted)]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <input
+                type="number"
+                min={0}
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                className={baseClasses}
+              />
+            </label>
+          );
+        }
+
+        if (field.type === "date") {
+          return (
+            <label key={field.name} className="space-y-1 text-sm">
+              <span className="text-[var(--muted)]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <input
+                type="datetime-local"
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                className={baseClasses}
+              />
+            </label>
+          );
+        }
+
+        const useTextArea = field.name.toLowerCase().includes("description");
+
+        return (
+          <label key={field.name} className="space-y-1 text-sm sm:col-span-2">
+            <span className="text-[var(--muted)]">
+              {field.label}
+              {field.required ? " *" : ""}
+            </span>
+            {useTextArea ? (
+              <textarea
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                rows={4}
+                className={baseClasses}
+              />
+            ) : (
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                className={baseClasses}
+              />
+            )}
+          </label>
+        );
+      })}
+    </div>
+  );
+
   const loadServices = useCallback(async () => {
     setIsLoadingServices(true);
     setServicesError(null);
 
     try {
       const serviceIds = await fetchServices();
-      const uniqueServiceIds = Array.from(new Set(serviceIds.filter(Boolean)));
+      const uniqueServiceIds = Array.from(
+        new Set([...serviceIds.filter(Boolean), "timer"]),
+      );
 
       let statusByService: Record<string, boolean> = {};
       if (token && user?.id) {
@@ -99,7 +204,13 @@ function AreaPageContent() {
       const mappedServices = uniqueServiceIds.map((serviceId, index) => {
         const template = mockServices.find((service) => service.id === serviceId);
         const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
-        const connected = statusByService[serviceId];
+        const connectedStatus = statusByService[serviceId];
+        const isConnected =
+          connectedStatus !== undefined
+            ? connectedStatus
+            : serviceId === "timer"
+              ? true
+              : false;
 
         return {
           ...(template ?? {
@@ -114,8 +225,7 @@ function AreaPageContent() {
             connected: false,
           }),
           gradient,
-          // Si le backend ne renvoie pas de statut, on considère le service comme non connecté.
-          connected: Boolean(connected),
+          connected: isConnected,
         } as AreaService;
       });
 
@@ -134,19 +244,72 @@ function AreaPageContent() {
     void loadServices();
   }, [loadServices]);
 
+  useEffect(() => {
+    setCreateError(null);
+  }, [wizardStep]);
+
   const connectedServices = useMemo(
     () => services.filter((service) => service.connected),
     [services],
   );
 
+  const canProceedAction =
+    Boolean(actionService && actionService.connected && selectedAction) &&
+    areRequiredFieldsFilled(selectedAction?.fields ?? [], actionFieldValues);
+  const canProceedReaction =
+    Boolean(reactionService && reactionService.connected && selectedReaction) &&
+    areRequiredFieldsFilled(selectedReaction?.fields ?? [], reactionFieldValues);
+
+  const wizardSteps: Array<{ id: "action" | "reaction" | "details"; title: string; description: string }> = [
+    { id: "action", title: "Action", description: "Déclencheur" },
+    { id: "reaction", title: "Réaction", description: "Action exécutée" },
+    { id: "details", title: "Détails", description: "Planification" },
+  ];
+
+  const canCreate =
+    Boolean(
+      actionService &&
+        actionService.connected &&
+        selectedAction &&
+        reactionService &&
+        reactionService.connected &&
+        selectedReaction &&
+        areaName.trim() &&
+        areRequiredFieldsFilled(selectedAction.fields, actionFieldValues) &&
+        areRequiredFieldsFilled(selectedReaction.fields, reactionFieldValues),
+    ) && hasConnectedServices;
+  const currentStepIndex = wizardSteps.findIndex((step) => step.id === wizardStep);
+
+  const goToNextStep = () => {
+    if (wizardStep === "action" && canProceedAction) {
+      setWizardStep("reaction");
+      return;
+    }
+    if (wizardStep === "reaction" && canProceedReaction) {
+      setWizardStep("details");
+    }
+  };
+
+  const goToPreviousStep = () => {
+    if (wizardStep === "details") {
+      setWizardStep("reaction");
+      return;
+    }
+    if (wizardStep === "reaction") {
+      setWizardStep("action");
+    }
+  };
+
   const resetForm = () => {
-    setSelectedService(null);
-    setDelay(0);
-    setStartTime("");
-    setEndTime("");
-    setSummary("");
-    setDescription("");
+    setActionService(null);
+    setReactionService(null);
+    setSelectedAction(null);
+    setSelectedReaction(null);
+    setActionFieldValues({});
+    setReactionFieldValues({});
+    setAreaName("");
     setCreateError(null);
+    setWizardStep("action");
   };
 
   const openModal = () => {
@@ -163,12 +326,23 @@ function AreaPageContent() {
       setCreateError("Vous devez être connecté pour créer une area.");
       return;
     }
-    if (!selectedService) {
-      setCreateError("Sélectionnez un service connecté.");
+    if (!actionService || !reactionService) {
+      setCreateError("Sélectionnez un service pour le déclencheur et la réaction.");
       return;
     }
-    if (!startTime || !endTime || !summary) {
-      setCreateError("Renseignez au moins la date de début/fin et le résumé.");
+    if (!selectedAction || !selectedReaction) {
+      setCreateError("Choisissez un déclencheur et une réaction.");
+      return;
+    }
+    if (!areaName.trim()) {
+      setCreateError("Renseignez au moins le nom de l'area.");
+      return;
+    }
+    if (
+      !areRequiredFieldsFilled(selectedAction.fields, actionFieldValues) ||
+      !areRequiredFieldsFilled(selectedReaction.fields, reactionFieldValues)
+    ) {
+      setCreateError("Complétez tous les champs obligatoires du déclencheur et de la réaction.");
       return;
     }
 
@@ -177,29 +351,36 @@ function AreaPageContent() {
 
     try {
       const gradient = pickRandomGradient();
-      const actionName = selectedService.actions?.[0] ?? "Action sélectionnée";
-      const reactionName = selectedService.reactions?.[0] ?? "Réaction sélectionnée";
+      const actionName = selectedAction?.label ?? "Action sélectionnée";
+      const reactionName = selectedReaction?.label ?? "Réaction sélectionnée";
+      const delayValueRaw = Number(actionFieldValues["delay"] ?? 0);
+      const delayValue = Number.isFinite(delayValueRaw) ? delayValueRaw : 0;
+      const startTimeValue = reactionFieldValues["start_time"] ?? "";
+      const endTimeValue = reactionFieldValues["end_time"] ?? "";
+      const summaryValue =
+        reactionFieldValues["summary"]?.trim() || areaName.trim();
+      const descriptionValue = reactionFieldValues["description"] ?? "";
 
       await createEventArea(token, {
-        delay: Number.isFinite(delay) ? delay : 0,
+        delay: delayValue,
         event: {
-          startTime,
-          endTime,
-          summary: summary.trim(),
-          description: description.trim(),
+          startTime: startTimeValue,
+          endTime: endTimeValue,
+          summary: summaryValue,
+          description: descriptionValue.trim(),
         },
       });
 
       const newArea: CreatedArea = {
         id: `area-${Date.now()}`,
-        name: `${selectedService.name} → Création d'événement`,
-        summary: summary.trim(),
-        startTime,
-        endTime,
-        delay: Number.isFinite(delay) ? delay : 0,
-        serviceName: selectedService.name,
-        actionService: selectedService.name,
-        reactionService: selectedService.name,
+        name: areaName.trim(),
+        summary: summaryValue,
+        startTime: startTimeValue,
+        endTime: endTimeValue,
+        delay: delayValue,
+        serviceName: actionService.name,
+        actionService: actionService.name,
+        reactionService: reactionService.name,
         actionName,
         reactionName,
         gradient,
@@ -243,11 +424,11 @@ function AreaPageContent() {
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-[var(--surface)] px-6 py-12 pt-10 text-[var(--foreground)]">
       {isCreateModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.55)] px-4 py-10 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.55)] px-6 py-12 backdrop-blur-sm"
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-5xl overflow-hidden rounded-[28px] border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl ring-1 ring-[rgba(28,61,99,0.28)]"
+            className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-[28px] border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl ring-1 ring-[rgba(28,61,99,0.28)]"
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -269,7 +450,7 @@ function AreaPageContent() {
               </svg>
             </button>
 
-            <div className="space-y-6 px-8 pb-9 pt-7">
+            <div className="space-y-7 px-10 pb-11 pt-9">
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
                   Création d&apos;area
@@ -277,11 +458,9 @@ function AreaPageContent() {
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div className="space-y-1">
                     <h2 id="create-area-title" className="text-2xl font-semibold text-[var(--foreground)]">
-                      Choisissez vos services connectés
+                      Composez votre automation
                     </h2>
-                    <p className="text-sm text-[var(--muted)]">
-                      Sélectionnez un service et son action, puis un service et sa réaction.
-                    </p>
+                    <p className="text-sm text-[var(--muted)]">Sélectionnez un déclencheur et une réaction pour structurer l&apos;area.</p>
                   </div>
                 </div>
               </div>
@@ -293,117 +472,294 @@ function AreaPageContent() {
                   </div>
                 ) : null}
 
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
-                          Service connecté
-                        </p>
-                        <p className="text-sm text-[var(--muted)]">Choisissez le service qui créera l&apos;événement</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {isLoadingServices ? (
-                        <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
-                      ) : connectedServices.length ? (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {connectedServices.map((service) => (
-                            <button
-                              key={service.id}
-                              type="button"
-                              onClick={() => setSelectedService(service)}
-                              className={cn(
-                                "flex items-center justify-between rounded-xl border px-4 py-3 text-left transition",
-                                selectedService?.id === service.id
-                                  ? "border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)]/10"
-                                  : "border-[var(--surface-border)] hover:border-[var(--blue-primary-2)]",
-                              )}
-                            >
-                              <div className="space-y-1">
-                                <p className="text-sm font-semibold">{service.name}</p>
-                                <p className="text-xs text-[var(--muted)]">{service.category ?? "Service"}</p>
-                              </div>
-                              <span className="rounded-full bg-[var(--blue-primary-2)] px-3 py-1 text-[11px] font-semibold uppercase text-white">
-                                {service.badge}
-                              </span>
-                            </button>
-                          ))}
+                <div className="flex flex-wrap gap-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-5">
+                  {wizardSteps.map((step, index) => {
+                    const isActive = step.id === wizardStep;
+                    const isDone = currentStepIndex > index;
+                    return (
+                      <div
+                        key={step.id}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition",
+                          isActive
+                            ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                            : "border-[var(--surface-border)] bg-[var(--background)] text-[var(--muted)]",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
+                            isActive || isDone
+                              ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--blue-primary-3)]"
+                              : "border-[var(--surface-border)] text-[var(--muted)]",
+                          )}
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="leading-tight">
+                          <p className="font-semibold">{step.title}</p>
+                          <p className="text-[11px] text-[var(--muted)]">{step.description}</p>
                         </div>
-                      ) : (
-                        <p className="text-sm text-[var(--muted)]">
-                          Aucun service connecté. Connectez un service pour commencer.
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {wizardStep === "action" ? (
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-[var(--foreground)]">Action (Déclencheur)</h3>
+                      <p className="text-sm text-[var(--muted)]">
+                        Choisissez d&apos;abord le service, puis l&apos;événement qui déclenchera l&apos;automation.
+                      </p>
+                    </div>
+
+                    <div className="mt-5 space-y-5">
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Service</p>
+                        {isLoadingServices ? (
+                          <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
+                        ) : connectedServices.length ? (
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            {connectedServices.map((service) => (
+                              <button
+                                key={service.id}
+                                type="button"
+                                onClick={() => {
+                                  const defaultAction = service.actions?.[0] ?? null;
+                                  setActionService(service);
+                                  setSelectedAction(defaultAction ?? null);
+                                  setActionFieldValues(
+                                    defaultAction ? initializeFieldValues(defaultAction.fields) : {},
+                                  );
+                                }}
+                                className={cn(
+                                  "flex h-14 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition",
+                                  actionService?.id === service.id
+                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:-translate-y-0.5 hover:border-[var(--blue-primary-2)]",
+                                )}
+                              >
+                                {service.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[var(--muted)]">
+                            Aucun service connecté. Connectez un service pour commencer.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                          Déclencheur
                         </p>
-                      )}
+                        {actionService && actionService.actions?.length ? (
+                          <div className="space-y-3">
+                            {actionService.actions.map((action) => {
+                              const isSelected = selectedAction?.id === action.id;
+                              return (
+                              <button
+                                key={action.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAction(action);
+                                  setActionFieldValues(initializeFieldValues(action.fields));
+                                }}
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                                  isSelected
+                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
+                                )}
+                              >
+                                <span>{action.label}</span>
+                                {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
+                              </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
+                            Choisissez un service pour afficher ses déclencheurs.
+                          </div>
+                        )}
+                      </div>
+                      {selectedAction ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                            Paramètres du déclencheur
+                          </p>
+                          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4">
+                            {renderFieldInputs(selectedAction.fields, actionFieldValues, (name, value) =>
+                              setActionFieldValues((prev) => ({ ...prev, [name]: value })),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
+                ) : null}
 
-                  <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4 sm:p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
-                          Détails de l&apos;événement
-                        </p>
-                        <p className="text-sm text-[var(--muted)]">Programmation et contenu</p>
-                      </div>
+                {wizardStep === "reaction" ? (
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-[var(--foreground)]">Réaction</h3>
+                      <p className="text-sm text-[var(--muted)]">
+                        Sélectionnez le service qui exécutera l&apos;action après le déclencheur.
+                      </p>
                     </div>
-                    <div className="mt-4 space-y-3">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="space-y-1 text-sm">
-                          <span className="text-[var(--muted)]">Début</span>
-                          <input
-                            type="datetime-local"
-                            value={startTime}
-                            onChange={(e) => setStartTime(e.target.value)}
-                            className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
-                          />
-                        </label>
-                        <label className="space-y-1 text-sm">
-                          <span className="text-[var(--muted)]">Fin</span>
-                          <input
-                            type="datetime-local"
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                            className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
-                          />
-                        </label>
+
+                    <div className="mt-5 space-y-5">
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Service</p>
+                        {isLoadingServices ? (
+                          <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
+                        ) : connectedServices.length ? (
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            {connectedServices.map((service) => (
+                              <button
+                                key={service.id}
+                                type="button"
+                                onClick={() => {
+                                  const defaultReaction = service.reactions?.[0] ?? null;
+                                  setReactionService(service);
+                                  setSelectedReaction(defaultReaction ?? null);
+                                  setReactionFieldValues(
+                                    defaultReaction ? initializeFieldValues(defaultReaction.fields) : {},
+                                  );
+                                }}
+                                className={cn(
+                                  "flex h-14 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition",
+                                  reactionService?.id === service.id
+                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:-translate-y-0.5 hover:border-[var(--blue-primary-2)]",
+                                )}
+                              >
+                                {service.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[var(--muted)]">
+                            Aucun service connecté. Connectez un service pour commencer.
+                          </p>
+                        )}
                       </div>
 
-                      <label className="space-y-1 text-sm">
-                        <span className="text-[var(--muted)]">Résumé</span>
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Action</p>
+                        {reactionService && reactionService.reactions?.length ? (
+                          <div className="space-y-3">
+                            {reactionService.reactions.map((reaction) => {
+                              const isSelected = selectedReaction?.id === reaction.id;
+                              return (
+                              <button
+                                key={reaction.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedReaction(reaction);
+                                  setReactionFieldValues(
+                                    initializeFieldValues(reaction.fields),
+                                  );
+                                }}
+                                className={cn(
+                                  "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                                  isSelected
+                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
+                                )}
+                              >
+                                <span>{reaction.label}</span>
+                                {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
+                              </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
+                            Choisissez un service pour afficher ses actions disponibles.
+                          </div>
+                        )}
+                      </div>
+                      {selectedReaction ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                            Paramètres de la réaction
+                          </p>
+                          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4">
+                            {renderFieldInputs(selectedReaction.fields, reactionFieldValues, (name, value) =>
+                              setReactionFieldValues((prev) => ({ ...prev, [name]: value })),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {wizardStep === "details" ? (
+                  <div className="grid gap-5 lg:grid-cols-3">
+                    <div className="lg:col-span-2 space-y-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-[var(--foreground)]">Détails de l&apos;area</h3>
+                        <p className="text-sm text-[var(--muted)]">Nom et validation finale.</p>
+                      </div>
+                      <label className="block space-y-2 text-sm">
+                        <span className="text-[var(--muted)]">Nom de l&apos;area</span>
                         <input
                           type="text"
-                          value={summary}
-                          onChange={(e) => setSummary(e.target.value)}
-                          placeholder="Team Meeting"
-                          className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
+                          value={areaName}
+                          onChange={(e) => setAreaName(e.target.value)}
+                          placeholder="Démo marketing"
+                          className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-[var(--foreground)] shadow-sm focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
                         />
                       </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className="text-[var(--muted)]">Description</span>
-                        <textarea
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          rows={3}
-                          placeholder="Weekly sync..."
-                          className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
-                        />
-                      </label>
-
-                      <label className="space-y-1 text-sm">
-                        <span className="text-[var(--muted)]">Délai avant exécution (secondes)</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={delay}
-                          onChange={(e) => setDelay(Number(e.target.value) || 0)}
-                          className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
-                        />
-                      </label>
+                      <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
+                        Les paramètres du déclencheur et de la réaction ont été saisis ci-dessus. Vérifiez-les avant de créer l&apos;area.
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold text-[var(--foreground)]">Récapitulatif</h3>
+                        <p className="text-sm text-[var(--muted)]">Vue rapide des informations saisies.</p>
+                      </div>
+                      <div className="mt-4 space-y-3 text-sm">
+                        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3">
+                          <p className="text-[var(--muted)] text-xs">Déclencheur</p>
+                          <p className="text-base font-semibold text-[var(--foreground)]">
+                            {actionService?.name ?? "Non défini"}
+                          </p>
+                          <p className="text-[var(--muted)] text-xs">{selectedAction?.label ?? "Aucun"}</p>
+                          {selectedAction?.fields.map((field) => (
+                            <p key={`action-${field.name}`} className="text-xs text-[var(--muted)]">
+                              {field.label}:{" "}
+                              <span className="text-[var(--foreground)]">
+                                {actionFieldValues[field.name]?.toString() || "—"}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3">
+                          <p className="text-[var(--muted)] text-xs">Réaction</p>
+                          <p className="text-base font-semibold text-[var(--foreground)]">
+                            {reactionService?.name ?? "Non défini"}
+                          </p>
+                          <p className="text-[var(--muted)] text-xs">{selectedReaction?.label ?? "Aucune"}</p>
+                          {selectedReaction?.fields.map((field) => (
+                            <p key={`reaction-${field.name}`} className="text-xs text-[var(--muted)]">
+                              {field.label}:{" "}
+                              <span className="text-[var(--foreground)]">
+                                {reactionFieldValues[field.name]?.toString() || "—"}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : null}
 
                 {createError ? (
                   <div className="rounded-xl border border-[var(--accent)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
@@ -411,29 +767,51 @@ function AreaPageContent() {
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCreateArea}
-                    disabled={
-                      isCreating ||
-                      !selectedService ||
-                      !startTime ||
-                      !endTime ||
-                      !summary ||
-                      !hasConnectedServices
-                    }
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isCreating ? "Création..." : "Créer l'area"}
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex gap-2">
+                    {wizardStep !== "action" ? (
+                      <button
+                        type="button"
+                        onClick={goToPreviousStep}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                      >
+                        Étape précédente
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeModal();
+                        setWizardStep("action");
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                    >
+                      Annuler
+                    </button>
+                    {wizardStep !== "details" ? (
+                      <button
+                        type="button"
+                        onClick={goToNextStep}
+                        disabled={
+                          wizardStep === "action" ? !canProceedAction : wizardStep === "reaction" ? !canProceedReaction : false
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Continuer
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCreateArea}
+                        disabled={isCreating || !canCreate}
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isCreating ? "Création..." : "Créer l'area"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

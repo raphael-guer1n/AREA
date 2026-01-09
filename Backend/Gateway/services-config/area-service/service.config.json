@@ -1,6 +1,6 @@
 {
-  "name": "area-service",
-  "base_url": "http://localhost:8085",
+  "name": "area_area_api",
+  "base_url": "http://area_area_api:8085",
   "routes": [
     {
       "path": "/health",

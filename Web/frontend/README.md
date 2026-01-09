@@ -1,89 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AREA – Frontend (Next.js)
 
-## Getting Started
+Interface web pour créer et piloter les AREAs. Stack moderne (Next.js 16, React 19, TypeScript, Tailwind CSS 4) avec des hooks d’authentification, des proxys API internes et des composants UI réutilisables.
 
-First, run the development server:
+## Pile et dépendances
+- Next.js 16 (App Router) + React 19 + TypeScript.
+- Tailwind CSS 4 via `@import` dans `globals.css` ; palette gérée par variables CSS (vision tritanopie activable via `ColorblindToggle`).
+- Zod pour la validation des formulaires.
+- Dockerfile + `docker-compose.yml` pour builder/servir en conteneur.
+- Pré-requis : Node.js 18.18+ (recommandé 20), npm (lockfile présent), accès au backend/gateway (par défaut sur `localhost:8080`).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Arborescence rapide
+```
+src/
+  app/                # Routes Next (App Router) + API routes
+    area/             # Tableau + création d’AREAs
+    services/         # Catalogue/connexion de services
+    login, register   # Auth email+mdp
+    profil/           # Profil utilisateur (SSR + client)
+    auth/callback/    # Callback OAuth2
+    api/auth, api/session # Proxys internes
+    layout.tsx, globals.css
+  components/         # UI réutilisable (cartes, formulaires, navigation)
+  hooks/              # `useAuth`, `useOAuthCallback`, etc.
+  lib/                # Appels API (`lib/api/*`), helpers, session
+  types/              # Modèles partagés (User, Auth, Services)
+public/               # Assets statiques (placeholders, logos)
+docker-compose.yml, Dockerfile, eslint.config.mjs, tsconfig.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuration (backend/gateway)
+Créer un `.env.local` à la racine du front (variables en miroir côté serveur et client) :
+```bash
+API_BASE_URL=http://localhost:8080/auth-service
+NEXT_PUBLIC_API_BASE_URL=$API_BASE_URL
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+AREA_API_BASE_URL=http://localhost:8080/area-service
+NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+SERVICES_API_BASE_URL=http://localhost:8080/service-service
+NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
+
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_OAUTH_CALLBACK_BASE=http://localhost:3000
+COOKIE_SECURE=false # true en prod si HTTPS
+```
+Notes :
+- Les valeurs par défaut se basent sur le gateway exposé par `docker-compose` (backend sur `8080`).
+- Côté Docker, `host.docker.internal` est utilisé pour joindre le backend depuis le container.
+
+## Installation et lancement local
+```bash
+cd Web/frontend
+npm install
+npm run dev      # http://localhost:3000
+
+# Production locale
+npm run build
+npm run start
+
+# Qualité
+npm run lint
+```
 
 ## Docker
+- Build : `docker build -t area-frontend .`
+- Run : `docker run --rm -p 3000:3000 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service area-frontend`
+- Compose (depuis ce dossier) : `docker compose up --build`
+  - Variables par défaut : navigateur → `http://localhost:8080/{service}`, serveur Next → `http://host.docker.internal:8080/{service}`.
+  - Override en exportant les variables avant le `compose` si le backend est ailleurs.
 
-Build the production image from this folder:
+## Captures / GIFs
+Dépose tes captures ou GIFs dans `public/docs/` (par ex. `home.png`, `services.png`, `area.png`). Les vignettes ci-dessous afficheront un placeholder tant que les fichiers ne sont pas fournis.
 
-```bash
-docker build -t area-frontend .
-```
+![Accueil](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture accueil dans public/docs/home.png</text></svg>)
 
-Run it locally:
+![Services](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture services dans public/docs/services.png</text></svg>)
 
-```bash
-docker run --rm -p 3000:3000 area-frontend
-```
+![Création d'area](data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='640' height='360' fill='%23f5f7fa'/><rect x='18' y='18' width='604' height='324' rx='18' fill='%23e2e8f0' stroke='%23112a46' stroke-width='3'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23112a46' font-family='Arial' font-size='16'>Place ta capture creation dans public/docs/area.png</text></svg>)
 
-Pass any required `NEXT_PUBLIC_*` environment variables with `-e` flags. The app listens on port 3000 inside the container; you can change the published port by adjusting the `-p` flag.
-
-Run everything in one command (build + run) with Docker Compose from this folder:
-
-```bash
-docker compose up --build
-```
-
-Par défaut, Compose compile le frontend avec des URLs accessibles depuis ton navigateur et le serveur Next (backend en 8080 via le gateway) :
-- Côté navigateur (`NEXT_PUBLIC_*`): `http://localhost:8080/{service}`
-- Côté serveur Next (`API_*`): `http://host.docker.internal:8080/{service}`
-
-Override them by exporting env vars before running (for example if your backend is elsewhere):
-
-```bash
-export API_BASE_URL=http://your-api-host:8080/auth-service
-export NEXT_PUBLIC_API_BASE_URL=$API_BASE_URL
-export AREA_API_BASE_URL=http://your-api-host:8080/area-service
-export NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
-export SERVICES_API_BASE_URL=http://your-api-host:8080/service-service
-export NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
-docker compose up --build
-```
-
-If your backend runs outside the container, set the API base when building/running so the frontend can reach it (example for a backend on host port 8080):
-
-```bash
-docker build \
-  -t area-frontend \
-  --build-arg API_BASE_URL=http://host.docker.internal:8080/auth-service \
-  --build-arg NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service \
-  .
-
-docker run --rm -p 3000:3000 \
-  -e API_BASE_URL=http://host.docker.internal:8080/auth-service \
-  -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service \
-  area-frontend
-```
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Liens utiles
+- Architecture détaillée : `ARCHITECTURE.md`
+- Composants : `COMPONENTS.md`
+- Pages et routes : `PAGES_ROUTES.md`
+- Contribution front : `HOWTOCONTRIBUTE.md`
