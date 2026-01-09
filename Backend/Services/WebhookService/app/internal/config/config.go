@@ -78,17 +78,18 @@ type WebhookProviderSetupConfig struct {
 }
 
 type WebhookProviderConfig struct {
-	Name          string                       `json:"name"`
-	PayloadFormat string                       `json:"payload_format,omitempty"`
-	OAuthProvider string                       `json:"oauth_provider,omitempty"`
-	TopicTemplate string                       `json:"topic_template,omitempty"`
-	Signature     *WebhookSignatureConfig      `json:"signature,omitempty"`
-	EventHeader   string                       `json:"event_header"`
-	EventJSONPath string                       `json:"event_json_path"`
-	Mappings      []FieldConfig                `json:"mappings,omitempty"`
-	Prepare       []WebhookProviderPrepareStep `json:"prepare,omitempty"`
-	Setup         *WebhookProviderSetupConfig  `json:"setup,omitempty"`
-	Teardown      *WebhookProviderSetupConfig  `json:"teardown,omitempty"`
+	Name          string                        `json:"name"`
+	PayloadFormat string                        `json:"payload_format,omitempty"`
+	OAuthProvider string                        `json:"oauth_provider,omitempty"`
+	TopicTemplate string                        `json:"topic_template,omitempty"`
+	Signature     *WebhookSignatureConfig       `json:"signature,omitempty"`
+	EventHeader   string                        `json:"event_header"`
+	EventJSONPath string                        `json:"event_json_path"`
+	Mappings      []FieldConfig                 `json:"mappings,omitempty"`
+	Prepare       []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+	Renewal       *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
+	Setup         *WebhookProviderSetupConfig   `json:"setup,omitempty"`
+	Teardown      *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
 }
 
 type WebhookPrepareCondition struct {
@@ -136,4 +137,8 @@ type WebhookProviderExtractConfig struct {
 	Group          int    `json:"group,omitempty"`
 	StorePath      string `json:"store_path"`
 	Optional       bool   `json:"optional,omitempty"`
+}
+
+type WebhookProviderRenewalConfig struct {
+	AfterSeconds int `json:"after_seconds"`
 }

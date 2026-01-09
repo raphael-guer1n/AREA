@@ -192,6 +192,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: hub.mode
+          in: query
+          required: false
+          schema:
+            type: string
+            example: unsubscribe
       responses:
         '200':
           description: Verification challenge response
