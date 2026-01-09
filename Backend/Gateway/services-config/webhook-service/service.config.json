@@ -11,7 +11,7 @@
     },
     {
       "path": "/subscriptions",
-      "methods": ["POST"],
+      "methods": ["GET", "POST"],
       "auth_required": false,
       "permissions": [],
       "internal_only": false
@@ -25,7 +25,7 @@
     },
     {
       "path": "/webhooks/{provider}/{hookId}",
-      "methods": ["POST"],
+      "methods": ["GET", "POST"],
       "auth_required": false,
       "permissions": [],
       "internal_only": false
