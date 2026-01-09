@@ -96,7 +96,7 @@ type WebhookProviderConfig struct {
 	Signature     *WebhookSignatureConfig      `json:"signature,omitempty"`
 	EventHeader   string                       `json:"event_header"`
 	EventJSONPath string                       `json:"event_json_path"`
-	Mappings      []MappingConfig                `json:"mappings,omitempty"`
+	Mappings      []MappingConfig              `json:"mappings,omitempty"`
 	Prepare       []WebhookProviderPrepareStep `json:"prepare,omitempty"`
 	Setup         *WebhookProviderSetupConfig  `json:"setup,omitempty"`
 	Teardown      *WebhookProviderSetupConfig  `json:"teardown,omitempty"`
