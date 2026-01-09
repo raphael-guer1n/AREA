@@ -18,9 +18,19 @@ type UserProfile struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
-type UserProfileRepository interface {
-	Create(userId int, service, providerUserId, accessToken, refreshToken string, expiresAt time.Time, rawProfile json.RawMessage) (UserProfile, error)
-	GetServicesByUserId(userId int) ([]string, error)
-	GetProviderUserTokenByServiceByUserId(userId int, service string) (string, error)
-	GetProviderProfileProfileByServiceByUser(userId int, service string) (UserProfile, error)
+type UserServiceField struct {
+	ID          int              `json:"id"`
+	ProfileId   int              `json:"profile_id"`
+	FieldKey    string           `json:"field_key"`
+	StringValue string           `json:"string_value"`
+	NumberValue float64          `json:"number_value"`
+	BoolValue   bool             `json:"bool_value"`
+	JsonValue   *json.RawMessage `json:"json_value"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+}
+
+type UserService struct {
+	Profile UserProfile        `json:"userProfile"`
+	Fields  []UserServiceField `json:"userFields"`
 }

@@ -12,6 +12,23 @@ type userServiceFieldRepository struct {
 	db *sql.DB
 }
 
+func (r *userServiceFieldRepository) GetFieldsByProfileId(profileId int) ([]domain.UserServiceField, error) {
+	rows, err := r.db.Query(`SELECT id, profile_id, field_key, value_string, value_number, value_boolean, value_json, created_at, updated_at FROM user_service_fields WHERE profile_id = $1`, profileId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var fields []domain.UserServiceField
+	for rows.Next() {
+		var field domain.UserServiceField
+		if err := rows.Scan(&field.ID, &field.ProfileId, &field.FieldKey, &field.StringValue, &field.NumberValue, &field.BoolValue, &field.JsonValue, &field.CreatedAt, &field.UpdatedAt); err != nil {
+			return nil, err
+		}
+		fields = append(fields, field)
+	}
+	return fields, rows.Err()
+}
+
 func NewUserServiceFieldRepository(db *sql.DB) domain.UserServiceFieldRepository {
 	return &userServiceFieldRepository{db: db}
 }
@@ -32,8 +49,8 @@ func (r *userServiceFieldRepository) CreateBatch(fields []domain.UserServiceFiel
 		)
 
 		var jsonArg interface{}
-		if len(field.JsonValue) > 0 {
-			jsonArg = string(field.JsonValue) // valid JSON text
+		if field.JsonValue != nil && len(*field.JsonValue) > 0 {
+			jsonArg = string(*field.JsonValue) // valid JSON text
 		} else {
 			jsonArg = nil // will be NULL in DB
 		}

@@ -32,6 +32,7 @@ COPY --from=builder /build/main .
 COPY --from=builder /build/internal/config/providers ./internal/config/providers
 # Copy webhook provider config files
 COPY --from=builder /build/internal/config/webhooks ./internal/config/webhooks
+COPY --from=builder /build/internal/config/services ./internal/config/services
 
 # Run the application
 CMD ["./main"]
