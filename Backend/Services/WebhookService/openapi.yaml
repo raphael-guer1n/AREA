@@ -32,6 +32,43 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
 
   /subscriptions:
+    get:
+      summary: List webhook subscriptions by user
+      description: Returns all subscriptions for a given user_id
+      operationId: listSubscriptions
+      tags:
+        - Subscriptions
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Subscription list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      subscriptions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Create a webhook subscription
       description: Creates a subscription tied to a user, AREA, and provider
@@ -133,6 +170,54 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /webhooks/{provider}/{hookId}:
+    get:
+      summary: Verify webhook
+      description: Responds to provider verification challenges (for example WebSub hub.challenge)
+      operationId: verifyWebhook
+      tags:
+        - Webhooks
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: hookId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: hub.mode
+          in: query
+          required: false
+          schema:
+            type: string
+            example: unsubscribe
+      responses:
+        '200':
+          description: Verification challenge response
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: challenge_token
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Webhook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Receive webhook
       description: Receives and validates a provider webhook
@@ -156,6 +241,12 @@ paths:
           application/json:
             schema:
               type: object
+          application/xml:
+            schema:
+              type: string
+          application/atom+xml:
+            schema:
+              type: string
       responses:
         '200':
           description: Webhook received

@@ -78,10 +78,102 @@ func (r *subscriptionRepository) FindByHookID(hookID string) (*domain.Subscripti
 	return &sub, nil
 }
 
+func (r *subscriptionRepository) ListByUserID(userID int) ([]domain.Subscription, error) {
+	rows, err := r.db.Query(
+		`SELECT id, hook_id, user_id, area_id, provider, config, provider_hook_id, created_at, updated_at
+		 FROM webhook_subscriptions WHERE user_id = $1 ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []domain.Subscription
+	for rows.Next() {
+		var sub domain.Subscription
+		var configBytes []byte
+		if err := rows.Scan(
+			&sub.ID,
+			&sub.HookID,
+			&sub.UserID,
+			&sub.AreaID,
+			&sub.Provider,
+			&configBytes,
+			&sub.ProviderHookID,
+			&sub.CreatedAt,
+			&sub.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if configBytes != nil {
+			sub.Config = configBytes
+		}
+		subs = append(subs, sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if subs == nil {
+		subs = []domain.Subscription{}
+	}
+	return subs, nil
+}
+
+func (r *subscriptionRepository) ListByProvider(provider string) ([]domain.Subscription, error) {
+	rows, err := r.db.Query(
+		`SELECT id, hook_id, user_id, area_id, provider, config, provider_hook_id, created_at, updated_at
+		 FROM webhook_subscriptions WHERE provider = $1 ORDER BY created_at DESC`,
+		provider,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []domain.Subscription
+	for rows.Next() {
+		var sub domain.Subscription
+		var configBytes []byte
+		if err := rows.Scan(
+			&sub.ID,
+			&sub.HookID,
+			&sub.UserID,
+			&sub.AreaID,
+			&sub.Provider,
+			&configBytes,
+			&sub.ProviderHookID,
+			&sub.CreatedAt,
+			&sub.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if configBytes != nil {
+			sub.Config = configBytes
+		}
+		subs = append(subs, sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if subs == nil {
+		subs = []domain.Subscription{}
+	}
+	return subs, nil
+}
+
 func (r *subscriptionRepository) UpdateProviderHookID(hookID, providerHookID string) error {
 	_, err := r.db.Exec(
 		`UPDATE webhook_subscriptions SET provider_hook_id = $1, updated_at = NOW() WHERE hook_id = $2`,
 		providerHookID, hookID,
+	)
+	return err
+}
+
+func (r *subscriptionRepository) TouchByHookID(hookID string) error {
+	_, err := r.db.Exec(
+		`UPDATE webhook_subscriptions SET updated_at = NOW() WHERE hook_id = $1`,
+		hookID,
 	)
 	return err
 }

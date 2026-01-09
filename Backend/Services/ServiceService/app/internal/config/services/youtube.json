@@ -1,0 +1,72 @@
+{
+  "provider": "google",
+  "name": "youtube",
+  "label": "YouTube",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "new_video",
+      "label": "New Video",
+      "type": "webhook",
+      "fields": [
+        {
+          "name": "channel_url",
+          "type": "text",
+          "label": "Channel URL (optional if using subscriptions mode)",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "mode",
+          "type": "text",
+          "label": "Mode (channel | subscriptions)",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "video_id",
+          "type": "text",
+          "label": "Video ID"
+        },
+        {
+          "name": "channel_id",
+          "type": "text",
+          "label": "Channel ID"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "label": "Title"
+        },
+        {
+          "name": "published",
+          "type": "text",
+          "label": "Published"
+        },
+        {
+          "name": "updated",
+          "type": "text",
+          "label": "Updated"
+        },
+        {
+          "name": "author_name",
+          "type": "text",
+          "label": "Author"
+        },
+        {
+          "name": "video_url",
+          "type": "text",
+          "label": "Video URL"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "label": "Description"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}

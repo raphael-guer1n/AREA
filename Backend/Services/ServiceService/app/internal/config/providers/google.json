@@ -11,7 +11,8 @@
       "email",
       "profile",
       "https://mail.google.com/",
-      "https://www.googleapis.com/auth/calendar"
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/youtube.readonly"
     ],
     "user_info_url": "https://www.googleapis.com/oauth2/v2/userinfo"
   },

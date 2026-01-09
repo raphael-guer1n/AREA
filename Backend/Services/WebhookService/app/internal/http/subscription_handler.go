@@ -2,7 +2,9 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/raphael-guer1n/AREA/WebhookService/internal/config"
@@ -22,13 +24,20 @@ func NewSubscriptionHandler(subscriptionSvc *service.SubscriptionService, cfg co
 }
 
 func (h *SubscriptionHandler) HandleCreateSubscription(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
+	switch req.Method {
+	case http.MethodPost:
+		h.handleCreateSubscription(w, req)
+	case http.MethodGet:
+		h.handleListSubscriptions(w, req)
+	default:
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
 			"error":   "method not allowed",
 		})
-		return
 	}
+}
+
+func (h *SubscriptionHandler) handleCreateSubscription(w http.ResponseWriter, req *http.Request) {
 
 	var body struct {
 		UserID   int             `json:"user_id"`
@@ -56,10 +65,10 @@ func (h *SubscriptionHandler) HandleCreateSubscription(w http.ResponseWriter, re
 	subscription, err := h.subscriptionSvc.CreateSubscription(body.UserID, body.AreaID, body.Provider, body.Config, webhookBaseURL)
 	if err != nil {
 		status := http.StatusInternalServerError
-		switch err {
-		case service.ErrProviderNotSupported:
+		switch {
+		case errors.Is(err, service.ErrProviderNotSupported):
 			status = http.StatusNotFound
-		case service.ErrInvalidConfig, service.ErrMissingSecret:
+		case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrMissingSecret):
 			status = http.StatusBadRequest
 		}
 		respondJSON(w, status, map[string]any{
@@ -94,6 +103,41 @@ func (h *SubscriptionHandler) HandleSubscription(w http.ResponseWriter, req *htt
 			"error":   "method not allowed",
 		})
 	}
+}
+
+func (h *SubscriptionHandler) handleListSubscriptions(w http.ResponseWriter, req *http.Request) {
+	userIDParam := strings.TrimSpace(req.URL.Query().Get("user_id"))
+	if userIDParam == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id is required",
+		})
+		return
+	}
+	userID, err := strconv.Atoi(userIDParam)
+	if err != nil || userID <= 0 {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid user_id",
+		})
+		return
+	}
+
+	subscriptions, err := h.subscriptionSvc.ListSubscriptionsByUserID(userID)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to load subscriptions",
+		})
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"subscriptions": subscriptions,
+		},
+	})
 }
 
 func (h *SubscriptionHandler) handleGetSubscription(w http.ResponseWriter, req *http.Request) {
@@ -141,14 +185,14 @@ func (h *SubscriptionHandler) handleDeleteSubscription(w http.ResponseWriter, re
 	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
 	if err := h.subscriptionSvc.DeleteSubscription(hookID, webhookBaseURL); err != nil {
 		status := http.StatusInternalServerError
-		switch err {
-		case service.ErrSubscriptionNotFound:
+		switch {
+		case errors.Is(err, service.ErrSubscriptionNotFound):
 			status = http.StatusNotFound
-		case service.ErrProviderNotSupported:
+		case errors.Is(err, service.ErrProviderNotSupported):
 			status = http.StatusNotFound
-		case service.ErrProviderHookMissing:
+		case errors.Is(err, service.ErrProviderHookMissing):
 			status = http.StatusBadRequest
-		case service.ErrInvalidConfig:
+		case errors.Is(err, service.ErrInvalidConfig):
 			status = http.StatusBadRequest
 		}
 		respondJSON(w, status, map[string]any{

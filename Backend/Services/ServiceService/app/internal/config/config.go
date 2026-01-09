@@ -71,9 +71,10 @@ type WebhookSignatureConfig struct {
 }
 
 type WebhookProviderAuthConfig struct {
-	Type   string `json:"type"`
-	Header string `json:"header"`
-	Prefix string `json:"prefix"`
+	Type     string `json:"type"`
+	Header   string `json:"header"`
+	Prefix   string `json:"prefix"`
+	Provider string `json:"provider,omitempty"`
 }
 
 type WebhookProviderSetupConfig struct {
@@ -82,17 +83,83 @@ type WebhookProviderSetupConfig struct {
 	Headers            map[string]string          `json:"headers,omitempty"`
 	Auth               *WebhookProviderAuthConfig `json:"auth,omitempty"`
 	BodyTemplate       json.RawMessage            `json:"body_template,omitempty"`
+	BodyEncoding       string                     `json:"body_encoding,omitempty"`
+	RepeatFor          string                     `json:"repeat_for,omitempty"`
 	ResponseIDJSONPath string                     `json:"response_id_json_path"`
 }
 
 type WebhookProviderConfig struct {
-	Name          string                      `json:"name"`
-	Signature     *WebhookSignatureConfig     `json:"signature,omitempty"`
-	EventHeader   string                      `json:"event_header"`
-	EventJSONPath string                      `json:"event_json_path"`
+	Name          string                        `json:"name"`
+	PayloadFormat string                        `json:"payload_format,omitempty"`
+	OAuthProvider string                        `json:"oauth_provider,omitempty"`
+	TopicTemplate string                        `json:"topic_template,omitempty"`
+	Signature     *WebhookSignatureConfig       `json:"signature,omitempty"`
+	EventHeader   string                        `json:"event_header"`
+	EventJSONPath string                        `json:"event_json_path"`
 	Mappings      []MappingConfig               `json:"mappings,omitempty"`
-	Setup         *WebhookProviderSetupConfig `json:"setup,omitempty"`
-	Teardown      *WebhookProviderSetupConfig `json:"teardown,omitempty"`
+	Prepare       []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+	Renewal       *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
+	Setup         *WebhookProviderSetupConfig   `json:"setup,omitempty"`
+	Teardown      *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
+}
+
+type WebhookPrepareCondition struct {
+	JSONPath string   `json:"json_path"`
+	Equals   string   `json:"equals,omitempty"`
+	In       []string `json:"in,omitempty"`
+	Exists   *bool    `json:"exists,omitempty"`
+}
+
+type WebhookProviderPrepareStep struct {
+	When         *WebhookPrepareCondition           `json:"when,omitempty"`
+	Fetch        *WebhookProviderFetchConfig        `json:"fetch,omitempty"`
+	TemplateList *WebhookProviderTemplateListConfig `json:"template_list,omitempty"`
+	Extract      *WebhookProviderExtractConfig      `json:"extract,omitempty"`
+	Generate     *WebhookProviderGenerateConfig     `json:"generate,omitempty"`
+}
+
+type WebhookProviderFetchConfig struct {
+	Method           string                           `json:"method"`
+	URLTemplate      string                           `json:"url_template"`
+	Headers          map[string]string                `json:"headers,omitempty"`
+	Auth             *WebhookProviderAuthConfig       `json:"auth,omitempty"`
+	BodyTemplate     json.RawMessage                  `json:"body_template,omitempty"`
+	BodyEncoding     string                           `json:"body_encoding,omitempty"`
+	ResponseJSONPath string                           `json:"response_json_path,omitempty"`
+	ItemJSONPath     string                           `json:"item_json_path,omitempty"`
+	StorePath        string                           `json:"store_path"`
+	Pagination       *WebhookProviderPaginationConfig `json:"pagination,omitempty"`
+}
+
+type WebhookProviderPaginationConfig struct {
+	RequestParam     string `json:"request_param"`
+	ResponseJSONPath string `json:"response_json_path"`
+}
+
+type WebhookProviderTemplateListConfig struct {
+	RepeatFor string `json:"repeat_for"`
+	Template  string `json:"template"`
+	StorePath string `json:"store_path"`
+	Unique    bool   `json:"unique,omitempty"`
+}
+
+type WebhookProviderExtractConfig struct {
+	SourceJSONPath string `json:"source_json_path"`
+	Regex          string `json:"regex"`
+	Group          int    `json:"group,omitempty"`
+	StorePath      string `json:"store_path"`
+	Optional       bool   `json:"optional,omitempty"`
+}
+
+type WebhookProviderRenewalConfig struct {
+	AfterSeconds int `json:"after_seconds"`
+}
+
+type WebhookProviderGenerateConfig struct {
+	StorePath     string `json:"store_path"`
+	Length        int    `json:"length,omitempty"`
+	Encoding      string `json:"encoding,omitempty"`
+	OnlyIfMissing bool   `json:"only_if_missing,omitempty"`
 }
 
 // LoadProviderConfigs loads all *.json provider configs from the given directory.
@@ -255,6 +322,19 @@ func LoadWebhookProviderConfigs(dir string) (map[string]WebhookProviderConfig, e
 		if err := validateWebhookSignatureConfig(cfg.Name, cfg.Signature); err != nil {
 			return nil, err
 		}
+		if cfg.PayloadFormat != "" {
+			switch strings.ToLower(cfg.PayloadFormat) {
+			case "json", "xml":
+			default:
+				return nil, fmt.Errorf("webhook provider %s: unsupported payload_format %q", cfg.Name, cfg.PayloadFormat)
+			}
+		}
+		if err := validateWebhookProviderPrepare(cfg.Name, cfg.Prepare); err != nil {
+			return nil, err
+		}
+		if err := validateWebhookProviderRenewal(cfg.Name, cfg.Renewal); err != nil {
+			return nil, err
+		}
 
 		if err := validateWebhookProviderAction(cfg.Name, "setup", cfg.Setup); err != nil {
 			return nil, err
@@ -305,12 +385,180 @@ func validateWebhookProviderAction(providerName, label string, action *WebhookPr
 		default:
 			return fmt.Errorf("webhook provider %s: unsupported auth type %q", providerName, action.Auth.Type)
 		}
+		if action.Auth.Provider != "" && action.Auth.Type != "oauth2" {
+			return fmt.Errorf("webhook provider %s: auth provider is only supported for oauth2", providerName)
+		}
+	}
+	if action.BodyEncoding != "" {
+		switch strings.ToLower(action.BodyEncoding) {
+		case "json", "form", "x-www-form-urlencoded":
+		default:
+			return fmt.Errorf("webhook provider %s: unsupported body_encoding %q", providerName, action.BodyEncoding)
+		}
+	}
+	if action.RepeatFor != "" && len(action.BodyTemplate) == 0 {
+		return fmt.Errorf("webhook provider %s: %s repeat_for requires a body_template", providerName, label)
 	}
 	if len(action.BodyTemplate) > 0 {
 		var payload any
 		if err := json.Unmarshal(action.BodyTemplate, &payload); err != nil {
 			return fmt.Errorf("webhook provider %s: invalid %s body_template: %w", providerName, label, err)
 		}
+	}
+	return nil
+}
+
+func validateWebhookProviderPrepare(providerName string, steps []WebhookProviderPrepareStep) error {
+	for idx, step := range steps {
+		hasFetch := step.Fetch != nil
+		hasTemplate := step.TemplateList != nil
+		hasExtract := step.Extract != nil
+		hasGenerate := step.Generate != nil
+		stepCount := 0
+		if hasFetch {
+			stepCount++
+		}
+		if hasTemplate {
+			stepCount++
+		}
+		if hasExtract {
+			stepCount++
+		}
+		if hasGenerate {
+			stepCount++
+		}
+		if stepCount != 1 {
+			return fmt.Errorf("webhook provider %s: prepare[%d] must define exactly one of fetch, template_list, extract, or generate", providerName, idx)
+		}
+		if step.When != nil && strings.TrimSpace(step.When.JSONPath) == "" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] when.json_path is required", providerName, idx)
+		}
+		if step.Fetch != nil {
+			if err := validateWebhookProviderFetch(providerName, idx, step.Fetch); err != nil {
+				return err
+			}
+		}
+		if step.TemplateList != nil {
+			if err := validateWebhookProviderTemplateList(providerName, idx, step.TemplateList); err != nil {
+				return err
+			}
+		}
+		if step.Extract != nil {
+			if err := validateWebhookProviderExtract(providerName, idx, step.Extract); err != nil {
+				return err
+			}
+		}
+		if step.Generate != nil {
+			if err := validateWebhookProviderGenerate(providerName, idx, step.Generate); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateWebhookProviderFetch(providerName string, idx int, fetch *WebhookProviderFetchConfig) error {
+	if fetch.Method == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] fetch method is required", providerName, idx)
+	}
+	if fetch.URLTemplate == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] fetch url_template is required", providerName, idx)
+	}
+	if strings.TrimSpace(fetch.StorePath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] fetch store_path is required", providerName, idx)
+	}
+	if fetch.Auth != nil {
+		if fetch.Auth.Type == "" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] fetch auth type is required", providerName, idx)
+		}
+		if fetch.Auth.Header == "" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] fetch auth header is required", providerName, idx)
+		}
+		switch fetch.Auth.Type {
+		case "oauth2":
+		default:
+			return fmt.Errorf("webhook provider %s: prepare[%d] fetch unsupported auth type %q", providerName, idx, fetch.Auth.Type)
+		}
+		if fetch.Auth.Provider != "" && fetch.Auth.Type != "oauth2" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] fetch auth provider is only supported for oauth2", providerName, idx)
+		}
+	}
+	if fetch.BodyEncoding != "" {
+		switch strings.ToLower(fetch.BodyEncoding) {
+		case "json", "form", "x-www-form-urlencoded":
+		default:
+			return fmt.Errorf("webhook provider %s: prepare[%d] fetch unsupported body_encoding %q", providerName, idx, fetch.BodyEncoding)
+		}
+	}
+	if len(fetch.BodyTemplate) > 0 {
+		var payload any
+		if err := json.Unmarshal(fetch.BodyTemplate, &payload); err != nil {
+			return fmt.Errorf("webhook provider %s: prepare[%d] invalid body_template: %w", providerName, idx, err)
+		}
+	}
+	if fetch.Pagination != nil {
+		if strings.TrimSpace(fetch.Pagination.RequestParam) == "" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] pagination request_param is required", providerName, idx)
+		}
+		if strings.TrimSpace(fetch.Pagination.ResponseJSONPath) == "" {
+			return fmt.Errorf("webhook provider %s: prepare[%d] pagination response_json_path is required", providerName, idx)
+		}
+	}
+	return nil
+}
+
+func validateWebhookProviderTemplateList(providerName string, idx int, step *WebhookProviderTemplateListConfig) error {
+	if strings.TrimSpace(step.RepeatFor) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] template_list repeat_for is required", providerName, idx)
+	}
+	if strings.TrimSpace(step.Template) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] template_list template is required", providerName, idx)
+	}
+	if strings.TrimSpace(step.StorePath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] template_list store_path is required", providerName, idx)
+	}
+	return nil
+}
+
+func validateWebhookProviderExtract(providerName string, idx int, step *WebhookProviderExtractConfig) error {
+	if strings.TrimSpace(step.SourceJSONPath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] extract source_json_path is required", providerName, idx)
+	}
+	if strings.TrimSpace(step.Regex) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] extract regex is required", providerName, idx)
+	}
+	if strings.TrimSpace(step.StorePath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] extract store_path is required", providerName, idx)
+	}
+	if step.Group < 0 {
+		return fmt.Errorf("webhook provider %s: prepare[%d] extract group must be >= 0", providerName, idx)
+	}
+	return nil
+}
+
+func validateWebhookProviderGenerate(providerName string, idx int, step *WebhookProviderGenerateConfig) error {
+	if strings.TrimSpace(step.StorePath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] generate store_path is required", providerName, idx)
+	}
+	if step.Length < 0 {
+		return fmt.Errorf("webhook provider %s: prepare[%d] generate length must be >= 0", providerName, idx)
+	}
+	if step.Encoding != "" {
+		switch strings.ToLower(step.Encoding) {
+		case "hex", "base64":
+		default:
+			return fmt.Errorf("webhook provider %s: prepare[%d] generate unsupported encoding %q", providerName, idx, step.Encoding)
+		}
+	}
+	return nil
+}
+
+func validateWebhookProviderRenewal(providerName string, renewal *WebhookProviderRenewalConfig) error {
+	if renewal == nil {
+		return nil
+	}
+	if renewal.AfterSeconds <= 0 {
+		return fmt.Errorf("webhook provider %s: renewal.after_seconds must be > 0", providerName)
 	}
 	return nil
 }

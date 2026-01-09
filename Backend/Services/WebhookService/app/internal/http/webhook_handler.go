@@ -37,7 +37,7 @@ func NewWebhookHandler(subscriptionSvc *service.SubscriptionService, providerSvc
 }
 
 func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
+	if req.Method != http.MethodPost && req.Method != http.MethodGet {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
 			"error":   "method not allowed",
@@ -51,6 +51,39 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			"success": false,
 			"error":   "webhook not found",
 		})
+		return
+	}
+
+	if req.Method == http.MethodGet {
+		challenge := req.URL.Query().Get("hub.challenge")
+		if challenge == "" {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "missing hub.challenge",
+			})
+			return
+		}
+		subscription, err := h.subscriptionSvc.GetSubscriptionByHookID(hookID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   "failed to load subscription",
+			})
+			return
+		}
+		if subscription == nil || subscription.Provider != provider {
+			mode := strings.ToLower(req.URL.Query().Get("hub.mode"))
+			if mode != "unsubscribe" {
+				respondJSON(w, http.StatusNotFound, map[string]any{
+					"success": false,
+					"error":   "webhook not found",
+				})
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(challenge))
 		return
 	}
 
@@ -94,15 +127,13 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	var payload any = map[string]any{}
-	if len(body) > 0 {
-		if err := json.Unmarshal(body, &payload); err != nil {
-			respondJSON(w, http.StatusBadRequest, map[string]any{
-				"success": false,
-				"error":   "invalid JSON body",
-			})
-			return
-		}
+	payload, err := parsePayload(body, providerConfig.PayloadFormat)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	var subscriptionConfig any = map[string]any{}
@@ -118,7 +149,8 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 
 	if providerConfig.Signature != nil {
 		secretValue, ok := utils.ExtractJSONPath(subscriptionConfig, providerConfig.Signature.SecretJSONPath)
-		if !ok || fmt.Sprint(secretValue) == "" {
+		secret := strings.TrimSpace(fmt.Sprint(secretValue))
+		if !ok || secret == "" {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   "missing signature secret",
@@ -126,7 +158,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			return
 		}
 
-		if err := validateSignature(providerConfig.Signature, req, fmt.Sprint(secretValue), body); err != nil {
+		if err := validateSignature(providerConfig.Signature, req, secret, body); err != nil {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   err.Error(),
@@ -431,5 +463,28 @@ func coerceValue(value any, valueType string) (any, error) {
 		return value, nil
 	default:
 		return nil, fmt.Errorf("unsupported type")
+	}
+}
+
+func parsePayload(body []byte, format string) (any, error) {
+	if len(body) == 0 {
+		return map[string]any{}, nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "json":
+		var payload any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			return nil, fmt.Errorf("invalid JSON body")
+		}
+		return payload, nil
+	case "xml":
+		payload, err := utils.ParseXMLToMap(body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid XML body")
+		}
+		return payload, nil
+	default:
+		return nil, fmt.Errorf("unsupported payload format")
 	}
 }

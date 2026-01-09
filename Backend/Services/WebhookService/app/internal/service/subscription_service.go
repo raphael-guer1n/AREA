@@ -51,15 +51,26 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 		}
 	}
 
-	if _, ok := cfgPayload.(map[string]any); !ok {
+	cfgMap, ok := cfgPayload.(map[string]any)
+	if !ok {
 		return nil, ErrInvalidConfig
 	}
 
+	cfgMap, err = s.applyPrepareSteps(userID, providerConfig, cfgMap)
+	if err != nil {
+		return nil, err
+	}
+
 	if providerConfig.Signature != nil {
-		secretValue, ok := utils.ExtractJSONPath(cfgPayload, providerConfig.Signature.SecretJSONPath)
+		secretValue, ok := utils.ExtractJSONPath(cfgMap, providerConfig.Signature.SecretJSONPath)
 		if !ok || fmt.Sprint(secretValue) == "" {
 			return nil, ErrMissingSecret
 		}
+	}
+
+	cfg, err = json.Marshal(cfgMap)
+	if err != nil {
+		return nil, ErrInvalidConfig
 	}
 
 	sub := &domain.Subscription{
@@ -75,7 +86,7 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 		if err == nil {
 			if s.webhookSetupSvc != nil && providerConfig.Setup != nil {
 				webhookURL := buildWebhookURL(webhookBaseURL, provider, created.HookID)
-				providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, created, webhookURL, cfgPayload)
+				providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, created, webhookURL, cfgMap)
 				if err != nil {
 					_ = s.repo.DeleteByHookID(created.HookID)
 					return nil, err
@@ -100,6 +111,10 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 
 func (s *SubscriptionService) GetSubscriptionByHookID(hookID string) (*domain.Subscription, error) {
 	return s.repo.FindByHookID(hookID)
+}
+
+func (s *SubscriptionService) ListSubscriptionsByUserID(userID int) ([]domain.Subscription, error) {
+	return s.repo.ListByUserID(userID)
 }
 
 func (s *SubscriptionService) DeleteSubscription(hookID, webhookBaseURL string) error {
