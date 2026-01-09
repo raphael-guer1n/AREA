@@ -1,0 +1,40 @@
+{
+  "provider": "",
+  "name": "generic",
+  "label": "Custom Webhook",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "custom_webhook",
+      "label": "Custom Webhook",
+      "type": "webhook",
+      "fields": [
+        {
+          "name": "event_type",
+          "type": "text",
+          "label": "Event type (optional)",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "id",
+          "type": "text",
+          "label": "ID"
+        },
+        {
+          "name": "timestamp",
+          "type": "text",
+          "label": "Timestamp"
+        },
+        {
+          "name": "payload",
+          "type": "json",
+          "label": "Payload"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}

@@ -1,0 +1,59 @@
+{
+  "provider": "github",
+  "name": "github",
+  "label": "GitHub",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "repo_webhook",
+      "label": "Repository Webhook",
+      "type": "webhook",
+      "fields": [
+        {
+          "name": "repository",
+          "type": "text",
+          "label": "Repository (owner/name)",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "events",
+          "type": "json",
+          "label": "Events (JSON array)",
+          "required": true,
+          "default": "[\"push\"]"
+        },
+        {
+          "name": "branch",
+          "type": "text",
+          "label": "Branch (optional)",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "repository",
+          "type": "text",
+          "label": "Repository"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "label": "Action"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "label": "Ref"
+        },
+        {
+          "name": "sender",
+          "type": "text",
+          "label": "Sender"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}
