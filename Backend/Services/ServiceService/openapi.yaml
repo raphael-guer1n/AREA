@@ -354,6 +354,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WebhookProviderPrepareStep'
+        renewal:
+          $ref: '#/components/schemas/WebhookProviderRenewalConfig'
         setup:
           $ref: '#/components/schemas/WebhookProviderSetupConfig'
         teardown:
@@ -497,6 +499,13 @@ components:
         optional:
           type: boolean
           example: true
+
+    WebhookProviderRenewalConfig:
+      type: object
+      properties:
+        after_seconds:
+          type: integer
+          example: 800000
 
     WebhookProviderPrepareStep:
       type: object

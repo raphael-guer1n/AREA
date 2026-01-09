@@ -89,17 +89,18 @@ type WebhookProviderSetupConfig struct {
 }
 
 type WebhookProviderConfig struct {
-	Name          string                       `json:"name"`
-	PayloadFormat string                       `json:"payload_format,omitempty"`
-	OAuthProvider string                       `json:"oauth_provider,omitempty"`
-	TopicTemplate string                       `json:"topic_template,omitempty"`
-	Signature     *WebhookSignatureConfig      `json:"signature,omitempty"`
-	EventHeader   string                       `json:"event_header"`
-	EventJSONPath string                       `json:"event_json_path"`
-	Mappings      []MappingConfig              `json:"mappings,omitempty"`
-	Prepare       []WebhookProviderPrepareStep `json:"prepare,omitempty"`
-	Setup         *WebhookProviderSetupConfig  `json:"setup,omitempty"`
-	Teardown      *WebhookProviderSetupConfig  `json:"teardown,omitempty"`
+	Name          string                        `json:"name"`
+	PayloadFormat string                        `json:"payload_format,omitempty"`
+	OAuthProvider string                        `json:"oauth_provider,omitempty"`
+	TopicTemplate string                        `json:"topic_template,omitempty"`
+	Signature     *WebhookSignatureConfig       `json:"signature,omitempty"`
+	EventHeader   string                        `json:"event_header"`
+	EventJSONPath string                        `json:"event_json_path"`
+	Mappings      []MappingConfig               `json:"mappings,omitempty"`
+	Prepare       []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+	Renewal       *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
+	Setup         *WebhookProviderSetupConfig   `json:"setup,omitempty"`
+	Teardown      *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
 }
 
 type WebhookPrepareCondition struct {
@@ -147,6 +148,10 @@ type WebhookProviderExtractConfig struct {
 	Group          int    `json:"group,omitempty"`
 	StorePath      string `json:"store_path"`
 	Optional       bool   `json:"optional,omitempty"`
+}
+
+type WebhookProviderRenewalConfig struct {
+	AfterSeconds int `json:"after_seconds"`
 }
 
 // LoadProviderConfigs loads all *.json provider configs from the given directory.
@@ -317,6 +322,9 @@ func LoadWebhookProviderConfigs(dir string) (map[string]WebhookProviderConfig, e
 			}
 		}
 		if err := validateWebhookProviderPrepare(cfg.Name, cfg.Prepare); err != nil {
+			return nil, err
+		}
+		if err := validateWebhookProviderRenewal(cfg.Name, cfg.Renewal); err != nil {
 			return nil, err
 		}
 
@@ -507,6 +515,16 @@ func validateWebhookProviderExtract(providerName string, idx int, step *WebhookP
 	}
 	if step.Group < 0 {
 		return fmt.Errorf("webhook provider %s: prepare[%d] extract group must be >= 0", providerName, idx)
+	}
+	return nil
+}
+
+func validateWebhookProviderRenewal(providerName string, renewal *WebhookProviderRenewalConfig) error {
+	if renewal == nil {
+		return nil
+	}
+	if renewal.AfterSeconds <= 0 {
+		return fmt.Errorf("webhook provider %s: renewal.after_seconds must be > 0", providerName)
 	}
 	return nil
 }
