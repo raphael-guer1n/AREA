@@ -1,0 +1,220 @@
+{
+  "name": "youtube",
+  "payload_format": "xml",
+  "signature": {
+    "type": "hmac",
+    "algorithm": "sha1",
+    "encoding": "hex",
+    "header": "X-Hub-Signature",
+    "prefix": "sha1=",
+    "secret_json_path": "secret"
+  },
+  "mappings": [
+    {
+      "field_key": "video_id",
+      "json_path": "feed.entry[0].videoId",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "channel_id",
+      "json_path": "feed.entry[0].channelId",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "title",
+      "json_path": "feed.entry[0].title",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "published",
+      "json_path": "feed.entry[0].published",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "updated",
+      "json_path": "feed.entry[0].updated",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "author_name",
+      "json_path": "feed.entry[0].author.name",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "video_url",
+      "json_path": "feed.entry[0].link[0].@href",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "field_key": "description",
+      "json_path": "feed.entry[0].group.description",
+      "type": "string",
+      "optional": true
+    }
+  ],
+  "prepare": [
+    {
+      "when": {
+        "json_path": "channel_url",
+        "exists": true
+      },
+      "extract": {
+        "source_json_path": "channel_url",
+        "regex": "^https?://(www\\.)?youtube\\.com/channel/(UC[0-9A-Za-z_-]+)",
+        "group": 2,
+        "store_path": "channel_id",
+        "optional": true
+      }
+    },
+    {
+      "when": {
+        "json_path": "channel_url",
+        "exists": true
+      },
+      "extract": {
+        "source_json_path": "channel_url",
+        "regex": "^https?://(www\\.)?youtube\\.com/@([^/?#]+)",
+        "group": 2,
+        "store_path": "handle",
+        "optional": true
+      }
+    },
+    {
+      "when": {
+        "json_path": "channel_url",
+        "exists": true
+      },
+      "extract": {
+        "source_json_path": "channel_url",
+        "regex": "^https?://(www\\.)?youtube\\.com/user/([^/?#]+)",
+        "group": 2,
+        "store_path": "username",
+        "optional": true
+      }
+    },
+    {
+      "when": {
+        "json_path": "mode",
+        "in": [
+          "subscriptions",
+          "all",
+          "all_subscriptions"
+        ]
+      },
+      "fetch": {
+        "method": "GET",
+        "url_template": "https://www.googleapis.com/youtube/v3/subscriptions?part=snippet&mine=true&maxResults=50",
+        "auth": {
+          "type": "oauth2",
+          "header": "Authorization",
+          "prefix": "Bearer ",
+          "provider": "google"
+        },
+        "response_json_path": "items",
+        "item_json_path": "snippet.resourceId.channelId",
+        "store_path": "channel_ids",
+        "pagination": {
+          "request_param": "pageToken",
+          "response_json_path": "nextPageToken"
+        }
+      }
+    },
+    {
+      "when": {
+        "json_path": "handle",
+        "exists": true
+      },
+      "fetch": {
+        "method": "GET",
+        "url_template": "https://www.googleapis.com/youtube/v3/channels?part=id&forHandle={{config.handle}}",
+        "auth": {
+          "type": "oauth2",
+          "header": "Authorization",
+          "prefix": "Bearer ",
+          "provider": "google"
+        },
+        "response_json_path": "items",
+        "item_json_path": "id",
+        "store_path": "channel_ids"
+      }
+    },
+    {
+      "when": {
+        "json_path": "username",
+        "exists": true
+      },
+      "fetch": {
+        "method": "GET",
+        "url_template": "https://www.googleapis.com/youtube/v3/channels?part=id&forUsername={{config.username}}",
+        "auth": {
+          "type": "oauth2",
+          "header": "Authorization",
+          "prefix": "Bearer ",
+          "provider": "google"
+        },
+        "response_json_path": "items",
+        "item_json_path": "id",
+        "store_path": "channel_ids"
+      }
+    },
+    {
+      "when": {
+        "json_path": "channel_id",
+        "exists": true
+      },
+      "template_list": {
+        "repeat_for": "config.channel_id",
+        "template": "https://www.youtube.com/xml/feeds/videos.xml?channel_id={{item}}",
+        "store_path": "topics",
+        "unique": true
+      }
+    },
+    {
+      "when": {
+        "json_path": "channel_ids",
+        "exists": true
+      },
+      "template_list": {
+        "repeat_for": "config.channel_ids",
+        "template": "https://www.youtube.com/xml/feeds/videos.xml?channel_id={{item}}",
+        "store_path": "topics",
+        "unique": true
+      }
+    }
+  ],
+  "setup": {
+    "method": "POST",
+    "url_template": "https://pubsubhubbub.appspot.com/subscribe",
+    "body_encoding": "form",
+    "repeat_for": "config.topics",
+    "body_template": {
+      "hub.mode": "subscribe",
+      "hub.topic": "{{item}}",
+      "hub.callback": "{{hook_url}}",
+      "hub.verify": "async",
+      "hub.lease_seconds": "864000",
+      "hub.secret": "{{config.secret}}"
+    }
+  },
+  "teardown": {
+    "method": "POST",
+    "url_template": "https://pubsubhubbub.appspot.com/subscribe",
+    "body_encoding": "form",
+    "repeat_for": "config.topics",
+    "body_template": {
+      "hub.mode": "unsubscribe",
+      "hub.topic": "{{item}}",
+      "hub.callback": "{{hook_url}}",
+      "hub.verify": "async",
+      "hub.lease_seconds": "864000",
+      "hub.secret": "{{config.secret}}"
+    }
+  }
+}
