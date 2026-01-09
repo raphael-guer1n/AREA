@@ -328,6 +328,16 @@ components:
         name:
           type: string
           example: github
+        payload_format:
+          type: string
+          enum: [json, xml]
+          example: json
+        oauth_provider:
+          type: string
+          example: google
+        topic_template:
+          type: string
+          example: https://www.youtube.com/xml/feeds/videos.xml?channel_id={{config.channel_id}}
         signature:
           $ref: '#/components/schemas/WebhookSignatureConfig'
         event_header:
@@ -340,6 +350,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/FieldMapping'
+        prepare:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookProviderPrepareStep'
         setup:
           $ref: '#/components/schemas/WebhookProviderSetupConfig'
         teardown:
@@ -357,6 +371,9 @@ components:
         prefix:
           type: string
           example: Bearer 
+        provider:
+          type: string
+          example: google
 
     WebhookProviderSetupConfig:
       type: object
@@ -373,11 +390,125 @@ components:
             type: string
         auth:
           $ref: '#/components/schemas/WebhookProviderAuthConfig'
+        body_encoding:
+          type: string
+          enum: [json, form, x-www-form-urlencoded]
+          example: json
         body_template:
           type: object
+        repeat_for:
+          type: string
+          example: config.topics
         response_id_json_path:
           type: string
           example: id
+
+    WebhookPrepareCondition:
+      type: object
+      properties:
+        json_path:
+          type: string
+          example: mode
+        equals:
+          type: string
+          example: subscriptions
+        in:
+          type: array
+          items:
+            type: string
+          example: ["subscriptions", "all"]
+        exists:
+          type: boolean
+          example: true
+
+    WebhookProviderPaginationConfig:
+      type: object
+      properties:
+        request_param:
+          type: string
+          example: pageToken
+        response_json_path:
+          type: string
+          example: nextPageToken
+
+    WebhookProviderFetchConfig:
+      type: object
+      properties:
+        method:
+          type: string
+          example: GET
+        url_template:
+          type: string
+          example: https://www.googleapis.com/youtube/v3/subscriptions?part=snippet&mine=true&maxResults=50
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        auth:
+          $ref: '#/components/schemas/WebhookProviderAuthConfig'
+        body_encoding:
+          type: string
+          enum: [json, form, x-www-form-urlencoded]
+        body_template:
+          type: object
+        response_json_path:
+          type: string
+          example: items
+        item_json_path:
+          type: string
+          example: snippet.resourceId.channelId
+        store_path:
+          type: string
+          example: channel_ids
+        pagination:
+          $ref: '#/components/schemas/WebhookProviderPaginationConfig'
+
+    WebhookProviderTemplateListConfig:
+      type: object
+      properties:
+        repeat_for:
+          type: string
+          example: config.channel_ids
+        template:
+          type: string
+          example: https://www.youtube.com/xml/feeds/videos.xml?channel_id={{item}}
+        store_path:
+          type: string
+          example: topics
+        unique:
+          type: boolean
+          example: true
+
+    WebhookProviderExtractConfig:
+      type: object
+      properties:
+        source_json_path:
+          type: string
+          example: channel_url
+        regex:
+          type: string
+          example: "^https?://(www\\.)?youtube\\.com/@([^/?#]+)"
+        group:
+          type: integer
+          example: 2
+        store_path:
+          type: string
+          example: handle
+        optional:
+          type: boolean
+          example: true
+
+    WebhookProviderPrepareStep:
+      type: object
+      properties:
+        when:
+          $ref: '#/components/schemas/WebhookPrepareCondition'
+        fetch:
+          $ref: '#/components/schemas/WebhookProviderFetchConfig'
+        template_list:
+          $ref: '#/components/schemas/WebhookProviderTemplateListConfig'
+        extract:
+          $ref: '#/components/schemas/WebhookProviderExtractConfig'
 
 tags:
   - name: Health
