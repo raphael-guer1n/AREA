@@ -189,6 +189,9 @@
       }
     }
   ],
+  "renewal": {
+    "after_seconds": 800000
+  },
   "setup": {
     "method": "POST",
     "url_template": "https://pubsubhubbub.appspot.com/subscribe",
