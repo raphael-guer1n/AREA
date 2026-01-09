@@ -20,6 +20,7 @@ type Subscription struct {
 type SubscriptionRepository interface {
 	Create(sub *Subscription) (*Subscription, error)
 	FindByHookID(hookID string) (*Subscription, error)
+	ListByUserID(userID int) ([]Subscription, error)
 	UpdateProviderHookID(hookID, providerHookID string) error
 	DeleteByHookID(hookID string) error
 }
