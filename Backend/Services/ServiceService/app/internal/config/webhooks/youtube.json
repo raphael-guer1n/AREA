@@ -61,6 +61,14 @@
   ],
   "prepare": [
     {
+      "generate": {
+        "store_path": "secret",
+        "length": 32,
+        "encoding": "hex",
+        "only_if_missing": true
+      }
+    },
+    {
       "when": {
         "json_path": "channel_url",
         "exists": true

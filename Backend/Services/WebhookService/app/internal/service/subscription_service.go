@@ -56,16 +56,16 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 		return nil, ErrInvalidConfig
 	}
 
+	cfgMap, err = s.applyPrepareSteps(userID, providerConfig, cfgMap)
+	if err != nil {
+		return nil, err
+	}
+
 	if providerConfig.Signature != nil {
 		secretValue, ok := utils.ExtractJSONPath(cfgMap, providerConfig.Signature.SecretJSONPath)
 		if !ok || fmt.Sprint(secretValue) == "" {
 			return nil, ErrMissingSecret
 		}
-	}
-
-	cfgMap, err = s.applyPrepareSteps(userID, providerConfig, cfgMap)
-	if err != nil {
-		return nil, err
 	}
 
 	cfg, err = json.Marshal(cfgMap)

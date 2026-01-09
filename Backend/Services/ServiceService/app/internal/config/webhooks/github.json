@@ -9,6 +9,16 @@
     "secret_json_path": "secret"
   },
   "event_header": "X-GitHub-Event",
+  "prepare": [
+    {
+      "generate": {
+        "store_path": "secret",
+        "length": 32,
+        "encoding": "hex",
+        "only_if_missing": true
+      }
+    }
+  ],
   "mappings": [
     {
       "field_key": "repository",

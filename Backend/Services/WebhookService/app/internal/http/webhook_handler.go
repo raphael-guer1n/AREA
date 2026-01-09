@@ -149,7 +149,8 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 
 	if providerConfig.Signature != nil {
 		secretValue, ok := utils.ExtractJSONPath(subscriptionConfig, providerConfig.Signature.SecretJSONPath)
-		if !ok || fmt.Sprint(secretValue) == "" {
+		secret := strings.TrimSpace(fmt.Sprint(secretValue))
+		if !ok || secret == "" {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   "missing signature secret",
@@ -157,7 +158,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			return
 		}
 
-		if err := validateSignature(providerConfig.Signature, req, fmt.Sprint(secretValue), body); err != nil {
+		if err := validateSignature(providerConfig.Signature, req, secret, body); err != nil {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   err.Error(),

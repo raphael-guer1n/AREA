@@ -115,6 +115,7 @@ type WebhookProviderPrepareStep struct {
 	Fetch        *WebhookProviderFetchConfig        `json:"fetch,omitempty"`
 	TemplateList *WebhookProviderTemplateListConfig `json:"template_list,omitempty"`
 	Extract      *WebhookProviderExtractConfig      `json:"extract,omitempty"`
+	Generate     *WebhookProviderGenerateConfig     `json:"generate,omitempty"`
 }
 
 type WebhookProviderFetchConfig struct {
@@ -152,6 +153,13 @@ type WebhookProviderExtractConfig struct {
 
 type WebhookProviderRenewalConfig struct {
 	AfterSeconds int `json:"after_seconds"`
+}
+
+type WebhookProviderGenerateConfig struct {
+	StorePath     string `json:"store_path"`
+	Length        int    `json:"length,omitempty"`
+	Encoding      string `json:"encoding,omitempty"`
+	OnlyIfMissing bool   `json:"only_if_missing,omitempty"`
 }
 
 // LoadProviderConfigs loads all *.json provider configs from the given directory.
@@ -405,6 +413,7 @@ func validateWebhookProviderPrepare(providerName string, steps []WebhookProvider
 		hasFetch := step.Fetch != nil
 		hasTemplate := step.TemplateList != nil
 		hasExtract := step.Extract != nil
+		hasGenerate := step.Generate != nil
 		stepCount := 0
 		if hasFetch {
 			stepCount++
@@ -415,8 +424,11 @@ func validateWebhookProviderPrepare(providerName string, steps []WebhookProvider
 		if hasExtract {
 			stepCount++
 		}
+		if hasGenerate {
+			stepCount++
+		}
 		if stepCount != 1 {
-			return fmt.Errorf("webhook provider %s: prepare[%d] must define exactly one of fetch, template_list, or extract", providerName, idx)
+			return fmt.Errorf("webhook provider %s: prepare[%d] must define exactly one of fetch, template_list, extract, or generate", providerName, idx)
 		}
 		if step.When != nil && strings.TrimSpace(step.When.JSONPath) == "" {
 			return fmt.Errorf("webhook provider %s: prepare[%d] when.json_path is required", providerName, idx)
@@ -433,6 +445,11 @@ func validateWebhookProviderPrepare(providerName string, steps []WebhookProvider
 		}
 		if step.Extract != nil {
 			if err := validateWebhookProviderExtract(providerName, idx, step.Extract); err != nil {
+				return err
+			}
+		}
+		if step.Generate != nil {
+			if err := validateWebhookProviderGenerate(providerName, idx, step.Generate); err != nil {
 				return err
 			}
 		}
@@ -515,6 +532,23 @@ func validateWebhookProviderExtract(providerName string, idx int, step *WebhookP
 	}
 	if step.Group < 0 {
 		return fmt.Errorf("webhook provider %s: prepare[%d] extract group must be >= 0", providerName, idx)
+	}
+	return nil
+}
+
+func validateWebhookProviderGenerate(providerName string, idx int, step *WebhookProviderGenerateConfig) error {
+	if strings.TrimSpace(step.StorePath) == "" {
+		return fmt.Errorf("webhook provider %s: prepare[%d] generate store_path is required", providerName, idx)
+	}
+	if step.Length < 0 {
+		return fmt.Errorf("webhook provider %s: prepare[%d] generate length must be >= 0", providerName, idx)
+	}
+	if step.Encoding != "" {
+		switch strings.ToLower(step.Encoding) {
+		case "hex", "base64":
+		default:
+			return fmt.Errorf("webhook provider %s: prepare[%d] generate unsupported encoding %q", providerName, idx, step.Encoding)
+		}
 	}
 	return nil
 }

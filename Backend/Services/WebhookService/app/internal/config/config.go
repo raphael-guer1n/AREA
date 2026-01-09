@@ -104,6 +104,7 @@ type WebhookProviderPrepareStep struct {
 	Fetch        *WebhookProviderFetchConfig        `json:"fetch,omitempty"`
 	TemplateList *WebhookProviderTemplateListConfig `json:"template_list,omitempty"`
 	Extract      *WebhookProviderExtractConfig      `json:"extract,omitempty"`
+	Generate     *WebhookProviderGenerateConfig     `json:"generate,omitempty"`
 }
 
 type WebhookProviderFetchConfig struct {
@@ -141,4 +142,11 @@ type WebhookProviderExtractConfig struct {
 
 type WebhookProviderRenewalConfig struct {
 	AfterSeconds int `json:"after_seconds"`
+}
+
+type WebhookProviderGenerateConfig struct {
+	StorePath     string `json:"store_path"`
+	Length        int    `json:"length,omitempty"`
+	Encoding      string `json:"encoding,omitempty"`
+	OnlyIfMissing bool   `json:"only_if_missing,omitempty"`
 }

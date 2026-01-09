@@ -1,6 +1,9 @@
 package service
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -37,6 +40,10 @@ func (s *SubscriptionService) applyPrepareSteps(userID int, providerConfig *conf
 			}
 		case step.Extract != nil:
 			if err := applyExtractStep(step.Extract, cfg); err != nil {
+				return nil, err
+			}
+		case step.Generate != nil:
+			if err := applyGenerateStep(step.Generate, cfg); err != nil {
 				return nil, err
 			}
 		}
@@ -288,6 +295,53 @@ func applyExtractStep(step *config.WebhookProviderExtractConfig, cfg map[string]
 	}
 
 	return setConfigValue(cfg, step.StorePath, matches[group])
+}
+
+func applyGenerateStep(step *config.WebhookProviderGenerateConfig, cfg map[string]any) error {
+	if step == nil {
+		return nil
+	}
+	if strings.TrimSpace(step.StorePath) == "" {
+		return fmt.Errorf("%w: prepare generate requires store_path", ErrInvalidConfig)
+	}
+
+	if step.OnlyIfMissing {
+		path := strings.TrimPrefix(strings.TrimSpace(step.StorePath), "config.")
+		if path == "" {
+			return fmt.Errorf("%w: invalid store_path", ErrInvalidConfig)
+		}
+		if value, ok := utils.ExtractJSONPath(cfg, path); ok {
+			if strings.TrimSpace(fmt.Sprint(value)) != "" {
+				return nil
+			}
+		}
+	}
+
+	length := step.Length
+	if length <= 0 {
+		length = 32
+	}
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Errorf("%w: failed to generate secret", ErrInvalidConfig)
+	}
+
+	encoding := strings.ToLower(strings.TrimSpace(step.Encoding))
+	if encoding == "" {
+		encoding = "hex"
+	}
+
+	var value string
+	switch encoding {
+	case "hex":
+		value = hex.EncodeToString(buf)
+	case "base64":
+		value = base64.StdEncoding.EncodeToString(buf)
+	default:
+		return fmt.Errorf("%w: unsupported generate encoding %q", ErrInvalidConfig, step.Encoding)
+	}
+
+	return setConfigValue(cfg, step.StorePath, value)
 }
 
 func resolveRepeatItems(cfg map[string]any, path string) ([]any, error) {

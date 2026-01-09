@@ -500,6 +500,23 @@ components:
           type: boolean
           example: true
 
+    WebhookProviderGenerateConfig:
+      type: object
+      properties:
+        store_path:
+          type: string
+          example: secret
+        length:
+          type: integer
+          example: 32
+        encoding:
+          type: string
+          enum: [hex, base64]
+          example: hex
+        only_if_missing:
+          type: boolean
+          example: true
+
     WebhookProviderRenewalConfig:
       type: object
       properties:
@@ -518,6 +535,8 @@ components:
           $ref: '#/components/schemas/WebhookProviderTemplateListConfig'
         extract:
           $ref: '#/components/schemas/WebhookProviderExtractConfig'
+        generate:
+          $ref: '#/components/schemas/WebhookProviderGenerateConfig'
 
 tags:
   - name: Health
