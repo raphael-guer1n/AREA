@@ -1,0 +1,87 @@
+{
+  "provider": "google",
+  "name": "google_calendar",
+  "label": "Google Calendar",
+  "icon_url": "",
+  "actions": [],
+  "reactions": [
+    {
+      "title": "create_event",
+      "label": "Create Event",
+      "url": "https://www.googleapis.com/calendar/v3/calendars/{{calendar}}/events",
+      "fields": [
+        {
+          "name": "summary",
+          "type": "text",
+          "label": "Event title",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "label": "Event description",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "start_time",
+          "type": "date",
+          "label": "Start Time",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "end_time",
+          "type": "date",
+          "label": "End Time",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "calendar",
+          "type": "text",
+          "label": "Calendar",
+          "required": true,
+          "default": "primary"
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "summary",
+          "type": "text",
+          "value": "{{summary}}"
+        },
+        {
+          "path": "description",
+          "type": "text",
+          "value": "{{description}}"
+        },
+        {
+          "path": "start",
+          "type": "object",
+          "value": [
+            {
+              "path": "dateTime",
+              "type": "date",
+              "value": "{{start_time}}"
+            }
+          ]
+        },
+        {
+          "path": "end",
+          "type": "object",
+          "value": [
+            {
+              "path": "dateTime",
+              "type": "date",
+              "value": "{{end_time}}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

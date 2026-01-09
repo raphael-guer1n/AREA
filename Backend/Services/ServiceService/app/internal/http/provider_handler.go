@@ -16,7 +16,7 @@ func NewProviderHandler(providerConfigSvc *service.ProviderConfigService) *Provi
 	}
 }
 
-func (h *ProviderHandler) HandleGetServices(w http.ResponseWriter, req *http.Request) {
+func (h *ProviderHandler) HandleGetProviders(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
@@ -25,7 +25,7 @@ func (h *ProviderHandler) HandleGetServices(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	services := h.providerConfigSvc.GetAllServiceNames()
+	services := h.providerConfigSvc.GetAllProvidersNames()
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -98,5 +98,51 @@ func (h *ProviderHandler) HandleGetProviderConfig(w http.ResponseWriter, req *ht
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data":    providerConfig,
+	})
+}
+
+func (h *ProviderHandler) HandleGetServiceConfig(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	serviceName := req.URL.Query().Get("service")
+	if serviceName == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "service query parameter is required",
+		})
+	}
+	serviceConfig, exists := h.providerConfigSvc.GetServiceConfig(serviceName)
+	if !exists {
+		respondJSON(w, http.StatusNotFound, map[string]any{
+			"success": false,
+			"error":   "Service not found",
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data":    serviceConfig,
+	})
+}
+
+func (h *ProviderHandler) HandleGetServices(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+	servicesNames := h.providerConfigSvc.GetAllServicesNames()
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"services": servicesNames,
+		},
 	})
 }

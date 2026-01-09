@@ -23,6 +23,9 @@ func NewRouter(areaHandler *AreaHandler) *Router {
 func (r *Router) routes() {
 	r.mux.HandleFunc("/health", r.handleHealth)
 	r.mux.HandleFunc("/createEvent", r.areaHandler.HandleCreateEventArea)
+	r.mux.HandleFunc("/saveArea", r.areaHandler.SaveArea)
+	r.mux.HandleFunc("/getAreas", r.areaHandler.GetAreas)
+	r.mux.HandleFunc("/triggerArea", r.areaHandler.HandleActionTrigger)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {

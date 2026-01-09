@@ -6,17 +6,18 @@ import (
 )
 
 type UserServiceField struct {
-	ID          int
-	ProfileId   int
-	FieldKey    string
-	StringValue string
-	NumberValue float64
-	BoolValue   bool
-	JsonValue   json.RawMessage
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          int              `json:"id"`
+	ProfileId   int              `json:"profile_id"`
+	FieldKey    string           `json:"field_key"`
+	StringValue string           `json:"string_value"`
+	NumberValue float64          `json:"number_value"`
+	BoolValue   bool             `json:"bool_value"`
+	JsonValue   *json.RawMessage `json:"json_value"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
 }
 
 type UserServiceFieldRepository interface {
 	CreateBatch(fields []UserServiceField) error
+	GetFieldsByProfileId(profileId int) ([]UserServiceField, error)
 }

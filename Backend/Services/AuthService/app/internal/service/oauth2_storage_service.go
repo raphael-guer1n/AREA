@@ -207,7 +207,8 @@ func (s *OAuth2StorageService) extractFields(profileId int, userInfo map[string]
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal JSON field %s: %w", mapping.FieldKey, err)
 			}
-			field.JsonValue = json.RawMessage(jsonBytes)
+			raw := json.RawMessage(jsonBytes)
+			field.JsonValue = &raw
 
 		default:
 			return nil, fmt.Errorf("unsupported field type: %s for field %s", mapping.Type, mapping.FieldKey)
@@ -275,4 +276,12 @@ func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]i
 
 func (s *OAuth2StorageService) GetProviderTokenByServiceByUser(userId int, serviceName string) (string, error) {
 	return s.profileRepo.GetProviderUserTokenByServiceByUserId(userId, serviceName)
+}
+
+func (s *OAuth2StorageService) GetProviderProfileByServiceByUser(userId int, serviceName string) (domain.UserProfile, error) {
+	return s.profileRepo.GetProviderProfileProfileByServiceByUser(userId, serviceName)
+}
+
+func (s *OAuth2StorageService) GetProviderFieldsByProfileId(profileId int) ([]domain.UserServiceField, error) {
+	return s.fieldRepo.GetFieldsByProfileId(profileId)
 }
