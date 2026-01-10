@@ -11,24 +11,41 @@ import (
 	"github.com/raphael-guer1n/AREA/WebhookService/internal/service"
 )
 
-type SubscriptionHandler struct {
+type ActionHandler struct {
 	subscriptionSvc *service.SubscriptionService
+	authSvc         *service.AuthService
 	cfg             config.Config
 }
 
-func NewSubscriptionHandler(subscriptionSvc *service.SubscriptionService, cfg config.Config) *SubscriptionHandler {
-	return &SubscriptionHandler{
+func NewActionHandler(subscriptionSvc *service.SubscriptionService, authSvc *service.AuthService, cfg config.Config) *ActionHandler {
+	return &ActionHandler{
 		subscriptionSvc: subscriptionSvc,
+		authSvc:         authSvc,
 		cfg:             cfg,
 	}
 }
 
-func (h *SubscriptionHandler) HandleCreateSubscription(w http.ResponseWriter, req *http.Request) {
+type actionInput struct {
+	Name  string `json:"name"`
+	Value any    `json:"value"`
+}
+
+type actionRequest struct {
+	Active   bool          `json:"active"`
+	ActionID int           `json:"action_id"`
+	Type     string        `json:"type"`
+	Provider string        `json:"provider"`
+	Service  string        `json:"service"`
+	Title    string        `json:"title"`
+	Input    []actionInput `json:"input"`
+}
+
+func (h *ActionHandler) HandleActions(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
-		h.handleCreateSubscription(w, req)
-	case http.MethodGet:
-		h.handleListSubscriptions(w, req)
+		h.handleCreateActions(w, req)
+	case http.MethodPut:
+		h.handleUpdateActions(w, req)
 	default:
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
@@ -37,13 +54,18 @@ func (h *SubscriptionHandler) HandleCreateSubscription(w http.ResponseWriter, re
 	}
 }
 
-func (h *SubscriptionHandler) handleCreateSubscription(w http.ResponseWriter, req *http.Request) {
+func (h *ActionHandler) handleCreateActions(w http.ResponseWriter, req *http.Request) {
+	userID, token, err := h.resolveUser(req)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
 
 	var body struct {
-		UserID   int             `json:"user_id"`
-		AreaID   int             `json:"area_id"`
-		Provider string          `json:"provider"`
-		Config   json.RawMessage `json:"config"`
+		Actions []actionRequest `json:"actions"`
 	}
 	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
@@ -52,51 +74,185 @@ func (h *SubscriptionHandler) handleCreateSubscription(w http.ResponseWriter, re
 		})
 		return
 	}
-
-	if body.UserID <= 0 || body.AreaID <= 0 || body.Provider == "" {
+	if len(body.Actions) == 0 {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
-			"error":   "user_id, area_id and provider are required",
+			"error":   "actions are required",
 		})
 		return
 	}
 
 	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
-	subscription, err := h.subscriptionSvc.CreateSubscription(body.UserID, body.AreaID, body.Provider, body.Config, webhookBaseURL)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, service.ErrProviderNotSupported):
-			status = http.StatusNotFound
-		case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrMissingSecret):
-			status = http.StatusBadRequest
+	created := make([]map[string]any, 0, len(body.Actions))
+	createdActionIDs := make([]int, 0, len(body.Actions))
+
+	for _, action := range body.Actions {
+		if action.Type != "webhook" {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "only webhook actions are supported",
+			})
+			return
 		}
-		respondJSON(w, status, map[string]any{
+		if action.ActionID <= 0 || (action.Provider == "" && action.Service == "") {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "action_id and provider/service are required",
+			})
+			return
+		}
+		cfgPayload, err := buildConfigPayload(action.Input)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		subscription, err := h.subscriptionSvc.CreateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, token, action.Active, webhookBaseURL)
+		if err != nil {
+			for _, actionID := range createdActionIDs {
+				_ = h.subscriptionSvc.DeleteSubscription(actionID, webhookBaseURL)
+			}
+			status := http.StatusInternalServerError
+			switch {
+			case errors.Is(err, service.ErrProviderNotSupported):
+				status = http.StatusNotFound
+			case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrMissingSecret):
+				status = http.StatusBadRequest
+			case errors.Is(err, service.ErrActionExists):
+				status = http.StatusConflict
+			}
+			respondJSON(w, status, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		created = append(created, map[string]any{
+			"action_id":        subscription.ActionID,
+			"active":           subscription.Active,
+			"hook_id":          subscription.HookID,
+			"provider_hook_id": subscription.ProviderHookID,
+			"provider":         subscription.Provider,
+			"service":          subscription.Service,
+			"webhook_url":      webhookURL,
+		})
+		createdActionIDs = append(createdActionIDs, subscription.ActionID)
+	}
+
+	respondJSON(w, http.StatusCreated, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"actions": created,
+		},
+	})
+}
+
+func (h *ActionHandler) handleUpdateActions(w http.ResponseWriter, req *http.Request) {
+	userID, token, err := h.resolveUser(req)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
 			"error":   err.Error(),
 		})
 		return
 	}
 
-	webhookURL := buildWebhookURL(webhookBaseURL, subscription.Provider, subscription.HookID)
+	var body struct {
+		Actions []actionRequest `json:"actions"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body",
+		})
+		return
+	}
+	if len(body.Actions) == 0 {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "actions are required",
+		})
+		return
+	}
 
-	respondJSON(w, http.StatusCreated, map[string]any{
-		"success": true,
-		"data": map[string]any{
+	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
+	updated := make([]map[string]any, 0, len(body.Actions))
+
+	for _, action := range body.Actions {
+		if action.Type != "webhook" {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "only webhook actions are supported",
+			})
+			return
+		}
+		if action.ActionID <= 0 || (action.Provider == "" && action.Service == "") {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "action_id and provider/service are required",
+			})
+			return
+		}
+		cfgPayload, err := buildConfigPayload(action.Input)
+		if err != nil {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		subscription, err := h.subscriptionSvc.UpdateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, token, action.Active, webhookBaseURL)
+		if err != nil {
+			status := http.StatusInternalServerError
+			switch {
+			case errors.Is(err, service.ErrProviderNotSupported):
+				status = http.StatusNotFound
+			case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrMissingSecret):
+				status = http.StatusBadRequest
+			case errors.Is(err, service.ErrSubscriptionNotFound):
+				status = http.StatusNotFound
+			case errors.Is(err, service.ErrUnauthorizedAction):
+				status = http.StatusForbidden
+			}
+			respondJSON(w, status, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		updated = append(updated, map[string]any{
+			"action_id":        subscription.ActionID,
+			"active":           subscription.Active,
 			"hook_id":          subscription.HookID,
 			"provider_hook_id": subscription.ProviderHookID,
 			"provider":         subscription.Provider,
+			"service":          subscription.Service,
 			"webhook_url":      webhookURL,
+		})
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"actions": updated,
 		},
 	})
 }
 
-func (h *SubscriptionHandler) HandleSubscription(w http.ResponseWriter, req *http.Request) {
+func (h *ActionHandler) HandleAction(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodGet:
-		h.handleGetSubscription(w, req)
+		h.handleGetAction(w, req)
 	case http.MethodDelete:
-		h.handleDeleteSubscription(w, req)
+		h.handleDeleteAction(w, req)
 	default:
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
@@ -105,52 +261,26 @@ func (h *SubscriptionHandler) HandleSubscription(w http.ResponseWriter, req *htt
 	}
 }
 
-func (h *SubscriptionHandler) handleListSubscriptions(w http.ResponseWriter, req *http.Request) {
-	userIDParam := strings.TrimSpace(req.URL.Query().Get("user_id"))
-	if userIDParam == "" {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
-			"success": false,
-			"error":   "user_id is required",
-		})
-		return
-	}
-	userID, err := strconv.Atoi(userIDParam)
-	if err != nil || userID <= 0 {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
-			"success": false,
-			"error":   "invalid user_id",
-		})
-		return
-	}
-
-	subscriptions, err := h.subscriptionSvc.ListSubscriptionsByUserID(userID)
+func (h *ActionHandler) handleGetAction(w http.ResponseWriter, req *http.Request) {
+	userID, _, err := h.resolveUser(req)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
-			"error":   "failed to load subscriptions",
+			"error":   err.Error(),
 		})
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]any{
-		"success": true,
-		"data": map[string]any{
-			"subscriptions": subscriptions,
-		},
-	})
-}
-
-func (h *SubscriptionHandler) handleGetSubscription(w http.ResponseWriter, req *http.Request) {
-	hookID := strings.TrimPrefix(req.URL.Path, "/subscriptions/")
-	if hookID == "" || hookID == "/" {
+	actionID, err := parseActionID(req.URL.Path, "/actions/")
+	if err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]any{
 			"success": false,
-			"error":   "hook id is required",
+			"error":   "invalid action_id",
 		})
 		return
 	}
 
-	subscription, err := h.subscriptionSvc.GetSubscriptionByHookID(hookID)
+	subscription, err := h.subscriptionSvc.GetSubscriptionByActionID(actionID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -165,25 +295,75 @@ func (h *SubscriptionHandler) handleGetSubscription(w http.ResponseWriter, req *
 		})
 		return
 	}
-
-	respondJSON(w, http.StatusOK, map[string]any{
-		"success": true,
-		"data":    subscription,
-	})
-}
-
-func (h *SubscriptionHandler) handleDeleteSubscription(w http.ResponseWriter, req *http.Request) {
-	hookID := strings.TrimPrefix(req.URL.Path, "/subscriptions/")
-	if hookID == "" || hookID == "/" {
-		respondJSON(w, http.StatusBadRequest, map[string]any{
+	if subscription.UserID != userID {
+		respondJSON(w, http.StatusForbidden, map[string]any{
 			"success": false,
-			"error":   "hook id is required",
+			"error":   "action does not belong to user",
 		})
 		return
 	}
 
 	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
-	if err := h.subscriptionSvc.DeleteSubscription(hookID, webhookBaseURL); err != nil {
+	webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"action_id":        subscription.ActionID,
+			"active":           subscription.Active,
+			"hook_id":          subscription.HookID,
+			"provider_hook_id": subscription.ProviderHookID,
+			"provider":         subscription.Provider,
+			"service":          subscription.Service,
+			"webhook_url":      webhookURL,
+		},
+	})
+}
+
+func (h *ActionHandler) handleDeleteAction(w http.ResponseWriter, req *http.Request) {
+	userID, _, err := h.resolveUser(req)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	actionID, err := parseActionID(req.URL.Path, "/actions/")
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid action_id",
+		})
+		return
+	}
+
+	subscription, err := h.subscriptionSvc.GetSubscriptionByActionID(actionID)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to load subscription",
+		})
+		return
+	}
+	if subscription == nil {
+		respondJSON(w, http.StatusNotFound, map[string]any{
+			"success": false,
+			"error":   "subscription not found",
+		})
+		return
+	}
+	if subscription.UserID != userID {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "action does not belong to user",
+		})
+		return
+	}
+
+	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
+	if err := h.subscriptionSvc.DeleteSubscription(actionID, webhookBaseURL); err != nil {
 		status := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, service.ErrSubscriptionNotFound):
@@ -205,6 +385,74 @@ func (h *SubscriptionHandler) handleDeleteSubscription(w http.ResponseWriter, re
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 	})
+}
+
+func (h *ActionHandler) resolveUser(req *http.Request) (int, string, error) {
+	authHeader := strings.TrimSpace(req.Header.Get("Authorization"))
+	if authHeader == "" {
+		return 0, "", errors.New("missing Authorization header")
+	}
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		return 0, "", errors.New("authorization must be Bearer <token>")
+	}
+	token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	if token == "" {
+		return 0, "", errors.New("empty token")
+	}
+	if h.authSvc == nil {
+		return 0, "", errors.New("auth service not configured")
+	}
+	userID, err := h.authSvc.GetUserID(authHeader)
+	if err != nil {
+		return 0, "", err
+	}
+	if userID <= 0 {
+		return 0, "", errors.New("invalid user")
+	}
+	return userID, token, nil
+}
+
+func buildConfigPayload(inputs []actionInput) (json.RawMessage, error) {
+	cfg := make(map[string]any, len(inputs))
+	for _, input := range inputs {
+		name := strings.TrimSpace(input.Name)
+		if name == "" {
+			continue
+		}
+		cfg[name] = normalizeInputValue(input.Value)
+	}
+	payload, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.New("invalid input values")
+	}
+	return payload, nil
+}
+
+func normalizeInputValue(value any) any {
+	str, ok := value.(string)
+	if !ok {
+		return value
+	}
+	trimmed := strings.TrimSpace(str)
+	if trimmed == "" {
+		return str
+	}
+	if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+		var parsed any
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+			return parsed
+		}
+	}
+	return str
+}
+
+func parseActionID(path, prefix string) (int, error) {
+	raw := strings.TrimPrefix(path, prefix)
+	raw = strings.Trim(raw, "/")
+	if raw == "" {
+		return 0, errors.New("missing action id")
+	}
+	return strconv.Atoi(raw)
 }
 
 func buildWebhookBaseURL(req *http.Request, publicBaseURL string) string {
