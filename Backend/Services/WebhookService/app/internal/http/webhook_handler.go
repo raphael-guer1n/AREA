@@ -197,6 +197,27 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		}
 	}
 
+	if ok, reason := shouldProcessEvent(eventType, providerConfig, subscriptionConfig); !ok {
+		log.Printf(
+			"webhook ignored: hook_id=%s action_id=%d provider=%s event=%s reason=%s",
+			subscription.HookID,
+			subscription.ActionID,
+			subscription.Service,
+			eventType,
+			reason,
+		)
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"hook_id": subscription.HookID,
+				"event":   eventType,
+				"ignored": true,
+				"reason":  reason,
+			},
+		})
+		return
+	}
+
 	mapped := map[string]any{}
 	if len(providerConfig.Mappings) > 0 {
 		mapped, err = buildMappings(payload, providerConfig.Mappings)
@@ -239,6 +260,83 @@ func parseWebhookPath(path string) (string, string) {
 		return "", ""
 	}
 	return parts[0], parts[1]
+}
+
+func shouldProcessEvent(eventType string, providerConfig *config.WebhookProviderConfig, subscriptionConfig any) (bool, string) {
+	if providerConfig == nil {
+		return true, ""
+	}
+
+	event := strings.ToLower(strings.TrimSpace(eventType))
+	if event == "" {
+		return true, ""
+	}
+
+	if len(providerConfig.EventIgnore) > 0 && eventInList(event, providerConfig.EventIgnore) {
+		return false, "ignored"
+	}
+
+	if providerConfig.EventAllowServiceConfigFilePath == "" || subscriptionConfig == nil {
+		return true, ""
+	}
+
+	path := strings.TrimSpace(providerConfig.EventAllowServiceConfigFilePath)
+	path = strings.TrimPrefix(path, "config.")
+	if path == "" {
+		return true, ""
+	}
+
+	value, ok := utils.ExtractJSONPath(subscriptionConfig, path)
+	if !ok {
+		return true, ""
+	}
+
+	allowed, ok := normalizeEventList(value)
+	if !ok {
+		return true, ""
+	}
+	if len(allowed) == 0 {
+		return false, "filtered"
+	}
+	if eventInList("*", allowed) {
+		return true, ""
+	}
+	if !eventInList(event, allowed) {
+		return false, "filtered"
+	}
+
+	return true, ""
+}
+
+func normalizeEventList(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = append(out, strings.TrimSpace(item))
+		}
+		return out, true
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = append(out, strings.TrimSpace(fmt.Sprint(item)))
+		}
+		return out, true
+	case string:
+		return []string{strings.TrimSpace(v)}, true
+	default:
+		return nil, false
+	}
+}
+
+func eventInList(event string, list []string) bool {
+	needle := strings.ToLower(strings.TrimSpace(event))
+	for _, item := range list {
+		if strings.ToLower(strings.TrimSpace(item)) == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func readBody(req *http.Request) ([]byte, error) {

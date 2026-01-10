@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -70,5 +71,6 @@ func (s *AreaTriggerService) Trigger(authToken string, actionID int, outputField
 		return errors.New(message)
 	}
 
+	log.Printf("area trigger sent: action_id=%d status=%d", actionID, resp.StatusCode)
 	return nil
 }

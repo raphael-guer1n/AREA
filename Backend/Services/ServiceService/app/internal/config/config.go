@@ -89,18 +89,20 @@ type WebhookProviderSetupConfig struct {
 }
 
 type WebhookProviderConfig struct {
-	Name          string                        `json:"name"`
-	PayloadFormat string                        `json:"payload_format,omitempty"`
-	OAuthProvider string                        `json:"oauth_provider,omitempty"`
-	TopicTemplate string                        `json:"topic_template,omitempty"`
-	Signature     *WebhookSignatureConfig       `json:"signature,omitempty"`
-	EventHeader   string                        `json:"event_header"`
-	EventJSONPath string                        `json:"event_json_path"`
-	Mappings      []MappingConfig               `json:"mappings,omitempty"`
-	Prepare       []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
-	Renewal       *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
-	Setup         *WebhookProviderSetupConfig   `json:"setup,omitempty"`
-	Teardown      *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
+	Name                            string                        `json:"name"`
+	PayloadFormat                   string                        `json:"payload_format,omitempty"`
+	OAuthProvider                   string                        `json:"oauth_provider,omitempty"`
+	TopicTemplate                   string                        `json:"topic_template,omitempty"`
+	Signature                       *WebhookSignatureConfig       `json:"signature,omitempty"`
+	EventHeader                     string                        `json:"event_header"`
+	EventJSONPath                   string                        `json:"event_json_path"`
+	EventAllowServiceConfigFilePath string                        `json:"event_allow_serviceConfigFile_path,omitempty"`
+	EventIgnore                     []string                      `json:"event_ignore,omitempty"`
+	Mappings                        []MappingConfig               `json:"mappings,omitempty"`
+	Prepare                         []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+	Renewal                         *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
+	Setup                           *WebhookProviderSetupConfig   `json:"setup,omitempty"`
+	Teardown                        *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
 }
 
 type WebhookPrepareCondition struct {
