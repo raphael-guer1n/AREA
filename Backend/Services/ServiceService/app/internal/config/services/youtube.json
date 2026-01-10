@@ -14,14 +14,20 @@
           "type": "text",
           "label": "Channel URL (optional if using subscriptions mode)",
           "required": false,
-          "default": ""
+          "default": "",
+          "required_if": { "field": "mode", "equals": "channel" },
+          "visible_if": { "field": "mode", "in": ["channel", ""] }
         },
         {
           "name": "mode",
           "type": "text",
           "label": "Mode (channel | subscriptions)",
           "required": false,
-          "default": ""
+          "default": "channel",
+          "selection": [
+            { "value": "channel", "label": "Channel" },
+            { "value": "subscriptions", "label": "Subscriptions" }
+          ]
         }
       ],
       "output_fields": [
