@@ -26,10 +26,10 @@ func Load() Config {
 		DBUser:            getEnv("DB_USER", "postgres"),
 		DBPass:            getEnv("DB_PASSWORD", "postgres"),
 		DBName:            getEnv("DB_NAME", "webhook_service_db"),
-		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/service-service"),
-		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/auth-service"),
-		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area-service"),
-		PublicBaseURL:     getEnv("PUBLIC_BASE_URL", "http://gateway:8080/webhook-service"),
+		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/area_service_api"),
+		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/area_auth_api"),
+		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
+		PublicBaseURL:     getEnv("PUBLIC_BASE_URL", "http://gateway:8080/area_webhook_api"),
 	}
 }
 
