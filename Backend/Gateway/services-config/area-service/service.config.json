@@ -4,17 +4,48 @@
   "routes": [
     {
       "path": "/health",
-      "methods": ["GET"],
+      "methods": [
+        "GET"
+      ],
       "auth_required": false,
       "permissions": [],
       "internal_only": false
     },
     {
       "path": "/createEvent",
-      "methods": ["POST"],
+      "methods": [
+        "POST"
+      ],
       "auth_required": true,
       "permissions": [],
       "internal_only": false
+    },
+    {
+      "path": "/saveArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/getAreas",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/triggerArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": true
     }
   ]
 }
