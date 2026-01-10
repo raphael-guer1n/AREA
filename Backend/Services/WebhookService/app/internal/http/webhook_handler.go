@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,12 +28,14 @@ const maxBodyBytes int64 = 1 << 20
 type WebhookHandler struct {
 	subscriptionSvc *service.SubscriptionService
 	providerSvc     *service.ProviderConfigService
+	areaTriggerSvc  *service.AreaTriggerService
 }
 
-func NewWebhookHandler(subscriptionSvc *service.SubscriptionService, providerSvc *service.ProviderConfigService) *WebhookHandler {
+func NewWebhookHandler(subscriptionSvc *service.SubscriptionService, providerSvc *service.ProviderConfigService, areaTriggerSvc *service.AreaTriggerService) *WebhookHandler {
 	return &WebhookHandler{
 		subscriptionSvc: subscriptionSvc,
 		providerSvc:     providerSvc,
+		areaTriggerSvc:  areaTriggerSvc,
 	}
 }
 
@@ -71,7 +74,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			})
 			return
 		}
-		if subscription == nil || subscription.Provider != provider {
+		if subscription == nil || subscription.Service != provider {
 			mode := strings.ToLower(req.URL.Query().Get("hub.mode"))
 			if mode != "unsubscribe" {
 				respondJSON(w, http.StatusNotFound, map[string]any{
@@ -95,10 +98,27 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		})
 		return
 	}
-	if subscription == nil || subscription.Provider != provider {
+	if subscription == nil || subscription.Service != provider {
 		respondJSON(w, http.StatusNotFound, map[string]any{
 			"success": false,
 			"error":   "webhook not found",
+		})
+		return
+	}
+	if !subscription.Active {
+		_, _ = io.Copy(io.Discard, req.Body)
+		log.Printf(
+			"webhook ignored: hook_id=%s action_id=%d provider=%s inactive=true",
+			subscription.HookID,
+			subscription.ActionID,
+			subscription.Service,
+		)
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"hook_id":  subscription.HookID,
+				"inactive": true,
+			},
 		})
 		return
 	}
@@ -189,20 +209,18 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		}
 	}
 
-	event := map[string]any{
-		"hook_id":     subscription.HookID,
-		"user_id":     subscription.UserID,
-		"area_id":     subscription.AreaID,
-		"provider":    subscription.Provider,
-		"event":       eventType,
-		"mapped":      mapped,
-		"payload":     payload,
-		"config":      subscriptionConfig,
-		"received_at": time.Now().UTC(),
+	outputFields := buildOutputFields(providerConfig.Mappings, mapped)
+	if h.areaTriggerSvc != nil {
+		if err := h.areaTriggerSvc.Trigger(subscription.AuthToken, subscription.ActionID, outputFields); err != nil {
+			log.Printf(
+				"webhook dispatch failed: hook_id=%s action_id=%d provider=%s error=%v",
+				subscription.HookID,
+				subscription.ActionID,
+				subscription.Service,
+				err,
+			)
+		}
 	}
-
-	// TODO: dispatch event to AreaService using event payload
-	_ = event
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -432,6 +450,42 @@ func buildMappings(payload any, mappings []config.FieldConfig) (map[string]any, 
 		mapped[mapping.FieldKey] = coerced
 	}
 	return mapped, nil
+}
+
+func buildOutputFields(mappings []config.FieldConfig, mapped map[string]any) []service.TriggerOutputField {
+	if len(mapped) == 0 {
+		return []service.TriggerOutputField{}
+	}
+	fields := make([]service.TriggerOutputField, 0, len(mapped))
+	for _, mapping := range mappings {
+		value, ok := mapped[mapping.FieldKey]
+		if !ok {
+			continue
+		}
+		fields = append(fields, service.TriggerOutputField{
+			Name:  mapping.FieldKey,
+			Value: stringifyOutputValue(value),
+		})
+	}
+	return fields
+}
+
+func stringifyOutputValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	default:
+		switch v.(type) {
+		case map[string]any, []any:
+			encoded, err := json.Marshal(v)
+			if err == nil {
+				return string(encoded)
+			}
+		}
+		return fmt.Sprint(v)
+	}
 }
 
 func coerceValue(value any, valueType string) (any, error) {

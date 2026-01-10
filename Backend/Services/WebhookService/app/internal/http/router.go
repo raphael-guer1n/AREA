@@ -7,16 +7,16 @@ import (
 )
 
 type Router struct {
-	mux                 *http.ServeMux
-	subscriptionHandler *SubscriptionHandler
-	webhookHandler      *WebhookHandler
+	mux            *http.ServeMux
+	actionHandler  *ActionHandler
+	webhookHandler *WebhookHandler
 }
 
-func NewRouter(subscriptionHandler *SubscriptionHandler, webhookHandler *WebhookHandler) *Router {
+func NewRouter(actionHandler *ActionHandler, webhookHandler *WebhookHandler) *Router {
 	r := &Router{
-		mux:                 http.NewServeMux(),
-		subscriptionHandler: subscriptionHandler,
-		webhookHandler:      webhookHandler,
+		mux:            http.NewServeMux(),
+		actionHandler:  actionHandler,
+		webhookHandler: webhookHandler,
 	}
 
 	r.routes()
@@ -26,9 +26,9 @@ func NewRouter(subscriptionHandler *SubscriptionHandler, webhookHandler *Webhook
 func (r *Router) routes() {
 	r.mux.HandleFunc("/health", r.handleHealth)
 
-	// Subscription management (intended for internal use via AreaService)
-	r.mux.HandleFunc("/subscriptions", r.subscriptionHandler.HandleCreateSubscription)
-	r.mux.HandleFunc("/subscriptions/", r.subscriptionHandler.HandleSubscription)
+	// Action webhook management (intended for internal use via AreaService)
+	r.mux.HandleFunc("/actions", r.actionHandler.HandleActions)
+	r.mux.HandleFunc("/actions/", r.actionHandler.HandleAction)
 
 	// Webhook receivers
 	r.mux.HandleFunc("/webhooks/", r.webhookHandler.HandleReceiveWebhook)

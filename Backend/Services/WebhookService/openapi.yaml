@@ -31,65 +31,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
 
-  /subscriptions:
-    get:
-      summary: List webhook subscriptions by user
-      description: Returns all subscriptions for a given user_id
-      operationId: listSubscriptions
+  /actions:
+    post:
+      summary: Create webhook actions
+      description: Creates one or more webhook subscriptions for AREA actions
+      operationId: createWebhookActions
       tags:
-        - Subscriptions
-      parameters:
-        - name: user_id
-          in: query
-          required: true
-          schema:
-            type: integer
-            example: 1
+        - Actions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionBatchRequest'
       responses:
-        '200':
-          description: Subscription list
+        '201':
+          description: Actions created
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: object
-                    properties:
-                      subscriptions:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Subscription'
+                $ref: '#/components/schemas/ActionBatchResponse'
         '400':
           description: Invalid request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    post:
-      summary: Create a webhook subscription
-      description: Creates a subscription tied to a user, AREA, and provider
-      operationId: createSubscription
-      tags:
-        - Subscriptions
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateSubscriptionRequest'
-      responses:
-        '201':
-          description: Subscription created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CreateSubscriptionResponse'
-        '400':
-          description: Invalid request
+        '401':
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -100,23 +71,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  /subscriptions/{hookId}:
-    get:
-      summary: Get a webhook subscription
-      description: Returns subscription details by hookId
-      operationId: getSubscription
+    put:
+      summary: Update webhook actions
+      description: Updates one or more webhook subscriptions by action_id
+      operationId: updateWebhookActions
       tags:
-        - Subscriptions
+        - Actions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionBatchRequest'
+      responses:
+        '200':
+          description: Actions updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionBatchResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/{actionId}:
+    get:
+      summary: Get webhook action
+      description: Returns webhook details by action_id
+      operationId: getWebhookAction
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
       parameters:
-        - name: hookId
+        - name: actionId
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       responses:
         '200':
-          description: Subscription details
+          description: Action details
           content:
             application/json:
               schema:
@@ -126,7 +138,13 @@ paths:
                     type: boolean
                     example: true
                   data:
-                    $ref: '#/components/schemas/Subscription'
+                    $ref: '#/components/schemas/ActionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Subscription not found
           content:
@@ -134,20 +152,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     delete:
-      summary: Delete a webhook subscription
-      description: Deletes a subscription by hookId
-      operationId: deleteSubscription
+      summary: Delete webhook action
+      description: Deletes a webhook subscription by action_id
+      operationId: deleteWebhookAction
       tags:
-        - Subscriptions
+        - Actions
+      security:
+        - BearerAuth: []
       parameters:
-        - name: hookId
+        - name: actionId
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       responses:
         '200':
-          description: Subscription deleted
+          description: Action deleted
           content:
             application/json:
               schema:
@@ -156,8 +176,8 @@ paths:
                   success:
                     type: boolean
                     example: true
-        '400':
-          description: Invalid request
+        '401':
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -293,6 +313,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthResponse:
       type: object
@@ -307,31 +332,84 @@ components:
               type: string
               example: healthy
 
-    CreateSubscriptionRequest:
+    ActionInput:
       type: object
       properties:
-        user_id:
+        name:
+          type: string
+          example: channel_url
+        value:
+          description: Input value (string, array, or object)
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: array
+            - type: object
+      required:
+        - name
+        - value
+
+    ActionRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+          example: true
+        action_id:
           type: integer
-          example: 42
-        area_id:
-          type: integer
-          example: 7
+          example: 1
+        type:
+          type: string
+          example: webhook
         provider:
           type: string
-          example: github
-        config:
-          type: object
-          example:
-            repository: my-org/my-repo
-            events: ["push"]
-            branch: main
-            secret: supersecret
+          example: google
+        service:
+          type: string
+          example: youtube
+        title:
+          type: string
+          example: Youtube Subscription Webhook
+        input:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionInput'
       required:
-        - user_id
-        - area_id
-        - provider
+        - active
+        - action_id
+        - type
+        - input
 
-    CreateSubscriptionResponse:
+    ActionBatchRequest:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionRequest'
+      required:
+        - actions
+
+    ActionResponse:
+      type: object
+      properties:
+        action_id:
+          type: integer
+        active:
+          type: boolean
+        hook_id:
+          type: string
+        provider_hook_id:
+          type: string
+        provider:
+          type: string
+        service:
+          type: string
+        webhook_url:
+          type: string
+
+    ActionBatchResponse:
       type: object
       properties:
         success:
@@ -340,42 +418,10 @@ components:
         data:
           type: object
           properties:
-            hook_id:
-              type: string
-              example: 9f1c9d4c3f0c4e3ea2b9b0e0d2f5a9c1
-            provider_hook_id:
-              type: string
-              example: "123456789"
-            provider:
-              type: string
-              example: github
-            webhook_url:
-              type: string
-              example: https://api.example.com/webhooks/github/9f1c9d4c3f0c4e3ea2b9b0e0d2f5a9c1
-
-    Subscription:
-      type: object
-      properties:
-        id:
-          type: integer
-        hook_id:
-          type: string
-        provider_hook_id:
-          type: string
-        user_id:
-          type: integer
-        area_id:
-          type: integer
-        provider:
-          type: string
-        config:
-          type: object
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActionResponse'
 
     ErrorResponse:
       type: object
@@ -393,7 +439,7 @@ components:
 tags:
   - name: Health
     description: Health check endpoints
-  - name: Subscriptions
-    description: Subscription management endpoints (intended for internal use)
+  - name: Actions
+    description: Webhook action management endpoints (intended for internal use)
   - name: Webhooks
     description: Webhook receiver endpoints

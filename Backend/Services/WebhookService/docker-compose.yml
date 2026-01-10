@@ -15,10 +15,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-webhook_service_db}
       SERVER_PORT: ${SERVER_PORT:-8085}
-      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/service-service}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/auth-service}
-      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area-service}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://gateway:8080/webhook-service}
+      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/area_auth_api}
+      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://gateway:8080/area_webhook_api}
     networks:
       - area_network
     depends_on:

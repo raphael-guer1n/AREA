@@ -232,10 +232,9 @@ func buildTemplateContext(sub *domain.Subscription, webhookURL string, subscript
 	return utils.TemplateContext{
 		HookURL:        webhookURL,
 		HookID:         sub.HookID,
-		Provider:       sub.Provider,
+		Provider:       sub.Service,
 		ProviderHookID: normalizeProviderHookID(sub.ProviderHookID),
 		UserID:         sub.UserID,
-		AreaID:         sub.AreaID,
 		Config:         subscriptionConfig,
 	}
 }

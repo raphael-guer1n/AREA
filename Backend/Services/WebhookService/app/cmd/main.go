@@ -20,13 +20,15 @@ func main() {
 	oauth2TokenSvc := service.NewOAuth2TokenService(cfg.AuthServiceURL)
 	webhookSetupSvc := service.NewWebhookSetupService(oauth2TokenSvc)
 	subscriptionSvc := service.NewSubscriptionService(repo, providerConfigSvc, webhookSetupSvc)
+	authSvc := service.NewAuthService(cfg.AuthServiceURL)
+	areaTriggerSvc := service.NewAreaTriggerService(cfg.AreaServiceURL)
 	renewalSvc := service.NewSubscriptionRenewalService(repo, providerConfigSvc, webhookSetupSvc, cfg.PublicBaseURL)
 	go renewalSvc.Start()
 
-	subscriptionHandler := httphandler.NewSubscriptionHandler(subscriptionSvc, cfg)
-	webhookHandler := httphandler.NewWebhookHandler(subscriptionSvc, providerConfigSvc)
+	actionHandler := httphandler.NewActionHandler(subscriptionSvc, authSvc, cfg)
+	webhookHandler := httphandler.NewWebhookHandler(subscriptionSvc, providerConfigSvc, areaTriggerSvc)
 
-	router := httphandler.NewRouter(subscriptionHandler, webhookHandler)
+	router := httphandler.NewRouter(actionHandler, webhookHandler)
 
 	addr := ":" + cfg.HTTPPort
 	log.Printf("Starting server on %s", addr)

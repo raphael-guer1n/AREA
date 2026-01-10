@@ -10,16 +10,16 @@
       "internal_only": false
     },
     {
-      "path": "/subscriptions",
-      "methods": ["GET", "POST"],
-      "auth_required": false,
+      "path": "/actions",
+      "methods": ["POST", "PUT"],
+      "auth_required": true,
       "permissions": [],
       "internal_only": false
     },
     {
-      "path": "/subscriptions/{hookId}",
+      "path": "/actions/{actionId}",
       "methods": ["GET", "DELETE"],
-      "auth_required": false,
+      "auth_required": true,
       "permissions": [],
       "internal_only": false
     },

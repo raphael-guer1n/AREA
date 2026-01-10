@@ -14,7 +14,8 @@
           "type": "text",
           "label": "Event type (optional)",
           "required": false,
-          "default": ""
+          "default": "",
+          "selection": []
         }
       ],
       "output_fields": [

@@ -82,6 +82,9 @@ func (s *SubscriptionRenewalService) renewProvider(provider string, cfg *config.
 
 	interval := time.Duration(cfg.Renewal.AfterSeconds) * time.Second
 	for _, sub := range subs {
+		if !sub.Active {
+			continue
+		}
 		last := sub.UpdatedAt
 		if last.IsZero() {
 			last = sub.CreatedAt
