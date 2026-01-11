@@ -71,6 +71,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Action already has a webhook
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     put:
       summary: Update webhook actions
       description: Updates one or more webhook subscriptions by action_id
@@ -105,7 +123,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Subscription not found
+          description: Subscription not found or provider not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
           content:
             application/json:
               schema:
@@ -126,6 +162,7 @@ paths:
           required: true
           schema:
             type: integer
+            minimum: 1
       responses:
         '200':
           description: Action details
@@ -139,14 +176,38 @@ paths:
                     example: true
                   data:
                     $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad request - Invalid action_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
           content:
             application/json:
               schema:
@@ -165,6 +226,7 @@ paths:
           required: true
           schema:
             type: integer
+            minimum: 1
       responses:
         '200':
           description: Action deleted
@@ -182,8 +244,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad request - Invalid action_id or invalid configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
           content:
             application/json:
               schema:
@@ -238,6 +324,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Receive webhook
       description: Receives and validates a provider webhook
@@ -273,20 +365,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: object
-                    properties:
-                      hook_id:
-                        type: string
-                      event:
-                        type: string
-                      mapped:
-                        type: object
+                $ref: '#/components/schemas/WebhookReceiveResponse'
         '400':
           description: Invalid payload
           content:
@@ -307,6 +386,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '405':
           description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -338,6 +423,7 @@ components:
         name:
           type: string
           example: channel_url
+          minLength: 1
         value:
           description: Input value (string, array, or object)
           oneOf:
@@ -345,7 +431,9 @@ components:
             - type: number
             - type: boolean
             - type: array
+              items: {}
             - type: object
+              additionalProperties: true
       required:
         - name
         - value
@@ -359,15 +447,19 @@ components:
         action_id:
           type: integer
           example: 1
+          minimum: 1
         type:
           type: string
+          enum: [webhook]
           example: webhook
         provider:
           type: string
           example: google
+          minLength: 1
         service:
           type: string
           example: youtube
+          minLength: 1
         title:
           type: string
           example: Youtube Subscription Webhook
@@ -380,6 +472,9 @@ components:
         - action_id
         - type
         - input
+      anyOf:
+        - required: [provider]
+        - required: [service]
 
     ActionBatchRequest:
       type: object
@@ -388,6 +483,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ActionRequest'
+          minItems: 1
       required:
         - actions
 
@@ -396,18 +492,58 @@ components:
       properties:
         action_id:
           type: integer
+          example: 123
         active:
           type: boolean
+          example: true
         hook_id:
           type: string
+          example: 7d9f4e1d9d4a4c8ba5f2d5c9b8a1c3e2
         provider_hook_id:
           type: string
+          example: "987654"
         provider:
           type: string
+          example: github
         service:
           type: string
+          example: github
         webhook_url:
           type: string
+          example: https://api.example.com/webhooks/github/7d9f4e1d9d4a4c8ba5f2d5c9b8a1c3e2
+
+    WebhookReceiveData:
+      type: object
+      properties:
+        hook_id:
+          type: string
+          example: 7d9f4e1d9d4a4c8ba5f2d5c9b8a1c3e2
+        event:
+          type: string
+          example: push
+        mapped:
+          type: object
+          additionalProperties: true
+        inactive:
+          type: boolean
+          example: true
+        ignored:
+          type: boolean
+          example: true
+        reason:
+          type: string
+          example: filtered
+      required:
+        - hook_id
+
+    WebhookReceiveResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/WebhookReceiveData'
 
     ActionBatchResponse:
       type: object
