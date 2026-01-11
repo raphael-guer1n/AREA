@@ -39,4 +39,6 @@ type AreaRepository interface {
 	SaveActions(areaID int, actions []AreaAction) ([]AreaAction, error)
 	SaveReactions(areaID int, reactions []AreaReaction) ([]AreaReaction, error)
 	GetAreaFromAction(actionId int) (Area, error)
+	GetArea(areaID int) (Area, error)
+	ToggleArea(areaID int, isActive bool) error
 }
