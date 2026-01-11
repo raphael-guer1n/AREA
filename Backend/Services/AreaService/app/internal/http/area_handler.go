@@ -11,17 +11,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/raphael-guer1n/AREA/AreaService/internal/config"
 	"github.com/raphael-guer1n/AREA/AreaService/internal/domain"
 	"github.com/raphael-guer1n/AREA/AreaService/internal/service"
 )
 
 type AreaHandler struct {
 	areaService *service.AreaService
+	cfg         config.Config
 }
 
-func NewAreaHandler(authSvc *service.AreaService) *AreaHandler {
+func NewAreaHandler(authSvc *service.AreaService, cfg config.Config) *AreaHandler {
 	return &AreaHandler{
 		areaService: authSvc,
+		cfg:         cfg,
 	}
 }
 
@@ -33,7 +36,7 @@ func (h *AreaHandler) HandleCreateEventArea(w http.ResponseWriter, req *http.Req
 		})
 		return
 	}
-	userId, err := getUserId(req)
+	userId, err := h.getUserId(req)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -41,7 +44,7 @@ func (h *AreaHandler) HandleCreateEventArea(w http.ResponseWriter, req *http.Req
 		})
 		return
 	}
-	token, err := getUserServiceToken(req, userId, "google")
+	token, err := h.getUserServiceToken(userId, "google")
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -94,8 +97,8 @@ func (h *AreaHandler) HandleCreateEventArea(w http.ResponseWriter, req *http.Req
 	})
 }
 
-func getUserServiceProfile(r *http.Request, userId int, service string) (domain.UserService, error) {
-	baseURL := "http://area_auth_api:8083/oauth2/provider/profile/"
+func (h *AreaHandler) getUserServiceProfile(userId int, service string) (domain.UserService, error) {
+	baseURL := strings.TrimRight(h.cfg.AuthServiceURL, "/") + "/oauth2/provider/profile/"
 	params := url.Values{}
 	params.Add("user_id", fmt.Sprintf("%d", userId))
 	params.Add("service", service)
@@ -106,7 +109,9 @@ func getUserServiceProfile(r *http.Request, userId int, service string) (domain.
 	if err != nil {
 		return domain.UserService{}, err
 	}
-	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if h.cfg.InternalSecret != "" {
+		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return domain.UserService{}, err
@@ -121,8 +126,8 @@ func getUserServiceProfile(r *http.Request, userId int, service string) (domain.
 	return body.Data, nil
 }
 
-func getUserServiceToken(r *http.Request, userId int, service string) (string, error) {
-	baseURL := "http://area_auth_api:8083/oauth2/provider/token/"
+func (h *AreaHandler) getUserServiceToken(userId int, service string) (string, error) {
+	baseURL := strings.TrimRight(h.cfg.AuthServiceURL, "/") + "/oauth2/provider/token/"
 	params := url.Values{}
 	params.Add("user_id", fmt.Sprintf("%d", userId))
 	params.Add("service", service)
@@ -133,7 +138,9 @@ func getUserServiceToken(r *http.Request, userId int, service string) (string, e
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if h.cfg.InternalSecret != "" {
+		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
@@ -150,18 +157,18 @@ func getUserServiceToken(r *http.Request, userId int, service string) (string, e
 	return body.Data.Token, nil
 }
 
-func getAreaConfiguration(r *http.Request, area domain.Area) (domain.AreaConfig, error) {
+func (h *AreaHandler) getAreaConfiguration(area domain.Area) (domain.AreaConfig, error) {
 	var areaConfig domain.AreaConfig
 
 	for _, action := range area.Actions {
-		actionConfig, err := getActionDetails(r, action)
+		actionConfig, err := h.getActionDetails(action)
 		if err != nil {
 			return areaConfig, err
 		}
 		areaConfig.Actions = append(areaConfig.Actions, actionConfig)
 	}
 	for _, reaction := range area.Reactions {
-		reactionConfig, err := getReactionDetails(r, reaction)
+		reactionConfig, err := h.getReactionDetails(reaction)
 		if err != nil {
 			return areaConfig, err
 		}
@@ -170,10 +177,10 @@ func getAreaConfiguration(r *http.Request, area domain.Area) (domain.AreaConfig,
 	return areaConfig, nil
 }
 
-func getActionDetails(r *http.Request, action domain.AreaAction) (domain.ActionConfig, error) {
+func (h *AreaHandler) getActionDetails(action domain.AreaAction) (domain.ActionConfig, error) {
 	var actionConfig domain.ActionConfig
 
-	baseUrl := "http://area_service_api:8084/services/service-config"
+	baseUrl := strings.TrimRight(h.cfg.ServiceServiceURL, "/") + "/services/service-config"
 	params := url.Values{}
 	params.Add("service", action.Service)
 	fullUrl := baseUrl + "?" + params.Encode()
@@ -182,7 +189,9 @@ func getActionDetails(r *http.Request, action domain.AreaAction) (domain.ActionC
 	if err != nil {
 		return actionConfig, err
 	}
-	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if h.cfg.InternalSecret != "" {
+		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return actionConfig, err
@@ -213,10 +222,10 @@ func getActionDetails(r *http.Request, action domain.AreaAction) (domain.ActionC
 	return actionConfig, nil
 }
 
-func getReactionDetails(r *http.Request, reaction domain.AreaReaction) (domain.ReactionConfig, error) {
+func (h *AreaHandler) getReactionDetails(reaction domain.AreaReaction) (domain.ReactionConfig, error) {
 	var reactionConfig domain.ReactionConfig
 
-	baseUrl := "http://area_service_api:8084/services/service-config"
+	baseUrl := strings.TrimRight(h.cfg.ServiceServiceURL, "/") + "/services/service-config"
 	params := url.Values{}
 	params.Add("service", reaction.Service)
 	fullUrl := baseUrl + "?" + params.Encode()
@@ -225,7 +234,9 @@ func getReactionDetails(r *http.Request, reaction domain.AreaReaction) (domain.R
 	if err != nil {
 		return reactionConfig, err
 	}
-	req.Header.Set("Authorization", r.Header.Get("Authorization"))
+	if h.cfg.InternalSecret != "" {
+		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return reactionConfig, err
@@ -256,8 +267,9 @@ func getReactionDetails(r *http.Request, reaction domain.AreaReaction) (domain.R
 	return reactionConfig, nil
 }
 
-func getUserId(r *http.Request) (int, error) {
-	req, err := http.NewRequest(http.MethodGet, "http://area_auth_api:8083/auth/me", nil)
+func (h *AreaHandler) getUserId(r *http.Request) (int, error) {
+	endpoint := strings.TrimRight(h.cfg.AuthServiceURL, "/") + "/auth/me"
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -297,7 +309,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	userId, err := getUserId(req)
+	userId, err := h.getUserId(req)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -313,7 +325,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	body.UserID = userId
-	areaConfig, err := getAreaConfiguration(req, body)
+	areaConfig, err := h.getAreaConfiguration(body)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -339,7 +351,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 	}
 	if area.Active == true {
 		for _, action := range area.Actions {
-			err := h.TriggerAction(req, action)
+			err := h.TriggerAction(action)
 			if err != nil {
 				respondJSON(w, http.StatusInternalServerError, map[string]any{
 					"success": false,
@@ -360,7 +372,7 @@ func (h *AreaHandler) GetAreas(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	userId, err := getUserId(req)
+	userId, err := h.getUserId(req)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -397,21 +409,6 @@ func (h *AreaHandler) HandleActionTrigger(w http.ResponseWriter, req *http.Reque
 		})
 		return
 	}
-	userId, err := getUserId(req)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   "Error getting user ID," + err.Error(),
-		})
-		return
-	}
-	if userId == 0 {
-		respondJSON(w, http.StatusInternalServerError, map[string]any{
-			"success": false,
-			"error":   "Error getting user ID",
-		})
-		return
-	}
 	var body struct {
 		ActionId     int                 `json:"action_id"`
 		OutputFields []domain.InputField `json:"output_fields"`
@@ -431,10 +428,11 @@ func (h *AreaHandler) HandleActionTrigger(w http.ResponseWriter, req *http.Reque
 		})
 		return
 	}
-	if area.UserID != userId {
-		respondJSON(w, http.StatusForbidden, map[string]any{
+	userId := area.UserID
+	if userId == 0 {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
-			"error":   "You are not allowed to trigger this action",
+			"error":   "missing user for action",
 		})
 		return
 	}
@@ -446,7 +444,7 @@ func (h *AreaHandler) HandleActionTrigger(w http.ResponseWriter, req *http.Reque
 		return
 	}
 	for _, reaction := range area.Reactions {
-		err := h.TriggerReaction(req, reaction, body.OutputFields, userId)
+		err := h.TriggerReaction(reaction, body.OutputFields, userId)
 		if err != nil {
 			respondJSON(w, http.StatusInternalServerError, map[string]any{
 				"success": false,
@@ -494,12 +492,12 @@ func CheckAreaValidity(area domain.Area, config domain.AreaConfig) error {
 	return nil
 }
 
-func (h *AreaHandler) TriggerReaction(r *http.Request, areaReaction domain.AreaReaction, outputFields []domain.InputField, userId int) error {
-	serviceProfile, err := getUserServiceProfile(r, userId, areaReaction.Provider)
+func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFields []domain.InputField, userId int) error {
+	serviceProfile, err := h.getUserServiceProfile(userId, areaReaction.Provider)
 	if err != nil {
 		return err
 	}
-	reactionConfig, err := getReactionDetails(r, areaReaction)
+	reactionConfig, err := h.getReactionDetails(areaReaction)
 	if err != nil {
 		return err
 	}
@@ -519,7 +517,7 @@ func (h *AreaHandler) TriggerReaction(r *http.Request, areaReaction domain.AreaR
 	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
 }
 
-func (h *AreaHandler) TriggerAction(r *http.Request, areaAction domain.AreaAction) error {
+func (h *AreaHandler) TriggerAction(areaAction domain.AreaAction) error {
 	if areaAction.Type != "cron" {
 		return fmt.Errorf("only cron actions are supported")
 	}
@@ -544,11 +542,14 @@ func (h *AreaHandler) TriggerAction(r *http.Request, areaAction domain.AreaActio
 			log.Fatal(err)
 			return
 		}
-		req, err := http.NewRequest(http.MethodPost, "http://area_area_api:8085/triggerArea", bytes.NewBuffer(payload))
+		endpoint := strings.TrimRight(h.cfg.AreaServiceURL, "/") + "/triggerArea"
+		req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(payload))
 		if err != nil {
 			log.Fatal(err)
 		}
-		req.Header.Set("Authorization", r.Header.Get("Authorization"))
+		if h.cfg.InternalSecret != "" {
+			req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+		}
 		_, err = http.DefaultClient.Do(req)
 		if err != nil {
 			log.Fatal(err)

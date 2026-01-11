@@ -18,7 +18,7 @@ func main() {
 	areaRepository := repository.NewAreaRepository(dbConn)
 
 	areaSvc := service.NewAreaService(areaRepository)
-	areaHandler := httphandler.NewAreaHandler(areaSvc)
+	areaHandler := httphandler.NewAreaHandler(areaSvc, cfg)
 	router := httphandler.NewRouter(areaHandler)
 
 	addr := ":" + cfg.HTTPPort
