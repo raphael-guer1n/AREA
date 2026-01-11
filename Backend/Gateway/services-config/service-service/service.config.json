@@ -18,7 +18,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/providers/oauth2-config",
@@ -27,7 +27,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/providers/config",
@@ -36,7 +36,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/webhooks/providers",
@@ -45,7 +45,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/webhooks/providers/config",
@@ -54,7 +54,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/services/services",

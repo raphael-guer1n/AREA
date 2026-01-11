@@ -43,7 +43,7 @@
       "methods": [
         "POST"
       ],
-      "auth_required": true,
+      "auth_required": false,
       "permissions": [],
       "internal_only": true
     }
