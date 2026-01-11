@@ -126,10 +126,7 @@ paths:
             application/json:
               schema:
                 type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
+              example: {}
         '400':
           description: Bad request - Invalid input or validation failed
           content:
@@ -193,8 +190,6 @@ paths:
       operationId: triggerArea
       tags:
         - AREA
-      security:
-        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -207,19 +202,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
+                oneOf:
+                  - type: object
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value: {}
+                inactive:
+                  value:
+                    success: false
+                    error: "Inactive area, you can't trigger actions on it"
         '400':
           description: Bad request - Invalid input
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - User not authorized to trigger this action
           content:
             application/json:
               schema:
@@ -258,13 +252,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
+                oneOf:
+                  - type: object
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value: {}
+                already_active:
+                  value:
+                    success: false
+                    error: "Area already active"
         '400':
-          description: Bad request - Invalid input or area already active
+          description: Bad request - Invalid input
           content:
             application/json:
               schema:
@@ -309,13 +308,18 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
+                oneOf:
+                  - type: object
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value: {}
+                already_inactive:
+                  value:
+                    success: false
+                    error: "Area already inactive"
         '400':
-          description: Bad request - Invalid input or area already inactive
+          description: Bad request - Invalid input
           content:
             application/json:
               schema:
@@ -377,10 +381,10 @@ components:
           type: integer
           description: Delay in seconds before creating the event
           example: 300
+          default: 0
         event:
           $ref: '#/components/schemas/Event'
       required:
-        - delay
         - event
 
     ErrorResponse:
@@ -475,9 +479,6 @@ components:
         name:
           type: string
           example: 'My Automation'
-        description:
-          type: string
-          example: 'Creates a calendar event after a delay'
         active:
           type: boolean
           example: true
@@ -509,7 +510,6 @@ components:
             $ref: '#/components/schemas/InputField'
       required:
         - action_id
-        - output_fields
 
     ToggleAreaRequest:
       type: object

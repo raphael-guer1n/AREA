@@ -507,6 +507,7 @@ func (h *OAuth2Handler) handleGetProviderTokenByServiceByUserId(w http.ResponseW
 			"success": false,
 			"error":   err.Error(),
 		})
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,

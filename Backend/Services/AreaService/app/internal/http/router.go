@@ -26,6 +26,8 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/saveArea", r.areaHandler.SaveArea)
 	r.mux.HandleFunc("/getAreas", r.areaHandler.GetAreas)
 	r.mux.HandleFunc("/triggerArea", r.areaHandler.HandleActionTrigger)
+	r.mux.HandleFunc("/activateArea", r.areaHandler.HandleActivateArea)
+	r.mux.HandleFunc("/deactivateArea", r.areaHandler.HandleDeactivateArea)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
