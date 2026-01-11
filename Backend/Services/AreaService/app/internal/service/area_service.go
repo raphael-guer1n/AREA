@@ -134,3 +134,11 @@ func (s *AreaService) GetAreaFromAction(actionId int) (domain.Area, error) {
 func (s *AreaService) GetAreaReactions(areaID int) ([]domain.AreaReaction, error) {
 	return s.areaRepo.GetAreaReactions(areaID)
 }
+
+func (s *AreaService) GetArea(areaID int) (domain.Area, error) {
+	return s.areaRepo.GetArea(areaID)
+}
+
+func (s *AreaService) ToggleArea(areaID int, isActive bool) error {
+	return s.areaRepo.ToggleArea(areaID, isActive)
+}
