@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -278,6 +279,9 @@ func getUserId(r *http.Request) (int, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
 		return 0, err
 	}
+	if authResp.Data.User.ID == 0 {
+		return 0, errors.New("user not found")
+	}
 	return authResp.Data.User.ID, nil
 }
 
@@ -350,6 +354,158 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	respondJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *AreaHandler) HandleActivateArea(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		AreaId int `json:"area_id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	userId, err := getUserId(req)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error getting user ID," + err.Error(),
+		})
+		return
+	}
+	area, err := h.areaService.GetArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	if area.UserID != userId {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "You are not allowed to activate this area",
+		})
+		return
+	}
+	if area.Active == true {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": false,
+			"error":   "Area already active",
+		})
+		return
+	}
+	err = h.areaService.ToggleArea(body.AreaId, true)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	for _, action := range area.Actions {
+		err := h.ActivateAction(req, action)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+	respondJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *AreaHandler) HandleDeactivateArea(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		AreaId int `json:"area_id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	userId, err := getUserId(req)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{})
+	}
+	area, err := h.areaService.GetArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	if area.UserID != userId {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "You are not allowed to deactivate this area",
+		})
+		return
+	}
+	if area.Active == false {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": false,
+			"error":   "Area already inactive",
+		})
+		return
+	}
+	err = h.areaService.ToggleArea(body.AreaId, false)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	for _, action := range area.Actions {
+		err := h.DeactivateAction(req, action)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+	respondJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *AreaHandler) ActivateAction(req *http.Request, areaAction domain.AreaAction) error {
+	switch areaAction.Type {
+	case "cron":
+		return nil
+	default:
+		return fmt.Errorf("action type %s not supported", areaAction.Type)
+	}
+}
+
+func (h *AreaHandler) DeactivateAction(req *http.Request, areaAction domain.AreaAction) error {
+	switch areaAction.Type {
+	case "cron":
+		return nil
+	default:
+		return fmt.Errorf("action type %s not supported", areaAction.Type)
+	}
 }
 
 func (h *AreaHandler) GetAreas(w http.ResponseWriter, req *http.Request) {
@@ -520,6 +676,15 @@ func (h *AreaHandler) TriggerReaction(r *http.Request, areaReaction domain.AreaR
 }
 
 func (h *AreaHandler) TriggerAction(r *http.Request, areaAction domain.AreaAction) error {
+	switch areaAction.Type {
+	case "cron":
+		return h.TriggerCronAction(r, areaAction)
+	default:
+		return fmt.Errorf("only cron actions are supported")
+	}
+}
+
+func (h *AreaHandler) TriggerCronAction(r *http.Request, areaAction domain.AreaAction) error {
 	if areaAction.Type != "cron" {
 		return fmt.Errorf("only cron actions are supported")
 	}
