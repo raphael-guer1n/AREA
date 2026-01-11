@@ -386,7 +386,7 @@ func (h *AreaHandler) HandleActivateArea(w http.ResponseWriter, req *http.Reques
 		})
 		return
 	}
-	userId, err := getUserId(req)
+	userId, err := h.getUserId(req)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -455,7 +455,7 @@ func (h *AreaHandler) HandleDeactivateArea(w http.ResponseWriter, req *http.Requ
 		})
 		return
 	}
-	userId, err := getUserId(req)
+	userId, err := h.getUserId(req)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{})
 	}
