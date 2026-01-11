@@ -22,11 +22,11 @@ func main() {
 	userRepo := repository.NewUserRepository(dbConn)
 
 	// Build services
-	oauth2StorageSvc := service.NewOAuth2StorageService(userProfileRepo, userFieldRepo, cfg.ServiceServiceURL)
+	oauth2StorageSvc := service.NewOAuth2StorageService(userProfileRepo, userFieldRepo, cfg.ServiceServiceURL, cfg.InternalSecret)
 	authSvc := service.NewAuthService(userRepo)
 
 	// Initialize OAuth2 manager with service-service URL (lazy loading)
-	oauth2Manager := oauth2.NewManager(cfg.ServiceServiceURL)
+	oauth2Manager := oauth2.NewManager(cfg.ServiceServiceURL, cfg.InternalSecret)
 	log.Printf("OAuth2 manager initialized (providers will be loaded on-demand from service-service)")
 
 	// Build handlers

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ type OAuth2StorageService struct {
 	configCache       map[string]*config.ProviderConfig
 	configMutex       sync.RWMutex
 	serviceServiceURL string
+	internalSecret    string
 	httpClient        *http.Client
 }
 
@@ -25,12 +27,14 @@ func NewOAuth2StorageService(
 	profileRepo domain.UserProfileRepository,
 	fieldRepo domain.UserServiceFieldRepository,
 	serviceServiceURL string,
+	internalSecret string,
 ) *OAuth2StorageService {
 	return &OAuth2StorageService{
 		profileRepo:       profileRepo,
 		fieldRepo:         fieldRepo,
 		configCache:       make(map[string]*config.ProviderConfig),
 		serviceServiceURL: serviceServiceURL,
+		internalSecret:    internalSecret,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -58,7 +62,14 @@ func (s *OAuth2StorageService) getProviderConfig(serviceName string) (*config.Pr
 
 	// Fetch from ServiceService API
 	url := fmt.Sprintf("%s/providers/config?service=%s", s.serviceServiceURL, serviceName)
-	resp, err := s.httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provider config request: %w", err)
+	}
+	if strings.TrimSpace(s.internalSecret) != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
+	}
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch provider config from ServiceService: %w", err)
 	}

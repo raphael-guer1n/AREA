@@ -32,6 +32,7 @@ type Config struct {
 	DBPass            string
 	DBName            string
 	ServiceServiceURL string
+	InternalSecret    string
 }
 
 func Load() Config {
@@ -42,7 +43,8 @@ func Load() Config {
 		DBUser:            getEnv("DB_USER", "postgres"),
 		DBPass:            getEnv("DB_PASSWORD", "postgres"),
 		DBName:            getEnv("DB_NAME", "myservice_db"),
-		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://localhost:8084"),
+		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/area_service_api"),
+		InternalSecret:    getEnv("INTERNAL_SECRET", ""),
 	}
 }
 
