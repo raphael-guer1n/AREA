@@ -6,34 +6,42 @@ import { useSearchParams } from "next/navigation";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
-import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
+import {
+  fetchServiceCatalog,
+  fetchUserServiceStatuses,
+  type ServiceDefinition,
+} from "@/lib/api/services";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { normalizeSearchValue } from "@/lib/helpers";
-import { gradients as gradientPalette, mockServices, type MockService } from "./mockServices";
+import { serviceGradients } from "@/lib/ui/gradients";
 
-const serviceTemplatesById = new Map(mockServices.map((service) => [service.id, service]));
+type ServiceModel = {
+  id: string;
+  provider?: string;
+  name: string;
+  url: string;
+  badge: string;
+  category?: string;
+  gradient: { from: string; to: string };
+  actions: string[];
+  reactions: string[];
+  connected: boolean;
+  requiresAuth: boolean;
+};
 
-function matchesSearch(service: MockService, term: string) {
+function matchesSearch(service: ServiceModel, term: string) {
   const normalizedTerm = normalizeSearchValue(term);
   if (!normalizedTerm) return true;
   const haystack = normalizeSearchValue(
     [
       service.name,
       service.category ?? "",
-      ...service.actions.map((action) => action.label ?? action.title ?? action.id),
-      ...service.reactions.map((reaction) => reaction.label ?? reaction.title ?? reaction.id),
+      ...service.actions,
+      ...service.reactions,
     ].join(" "),
   );
   return haystack.includes(normalizedTerm);
-}
-
-function formatServiceNameFromId(serviceId: string) {
-  return serviceId
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
-    .join(" ");
 }
 
 function buildBadge(name: string) {
@@ -45,23 +53,34 @@ function buildBadge(name: string) {
   return letters.toUpperCase();
 }
 
-function mapBackendService(serviceId: string, index: number): MockService {
-  const template = serviceTemplatesById.get(serviceId);
-  const formattedName = formatServiceNameFromId(serviceId);
-  const name = template?.name ?? (formattedName || serviceId);
-  const badge = template?.badge ?? buildBadge(name || serviceId);
-  const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
+function mapServiceDefinition(
+  def: ServiceDefinition,
+  index: number,
+  statusByService: Record<string, boolean>,
+): ServiceModel {
+  const name = def.label ?? def.name;
+  const badge = buildBadge(name);
+  const gradient = serviceGradients[index % serviceGradients.length];
+  const statusKey = def.provider || def.name;
+  const requiresAuth = Boolean(def.provider);
+  const connected = requiresAuth ? Boolean(statusByService[statusKey]) : true;
 
   return {
-    id: serviceId,
+    id: def.name,
+    provider: def.provider,
     name,
-    url: template?.url ?? "#",
+    url: "#",
     badge,
-    category: template?.category,
+    category: def.provider ? `Connecteur ${def.provider}` : "Interne",
     gradient,
-    actions: template?.actions ?? [],
-    reactions: template?.reactions ?? [],
-    connected: template?.connected ?? false,
+    actions: (def.actions ?? [])
+      .map((action) => action.label ?? action.title ?? action.type ?? "")
+      .filter(Boolean),
+    reactions: (def.reactions ?? [])
+      .map((reaction) => reaction.label ?? reaction.title ?? "")
+      .filter(Boolean),
+    connected,
+    requiresAuth,
   };
 }
 
@@ -73,7 +92,7 @@ export function ServicesClient() {
     enabled: hasOAuthParams,
   });
   const isProcessingOAuth = hasOAuthParams && oauthStatus !== "error";
-  const [services, setServices] = useState<MockService[]>([]);
+  const [services, setServices] = useState<ServiceModel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
@@ -85,8 +104,10 @@ export function ServicesClient() {
     setError(null);
 
     try {
-      const serviceIds = await fetchServices();
-      const uniqueServiceIds = Array.from(new Set(serviceIds.filter(Boolean)));
+      const definitions = await fetchServiceCatalog();
+      const uniqueDefinitions = definitions.filter((def, idx, self) => {
+        return self.findIndex((item) => item.name === def.name) === idx;
+      });
 
       let statusByService: Record<string, boolean> = {};
       if (token && user?.id) {
@@ -97,11 +118,8 @@ export function ServicesClient() {
         }, {});
       }
 
-      const mappedServices = uniqueServiceIds.map((serviceId, index) =>
-        ({
-          ...mapBackendService(serviceId, index),
-          connected: Boolean(statusByService[serviceId]),
-        }),
+      const mappedServices = uniqueDefinitions.map((definition, index) =>
+        mapServiceDefinition(definition, index, statusByService),
       );
       setServices(mappedServices);
     } catch (err) {
@@ -126,11 +144,12 @@ export function ServicesClient() {
     }
   }, [oauthError]);
 
-  const filteredConnected = services.filter(
-    (service) => service.connected && matchesSearch(service, searchTerm),
-  );
+  const filteredConnected = services.filter((service) => service.connected && matchesSearch(service, searchTerm));
   const connectableServices = services.filter(
-    (service) => !service.connected && matchesSearch(service, modalSearch || searchTerm),
+    (service) =>
+      service.requiresAuth &&
+      !service.connected &&
+      matchesSearch(service, modalSearch || searchTerm),
   );
 
   const handleConnect = async (serviceId: string) => {
@@ -138,9 +157,18 @@ export function ServicesClient() {
       setError("Vous devez être connecté pour lier un service.");
       return;
     }
+    const service = services.find((item) => item.id === serviceId);
+    if (!service) {
+      setError("Service introuvable.");
+      return;
+    }
+    if (!service.provider) {
+      setError("Ce service ne nécessite pas de connexion OAuth2.");
+      return;
+    }
     try {
       setError(null);
-      await startOAuthConnect(serviceId);
+      await startOAuthConnect(service.provider);
     } catch (err) {
       const message =
         err instanceof Error
@@ -270,8 +298,8 @@ export function ServicesClient() {
                           category={service.category}
                           gradientFrom={service.gradient.from}
                           gradientTo={service.gradient.to}
-                          actions={service.actions.map((action) => action.label ?? action.id)}
-                          reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
+                          actions={service.actions}
+                          reactions={service.reactions}
                           connected={service.connected}
                           action="À connecter"
                           onConnect={() => handleConnect(service.id)}
@@ -404,8 +432,8 @@ export function ServicesClient() {
                     category={service.category}
                     gradientFrom={service.gradient.from}
                     gradientTo={service.gradient.to}
-                    actions={service.actions.map((action) => action.label ?? action.id)}
-                    reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
+                    actions={service.actions}
+                    reactions={service.reactions}
                     connected={service.connected}
                     action="Connecté"
                     onDisconnect={() => updateConnection(service.id, false)}

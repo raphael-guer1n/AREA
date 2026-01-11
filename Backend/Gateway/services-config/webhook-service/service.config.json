@@ -1,6 +1,6 @@
 {
-  "name": "area_webhook_api",
-  "base_url": "http://area_webhook_api:8086",
+  "name": "webhook-service",
+  "base_url": "http://webhook-service:8086",
   "routes": [
     {
       "path": "/health",

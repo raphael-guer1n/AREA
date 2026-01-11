@@ -42,7 +42,9 @@ services:
     ports:
       - "${AUTH_SERVER_PORT:-8083}:${AUTH_SERVER_PORT:-8083}"
     networks:
-      - area_network
+      area_network:
+        aliases:
+          - area_auth_api
 
   service-db:
     image: postgres:16-alpine
@@ -84,7 +86,9 @@ services:
     ports:
       - "${SERVICE_SERVER_PORT:-8084}:${SERVICE_SERVER_PORT:-8084}"
     networks:
-      - area_network
+      area_network:
+        aliases:
+          - area_service_api
 
   area-db:
     image: postgres:16-alpine
@@ -126,7 +130,9 @@ services:
     ports:
       - "${AREA_SERVER_PORT:-8085}:${AREA_SERVER_PORT:-8085}"
     networks:
-      - area_network
+      area_network:
+        aliases:
+          - area_area_api
 
   gateway:
     build:

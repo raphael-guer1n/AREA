@@ -10,18 +10,28 @@ import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { createEventArea } from "@/lib/api/area";
-import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
-
 import {
-  gradients as gradientPalette,
-  mockServices,
-  type ActionDefinition,
-  type FieldDefinition,
-  type MockService,
-  type ReactionDefinition,
-} from "../services/mockServices";
+  fetchServiceCatalog,
+  fetchUserServiceStatuses,
+  type ServiceAction,
+  type ServiceDefinition,
+  type ServiceField,
+  type ServiceReaction,
+} from "@/lib/api/services";
+import { serviceGradients } from "@/lib/ui/gradients";
 
-type AreaService = MockService;
+type AreaService = {
+  id: string;
+  provider?: string;
+  name: string;
+  badge: string;
+  category?: string;
+  gradient: { from: string; to: string };
+  actions: ServiceAction[];
+  reactions: ServiceReaction[];
+  connected: boolean;
+  requiresAuth: boolean;
+};
 type AreaGradient = { from: string; to: string };
 
 type CreatedArea = {
@@ -39,6 +49,41 @@ type CreatedArea = {
   gradient: AreaGradient;
 };
 
+function buildBadge(name: string) {
+  const parts = name.split(" ").filter(Boolean);
+  const letters =
+    parts.length >= 2
+      ? `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`
+      : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+function mapServiceDefinition(
+  def: ServiceDefinition,
+  index: number,
+  statusByService: Record<string, boolean>,
+): AreaService {
+  const name = def.label ?? def.name;
+  const badge = buildBadge(name);
+  const gradient = serviceGradients[index % serviceGradients.length];
+  const statusKey = def.provider || def.name;
+  const requiresAuth = Boolean(def.provider);
+  const connected = requiresAuth ? Boolean(statusByService[statusKey]) : true;
+
+  return {
+    id: def.name,
+    provider: def.provider,
+    name,
+    badge,
+    category: def.provider ? `Connecteur ${def.provider}` : "Interne",
+    gradient,
+    actions: def.actions ?? [],
+    reactions: def.reactions ?? [],
+    connected,
+    requiresAuth,
+  };
+}
+
 function matchesAreaSearch(area: CreatedArea, normalizedTerm: string) {
   if (!normalizedTerm) return true;
   const haystack = normalizeSearchValue(
@@ -48,23 +93,23 @@ function matchesAreaSearch(area: CreatedArea, normalizedTerm: string) {
 }
 
 function pickRandomGradient(): AreaGradient {
-  if (!gradientPalette.length) {
+  if (!serviceGradients.length) {
     return { from: "#0b3c5d", to: "#e59500" };
   }
-  const index = Math.floor(Math.random() * gradientPalette.length);
-  return gradientPalette[index];
+  const index = Math.floor(Math.random() * serviceGradients.length);
+  return serviceGradients[index];
 }
 
-function initializeFieldValues(fields: FieldDefinition[]): Record<string, string> {
+function initializeFieldValues(fields: ServiceField[]): Record<string, string> {
   return fields.reduce<Record<string, string>>((acc, field) => {
     const defaultValue = field.default ?? "";
-    acc[field.name] = typeof defaultValue === "number" ? String(defaultValue) : String(defaultValue);
+    acc[field.name] = String(defaultValue);
     return acc;
   }, {});
 }
 
 function areRequiredFieldsFilled(
-  fields: FieldDefinition[],
+  fields: ServiceField[],
   values: Record<string, string>,
 ): boolean {
   return fields.every((field) => {
@@ -87,8 +132,8 @@ function AreaPageContent() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [actionService, setActionService] = useState<AreaService | null>(null);
   const [reactionService, setReactionService] = useState<AreaService | null>(null);
-  const [selectedAction, setSelectedAction] = useState<ActionDefinition | null>(null);
-  const [selectedReaction, setSelectedReaction] = useState<ReactionDefinition | null>(null);
+  const [selectedAction, setSelectedAction] = useState<ServiceAction | null>(null);
+  const [selectedReaction, setSelectedReaction] = useState<ServiceReaction | null>(null);
   const [actionFieldValues, setActionFieldValues] = useState<Record<string, string>>({});
   const [reactionFieldValues, setReactionFieldValues] = useState<Record<string, string>>({});
   const [areaName, setAreaName] = useState("");
@@ -108,7 +153,7 @@ function AreaPageContent() {
   );
 
   const renderFieldInputs = (
-    fields: FieldDefinition[],
+    fields: ServiceField[],
     values: Record<string, string>,
     onChange: (name: string, value: string) => void,
   ) => (
@@ -153,7 +198,26 @@ function AreaPageContent() {
           );
         }
 
-        const useTextArea = field.name.toLowerCase().includes("description");
+        if (field.type === "boolean") {
+          return (
+            <label key={field.name} className="space-y-1 text-sm">
+              <span className="text-[var(--muted)]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <select
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                className={baseClasses}
+              >
+                <option value="true">Oui</option>
+                <option value="false">Non</option>
+              </select>
+            </label>
+          );
+        }
+
+        const useTextArea = field.type === "json" || field.name.toLowerCase().includes("description");
 
         return (
           <label key={field.name} className="space-y-1 text-sm sm:col-span-2">
@@ -187,10 +251,10 @@ function AreaPageContent() {
     setServicesError(null);
 
     try {
-      const serviceIds = await fetchServices();
-      const uniqueServiceIds = Array.from(
-        new Set([...serviceIds.filter(Boolean), "timer"]),
-      );
+      const definitions = await fetchServiceCatalog();
+      const uniqueDefinitions = definitions.filter((def, idx, self) => {
+        return self.findIndex((item) => item.name === def.name) === idx;
+      });
 
       let statusByService: Record<string, boolean> = {};
       if (token && user?.id) {
@@ -201,33 +265,9 @@ function AreaPageContent() {
         }, {});
       }
 
-      const mappedServices = uniqueServiceIds.map((serviceId, index) => {
-        const template = mockServices.find((service) => service.id === serviceId);
-        const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
-        const connectedStatus = statusByService[serviceId];
-        const isConnected =
-          connectedStatus !== undefined
-            ? connectedStatus
-            : serviceId === "timer"
-              ? true
-              : false;
-
-        return {
-          ...(template ?? {
-            id: serviceId,
-            name: serviceId,
-            url: "#",
-            badge: serviceId.slice(0, 2).toUpperCase(),
-            category: "Service",
-            gradient,
-            actions: [],
-            reactions: [],
-            connected: false,
-          }),
-          gradient,
-          connected: isConnected,
-        } as AreaService;
-      });
+      const mappedServices = uniqueDefinitions.map((definition, index) =>
+        mapServiceDefinition(definition, index, statusByService),
+      );
 
       setServices(mappedServices);
     } catch (err) {
@@ -558,10 +598,10 @@ function AreaPageContent() {
                         {actionService && actionService.actions?.length ? (
                           <div className="space-y-3">
                             {actionService.actions.map((action) => {
-                              const isSelected = selectedAction?.id === action.id;
+                              const isSelected = selectedAction?.title === action.title;
                               return (
                               <button
-                                key={action.id}
+                                key={action.title}
                                 type="button"
                                 onClick={() => {
                                   setSelectedAction(action);
@@ -574,7 +614,7 @@ function AreaPageContent() {
                                     : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
                                 )}
                               >
-                                <span>{action.label}</span>
+                                <span>{action.label ?? action.title}</span>
                                 {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
                               </button>
                               );
@@ -653,10 +693,10 @@ function AreaPageContent() {
                         {reactionService && reactionService.reactions?.length ? (
                           <div className="space-y-3">
                             {reactionService.reactions.map((reaction) => {
-                              const isSelected = selectedReaction?.id === reaction.id;
+                              const isSelected = selectedReaction?.title === reaction.title;
                               return (
                               <button
-                                key={reaction.id}
+                                key={reaction.title}
                                 type="button"
                                 onClick={() => {
                                   setSelectedReaction(reaction);
@@ -671,7 +711,7 @@ function AreaPageContent() {
                                     : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
                                 )}
                               >
-                                <span>{reaction.label}</span>
+                                <span>{reaction.label ?? reaction.title}</span>
                                 {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
                               </button>
                               );
