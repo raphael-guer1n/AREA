@@ -13,7 +13,6 @@ type Subscription struct {
 	ActionID       int             `json:"action_id"`
 	Provider       string          `json:"provider"`
 	Service        string          `json:"service"`
-	AuthToken      string          `json:"-"`
 	Active         bool            `json:"active"`
 	Config         json.RawMessage `json:"config"`
 	CreatedAt      time.Time       `json:"created_at"`

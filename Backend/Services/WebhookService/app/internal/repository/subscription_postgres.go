@@ -24,10 +24,10 @@ func (r *subscriptionRepository) Create(sub *domain.Subscription) (*domain.Subsc
 	var created domain.Subscription
 	var configBytes []byte
 	err := r.db.QueryRow(
-		`INSERT INTO webhook_subscriptions (hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		 RETURNING id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at`,
-		sub.HookID, sub.UserID, sub.ActionID, sub.Provider, sub.Service, sub.AuthToken, sub.Active, cfg, sub.ProviderHookID,
+		`INSERT INTO webhook_subscriptions (hook_id, user_id, action_id, provider, service, active, config, provider_hook_id)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 RETURNING id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at`,
+		sub.HookID, sub.UserID, sub.ActionID, sub.Provider, sub.Service, sub.Active, cfg, sub.ProviderHookID,
 	).Scan(
 		&created.ID,
 		&created.HookID,
@@ -35,7 +35,6 @@ func (r *subscriptionRepository) Create(sub *domain.Subscription) (*domain.Subsc
 		&created.ActionID,
 		&created.Provider,
 		&created.Service,
-		&created.AuthToken,
 		&created.Active,
 		&configBytes,
 		&created.ProviderHookID,
@@ -55,7 +54,7 @@ func (r *subscriptionRepository) FindByHookID(hookID string) (*domain.Subscripti
 	var sub domain.Subscription
 	var configBytes []byte
 	err := r.db.QueryRow(
-		`SELECT id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at
+		`SELECT id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at
 		 FROM webhook_subscriptions WHERE hook_id = $1`,
 		hookID,
 	).Scan(
@@ -65,7 +64,6 @@ func (r *subscriptionRepository) FindByHookID(hookID string) (*domain.Subscripti
 		&sub.ActionID,
 		&sub.Provider,
 		&sub.Service,
-		&sub.AuthToken,
 		&sub.Active,
 		&configBytes,
 		&sub.ProviderHookID,
@@ -88,7 +86,7 @@ func (r *subscriptionRepository) FindByActionID(actionID int) (*domain.Subscript
 	var sub domain.Subscription
 	var configBytes []byte
 	err := r.db.QueryRow(
-		`SELECT id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at
+		`SELECT id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at
 		 FROM webhook_subscriptions WHERE action_id = $1`,
 		actionID,
 	).Scan(
@@ -98,7 +96,6 @@ func (r *subscriptionRepository) FindByActionID(actionID int) (*domain.Subscript
 		&sub.ActionID,
 		&sub.Provider,
 		&sub.Service,
-		&sub.AuthToken,
 		&sub.Active,
 		&configBytes,
 		&sub.ProviderHookID,
@@ -119,7 +116,7 @@ func (r *subscriptionRepository) FindByActionID(actionID int) (*domain.Subscript
 
 func (r *subscriptionRepository) ListByUserID(userID int) ([]domain.Subscription, error) {
 	rows, err := r.db.Query(
-		`SELECT id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at
+		`SELECT id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at
 		 FROM webhook_subscriptions WHERE user_id = $1 ORDER BY created_at DESC`,
 		userID,
 	)
@@ -139,7 +136,6 @@ func (r *subscriptionRepository) ListByUserID(userID int) ([]domain.Subscription
 			&sub.ActionID,
 			&sub.Provider,
 			&sub.Service,
-			&sub.AuthToken,
 			&sub.Active,
 			&configBytes,
 			&sub.ProviderHookID,
@@ -164,7 +160,7 @@ func (r *subscriptionRepository) ListByUserID(userID int) ([]domain.Subscription
 
 func (r *subscriptionRepository) ListByProvider(provider string) ([]domain.Subscription, error) {
 	rows, err := r.db.Query(
-		`SELECT id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at
+		`SELECT id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at
 		 FROM webhook_subscriptions WHERE service = $1 ORDER BY created_at DESC`,
 		provider,
 	)
@@ -184,7 +180,6 @@ func (r *subscriptionRepository) ListByProvider(provider string) ([]domain.Subsc
 			&sub.ActionID,
 			&sub.Provider,
 			&sub.Service,
-			&sub.AuthToken,
 			&sub.Active,
 			&configBytes,
 			&sub.ProviderHookID,
@@ -217,10 +212,10 @@ func (r *subscriptionRepository) UpdateByActionID(sub *domain.Subscription) (*do
 	var configBytes []byte
 	err := r.db.QueryRow(
 		`UPDATE webhook_subscriptions
-		 SET provider = $1, service = $2, auth_token = $3, active = $4, config = $5, provider_hook_id = $6, updated_at = NOW()
-		 WHERE action_id = $7
-		 RETURNING id, hook_id, user_id, action_id, provider, service, auth_token, active, config, provider_hook_id, created_at, updated_at`,
-		sub.Provider, sub.Service, sub.AuthToken, sub.Active, cfg, sub.ProviderHookID, sub.ActionID,
+		 SET provider = $1, service = $2, active = $3, config = $4, provider_hook_id = $5, updated_at = NOW()
+		 WHERE action_id = $6
+		 RETURNING id, hook_id, user_id, action_id, provider, service, active, config, provider_hook_id, created_at, updated_at`,
+		sub.Provider, sub.Service, sub.Active, cfg, sub.ProviderHookID, sub.ActionID,
 	).Scan(
 		&updated.ID,
 		&updated.HookID,
@@ -228,7 +223,6 @@ func (r *subscriptionRepository) UpdateByActionID(sub *domain.Subscription) (*do
 		&updated.ActionID,
 		&updated.Provider,
 		&updated.Service,
-		&updated.AuthToken,
 		&updated.Active,
 		&configBytes,
 		&updated.ProviderHookID,

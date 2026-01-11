@@ -232,7 +232,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 
 	outputFields := buildOutputFields(providerConfig.Mappings, mapped)
 	if h.areaTriggerSvc != nil {
-		if err := h.areaTriggerSvc.Trigger(subscription.AuthToken, subscription.ActionID, outputFields); err != nil {
+		if err := h.areaTriggerSvc.Trigger(subscription.ActionID, outputFields); err != nil {
 			log.Printf(
 				"webhook dispatch failed: hook_id=%s action_id=%d provider=%s error=%v",
 				subscription.HookID,
