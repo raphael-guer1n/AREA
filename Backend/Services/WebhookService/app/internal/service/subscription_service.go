@@ -37,7 +37,7 @@ func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig *
 	}
 }
 
-func (s *SubscriptionService) CreateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, authToken string, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+func (s *SubscriptionService) CreateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, active bool, webhookBaseURL string) (*domain.Subscription, error) {
 	if existing, err := s.repo.FindByActionID(actionID); err != nil {
 		return nil, err
 	} else if existing != nil {
@@ -94,13 +94,12 @@ func (s *SubscriptionService) CreateSubscription(userID, actionID int, provider,
 	}
 
 	sub := &domain.Subscription{
-		UserID:    userID,
-		ActionID:  actionID,
-		Provider:  providerName,
-		Service:   serviceName,
-		AuthToken: authToken,
-		Active:    active,
-		Config:    cfg,
+		UserID:   userID,
+		ActionID: actionID,
+		Provider: providerName,
+		Service:  serviceName,
+		Active:   active,
+		Config:   cfg,
 	}
 
 	for i := 0; i < 3; i++ {
@@ -140,7 +139,7 @@ func (s *SubscriptionService) GetSubscriptionByActionID(actionID int) (*domain.S
 	return s.repo.FindByActionID(actionID)
 }
 
-func (s *SubscriptionService) UpdateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, authToken string, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+func (s *SubscriptionService) UpdateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, active bool, webhookBaseURL string) (*domain.Subscription, error) {
 	subscription, err := s.repo.FindByActionID(actionID)
 	if err != nil {
 		return nil, err
@@ -218,7 +217,6 @@ func (s *SubscriptionService) UpdateSubscription(userID, actionID int, provider,
 	updatedSub.Provider = providerName
 	updatedSub.Service = serviceName
 	updatedSub.Config = newConfig
-	updatedSub.AuthToken = authToken
 	updatedSub.Active = active
 	updatedSub.ProviderHookID = subscription.ProviderHookID
 

@@ -55,7 +55,7 @@ func (h *ActionHandler) HandleActions(w http.ResponseWriter, req *http.Request) 
 }
 
 func (h *ActionHandler) handleCreateActions(w http.ResponseWriter, req *http.Request) {
-	userID, token, err := h.resolveUser(req)
+	userID, err := h.resolveUser(req)
 	if err != nil {
 		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
@@ -110,7 +110,7 @@ func (h *ActionHandler) handleCreateActions(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		subscription, err := h.subscriptionSvc.CreateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, token, action.Active, webhookBaseURL)
+		subscription, err := h.subscriptionSvc.CreateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, action.Active, webhookBaseURL)
 		if err != nil {
 			for _, actionID := range createdActionIDs {
 				_ = h.subscriptionSvc.DeleteSubscription(actionID, webhookBaseURL)
@@ -153,7 +153,7 @@ func (h *ActionHandler) handleCreateActions(w http.ResponseWriter, req *http.Req
 }
 
 func (h *ActionHandler) handleUpdateActions(w http.ResponseWriter, req *http.Request) {
-	userID, token, err := h.resolveUser(req)
+	userID, err := h.resolveUser(req)
 	if err != nil {
 		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
@@ -207,7 +207,7 @@ func (h *ActionHandler) handleUpdateActions(w http.ResponseWriter, req *http.Req
 			return
 		}
 
-		subscription, err := h.subscriptionSvc.UpdateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, token, action.Active, webhookBaseURL)
+		subscription, err := h.subscriptionSvc.UpdateSubscription(userID, action.ActionID, action.Provider, action.Service, cfgPayload, action.Active, webhookBaseURL)
 		if err != nil {
 			status := http.StatusInternalServerError
 			switch {
@@ -262,7 +262,7 @@ func (h *ActionHandler) HandleAction(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *ActionHandler) handleGetAction(w http.ResponseWriter, req *http.Request) {
-	userID, _, err := h.resolveUser(req)
+	userID, err := h.resolveUser(req)
 	if err != nil {
 		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
@@ -321,7 +321,7 @@ func (h *ActionHandler) handleGetAction(w http.ResponseWriter, req *http.Request
 }
 
 func (h *ActionHandler) handleDeleteAction(w http.ResponseWriter, req *http.Request) {
-	userID, _, err := h.resolveUser(req)
+	userID, err := h.resolveUser(req)
 	if err != nil {
 		respondJSON(w, http.StatusUnauthorized, map[string]any{
 			"success": false,
@@ -387,29 +387,29 @@ func (h *ActionHandler) handleDeleteAction(w http.ResponseWriter, req *http.Requ
 	})
 }
 
-func (h *ActionHandler) resolveUser(req *http.Request) (int, string, error) {
+func (h *ActionHandler) resolveUser(req *http.Request) (int, error) {
 	authHeader := strings.TrimSpace(req.Header.Get("Authorization"))
 	if authHeader == "" {
-		return 0, "", errors.New("missing Authorization header")
+		return 0, errors.New("missing Authorization header")
 	}
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return 0, "", errors.New("authorization must be Bearer <token>")
+		return 0, errors.New("authorization must be Bearer <token>")
 	}
 	token := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 	if token == "" {
-		return 0, "", errors.New("empty token")
+		return 0, errors.New("empty token")
 	}
 	if h.authSvc == nil {
-		return 0, "", errors.New("auth service not configured")
+		return 0, errors.New("auth service not configured")
 	}
 	userID, err := h.authSvc.GetUserID(authHeader)
 	if err != nil {
-		return 0, "", err
+		return 0, err
 	}
 	if userID <= 0 {
-		return 0, "", errors.New("invalid user")
+		return 0, errors.New("invalid user")
 	}
-	return userID, token, nil
+	return userID, nil
 }
 
 func buildConfigPayload(inputs []actionInput) (json.RawMessage, error) {

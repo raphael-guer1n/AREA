@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS webhook_subscriptions (
   action_id INTEGER NOT NULL,
   provider VARCHAR(64) NOT NULL,
   service VARCHAR(64) NOT NULL,
-  auth_token TEXT,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -24,6 +25,7 @@ type ProviderConfig struct {
 // ConfigLoader manages to load OAuth2 configurations from service-service API
 type ConfigLoader struct {
 	serviceServiceURL string
+	internalSecret    string
 	httpClient        *http.Client
 	cache             map[string]*ProviderConfig
 	cacheMutex        sync.RWMutex
@@ -32,9 +34,10 @@ type ConfigLoader struct {
 }
 
 // NewConfigLoader creates a new config loader that fetches from service-service API
-func NewConfigLoader(serviceServiceURL string) *ConfigLoader {
+func NewConfigLoader(serviceServiceURL string, internalSecret string) *ConfigLoader {
 	return &ConfigLoader{
 		serviceServiceURL: serviceServiceURL,
+		internalSecret:    internalSecret,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -63,7 +66,14 @@ func (l *ConfigLoader) GetProvider(name string) (*ProviderConfig, error) {
 
 	// Fetch OAuth2 config from service-service
 	url := fmt.Sprintf("%s/providers/oauth2-config?service=%s", l.serviceServiceURL, name)
-	resp, err := l.httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create provider config request: %w", err)
+	}
+	if strings.TrimSpace(l.internalSecret) != "" {
+		req.Header.Set("X-Internal-Secret", l.internalSecret)
+	}
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch provider config: %w", err)
 	}
@@ -144,7 +154,14 @@ func (l *ConfigLoader) ListProviders() ([]string, error) {
 
 	// Fetch from API
 	url := fmt.Sprintf("%s/providers/services", l.serviceServiceURL)
-	resp, err := l.httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service list request: %w", err)
+	}
+	if strings.TrimSpace(l.internalSecret) != "" {
+		req.Header.Set("X-Internal-Secret", l.internalSecret)
+	}
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch service list: %w", err)
 	}

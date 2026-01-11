@@ -10,13 +10,15 @@ import (
 )
 
 type OAuth2TokenService struct {
-	baseURL string
-	client  *http.Client
+	baseURL        string
+	internalSecret string
+	client         *http.Client
 }
 
-func NewOAuth2TokenService(baseURL string) *OAuth2TokenService {
+func NewOAuth2TokenService(baseURL string, internalSecret string) *OAuth2TokenService {
 	return &OAuth2TokenService{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL:        strings.TrimRight(baseURL, "/"),
+		internalSecret: strings.TrimSpace(internalSecret),
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -33,6 +35,9 @@ func (s *OAuth2TokenService) GetProviderToken(userID int, provider string) (stri
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", err
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
 
 	resp, err := s.client.Do(req)

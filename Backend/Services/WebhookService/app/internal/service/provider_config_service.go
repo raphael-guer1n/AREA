@@ -15,14 +15,16 @@ import (
 var ErrProviderConfigNotFound = errors.New("provider not found")
 
 type ProviderConfigService struct {
-	baseURL string
-	client  *http.Client
-	cache   map[string]config.WebhookProviderConfig
+	baseURL        string
+	internalSecret string
+	client         *http.Client
+	cache          map[string]config.WebhookProviderConfig
 }
 
-func NewProviderConfigService(baseURL string) *ProviderConfigService {
+func NewProviderConfigService(baseURL string, internalSecret string) *ProviderConfigService {
 	return &ProviderConfigService{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL:        strings.TrimRight(baseURL, "/"),
+		internalSecret: strings.TrimSpace(internalSecret),
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -49,6 +51,9 @@ func (s *ProviderConfigService) ListProviders() ([]string, error) {
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
 
 	resp, err := s.client.Do(req)
@@ -88,6 +93,9 @@ func (s *ProviderConfigService) fetchProviderConfig(name string) (*config.Webhoo
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
 
 	resp, err := s.client.Do(req)

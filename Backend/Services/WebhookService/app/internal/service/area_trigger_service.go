@@ -18,20 +18,22 @@ type TriggerOutputField struct {
 }
 
 type AreaTriggerService struct {
-	baseURL string
-	client  *http.Client
+	baseURL        string
+	internalSecret string
+	client         *http.Client
 }
 
-func NewAreaTriggerService(baseURL string) *AreaTriggerService {
+func NewAreaTriggerService(baseURL string, internalSecret string) *AreaTriggerService {
 	return &AreaTriggerService{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL:        strings.TrimRight(baseURL, "/"),
+		internalSecret: strings.TrimSpace(internalSecret),
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
 	}
 }
 
-func (s *AreaTriggerService) Trigger(authToken string, actionID int, outputFields []TriggerOutputField) error {
+func (s *AreaTriggerService) Trigger(actionID int, outputFields []TriggerOutputField) error {
 	if actionID <= 0 {
 		return errors.New("action_id is required")
 	}
@@ -49,8 +51,8 @@ func (s *AreaTriggerService) Trigger(authToken string, actionID int, outputField
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if strings.TrimSpace(authToken) != "" {
-		req.Header.Set("Authorization", "Bearer "+authToken)
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
 
 	resp, err := s.client.Do(req)

@@ -15,6 +15,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-microservice_db}
       SERVER_PORT: ${SERVER_PORT:-8080}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/area_auth_api}
+      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
+      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
     depends_on:
       db:
         condition: service_healthy

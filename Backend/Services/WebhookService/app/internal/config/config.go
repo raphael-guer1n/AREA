@@ -12,6 +12,7 @@ type Config struct {
 	DBUser            string
 	DBPass            string
 	DBName            string
+	InternalSecret    string
 	ServiceServiceURL string
 	AuthServiceURL    string
 	AreaServiceURL    string
@@ -26,6 +27,7 @@ func Load() Config {
 		DBUser:            getEnv("DB_USER", "postgres"),
 		DBPass:            getEnv("DB_PASSWORD", "postgres"),
 		DBName:            getEnv("DB_NAME", "webhook_service_db"),
+		InternalSecret:    getEnv("INTERNAL_SECRET", ""),
 		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/area_service_api"),
 		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/area_auth_api"),
 		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
