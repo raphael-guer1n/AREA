@@ -104,6 +104,139 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /saveArea:
+    post:
+      summary: Save a new area configuration
+      description: Saves an area with actions and reactions, validates it, and triggers actions if the area is active
+      operationId: saveArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Area'
+      responses:
+        '200':
+          description: Area saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - Invalid input or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /getAreas:
+    get:
+      summary: Get all areas for the authenticated user
+      description: Retrieves all area configurations belonging to the current user
+      operationId: getAreas
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Areas retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Area'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /triggerArea:
+    post:
+      summary: Trigger reactions for a specific action
+      description: Manually triggers all reactions associated with a specific action in an area
+      operationId: triggerArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerAreaRequest'
+      responses:
+        '200':
+          description: Reactions triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User not authorized to trigger this action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -160,6 +293,121 @@ components:
       required:
         - success
         - error
+
+    InputField:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 'delay'
+        value:
+          type: string
+          example: '300'
+      required:
+        - name
+        - value
+
+    AreaAction:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        service:
+          type: string
+          example: 'timer'
+        provider:
+          type: string
+          example: ''
+        title:
+          type: string
+          example: 'delay_action'
+        type:
+          type: string
+          example: 'cron'
+        input:
+          type: array
+          items:
+            $ref: '#/components/schemas/InputField'
+      required:
+        - service
+        - provider
+        - title
+        - type
+        - input
+
+    AreaReaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        service:
+          type: string
+          example: 'google_calendar'
+        provider:
+          type: string
+          example: 'google'
+        title:
+          type: string
+          example: 'Create Event'
+        input:
+          type: array
+          items:
+            $ref: '#/components/schemas/InputField'
+      required:
+        - service
+        - provider
+        - title
+        - input
+
+    Area:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 123
+        name:
+          type: string
+          example: 'My Automation'
+        description:
+          type: string
+          example: 'Creates a calendar event after a delay'
+        active:
+          type: boolean
+          example: true
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AreaAction'
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AreaReaction'
+      required:
+        - name
+        - active
+        - actions
+        - reactions
+
+    TriggerAreaRequest:
+      type: object
+      properties:
+        action_id:
+          type: integer
+          description: The ID of the action to trigger
+          example: 1
+        output_fields:
+          type: array
+          description: Output fields from the action to pass to reactions
+          items:
+            $ref: '#/components/schemas/InputField'
+      required:
+        - action_id
+        - output_fields
 
 tags:
   - name: Health
