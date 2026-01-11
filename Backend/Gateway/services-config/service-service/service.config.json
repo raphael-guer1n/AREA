@@ -18,7 +18,7 @@
       ],
       "auth_required": false,
       "permissions": [],
-      "internal_only": true
+      "internal_only": false
     },
     {
       "path": "/providers/oauth2-config",
