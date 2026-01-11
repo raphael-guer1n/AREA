@@ -237,6 +237,108 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /activateArea:
+    post:
+      summary: Activate an area
+      description: Activates a previously inactive area and triggers its actions
+      operationId: activateArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleAreaRequest'
+      responses:
+        '200':
+          description: Area activated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - Invalid input or area already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User not authorized to activate this area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deactivateArea:
+    post:
+      summary: Deactivate an area
+      description: Deactivates an active area and stops its actions
+      operationId: deactivateArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToggleAreaRequest'
+      responses:
+        '200':
+          description: Area deactivated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - Invalid input or area already inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User not authorized to deactivate this area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -408,6 +510,16 @@ components:
       required:
         - action_id
         - output_fields
+
+    ToggleAreaRequest:
+      type: object
+      properties:
+        area_id:
+          type: integer
+          description: The ID of the area to activate or deactivate
+          example: 1
+      required:
+        - area_id
 
 tags:
   - name: Health
