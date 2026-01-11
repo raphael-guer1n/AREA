@@ -11,6 +11,34 @@ type areaRepository struct {
 	db *sql.DB
 }
 
+func (a areaRepository) ToggleArea(areaID int, isActive bool) error {
+	_, err := a.db.Exec("UPDATE areas SET active = $1 WHERE id = $2", isActive, areaID)
+	return err
+}
+
+func (a areaRepository) GetArea(areaID int) (domain.Area, error) {
+	row, err := a.db.Query("SELECT id, name, active FROM areas WHERE id = $1", areaID)
+	if err != nil {
+		return domain.Area{}, err
+	}
+	var area domain.Area
+	row.Next()
+	err = row.Scan(&area.ID, &area.Name, &area.Active)
+	row.Close()
+	if err != nil {
+		return domain.Area{}, err
+	}
+	area.Actions, err = a.GetAreaActions(areaID)
+	if err != nil {
+		return domain.Area{}, err
+	}
+	area.Reactions, err = a.GetAreaReactions(areaID)
+	if err != nil {
+		return domain.Area{}, err
+	}
+	return area, nil
+}
+
 func (a areaRepository) GetAreaFromAction(actionId int) (domain.Area, error) {
 	row, err := a.db.Query("SELECT area_id FROM actions WHERE id = $1", actionId)
 	if err != nil {
