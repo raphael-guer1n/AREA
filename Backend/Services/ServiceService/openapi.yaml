@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: Microservice API Template
-  description: Template for AREA microservice with Go, PostgreSQL, and Docker
+  title: Service Configuration Service API
+  description: ServiceService for provider, service, and webhook configuration in the AREA project
   version: 1.0.0
   contact:
     name: AREA Team
@@ -43,8 +43,8 @@ paths:
 
   /providers/services:
     get:
-      summary: Get all available OAuth2 services
-      description: Returns a list of all configured OAuth2 provider services
+      summary: Get all available OAuth2 providers
+      description: Returns a list of all configured OAuth2 provider names
       operationId: getServices
       tags:
         - Providers
@@ -67,6 +67,12 @@ paths:
                         items:
                           type: string
                         example: ["google", "discord", "github"]
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /providers/oauth2-config:
     get:
@@ -104,6 +110,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
           content:
             application/json:
               schema:
@@ -149,6 +161,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /webhooks/providers:
     get:
@@ -176,6 +194,12 @@ paths:
                         items:
                           type: string
                         example: ["github", "generic"]
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /webhooks/providers/config:
     get:
@@ -213,6 +237,92 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /services/services:
+    get:
+      summary: Get all available services
+      description: Returns a list of all configured service names
+      operationId: getServiceNames
+      tags:
+        - Services
+      responses:
+        '200':
+          description: Successfully retrieved service list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      services:
+                        type: array
+                        items:
+                          type: string
+                        example: ["timer", "google_calendar", "github"]
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /services/service-config:
+    get:
+      summary: Get service configuration
+      description: Returns the action/reaction configuration for a specific service
+      operationId: getServiceConfig
+      tags:
+        - Services
+      parameters:
+        - name: service
+          in: query
+          required: true
+          description: The name of the service
+          schema:
+            type: string
+            example: google_calendar
+      responses:
+        '200':
+          description: Successfully retrieved service configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ServiceConfig'
+        '400':
+          description: Bad request - Missing service parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
           content:
             application/json:
               schema:
@@ -291,12 +401,138 @@ components:
           items:
             $ref: '#/components/schemas/FieldMapping'
 
+    ServiceFieldConfig:
+      type: object
+      properties:
+        name:
+          type: string
+          example: summary
+        type:
+          type: string
+          example: text
+        label:
+          type: string
+          example: Event title
+        required:
+          type: boolean
+          example: true
+        default:
+          type: string
+          example: ""
+
+    OutputField:
+      type: object
+      properties:
+        name:
+          type: string
+          example: delay
+        type:
+          type: string
+          example: number
+        label:
+          type: string
+          example: Delay (seconds)
+
+    BodyField:
+      type: object
+      properties:
+        path:
+          type: string
+          example: summary
+        type:
+          type: string
+          example: text
+        value:
+          description: Raw value or nested body fields
+          oneOf:
+            - type: string
+              example: "{{summary}}"
+            - type: number
+              example: 42
+            - type: boolean
+              example: true
+            - type: array
+              items:
+                $ref: '#/components/schemas/BodyField'
+
+    ActionConfig:
+      type: object
+      properties:
+        title:
+          type: string
+          example: delay_action
+        label:
+          type: string
+          example: Delay Action
+        type:
+          type: string
+          example: cron
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceFieldConfig'
+        output_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutputField'
+
+    ReactionConfig:
+      type: object
+      properties:
+        title:
+          type: string
+          example: create_event
+        label:
+          type: string
+          example: Create Event
+        url:
+          type: string
+          example: https://www.googleapis.com/calendar/v3/calendars/{{calendar}}/events
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceFieldConfig'
+        method:
+          type: string
+          example: POST
+        bodyType:
+          type: string
+          example: json
+        body_struct:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyField'
+
+    ServiceConfig:
+      type: object
+      properties:
+        provider:
+          type: string
+          example: google
+        name:
+          type: string
+          example: google_calendar
+        icon_url:
+          type: string
+          example: ""
+        label:
+          type: string
+          example: Google Calendar
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionConfig'
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionConfig'
+
     WebhookSignatureConfig:
       type: object
       properties:
         type:
           type: string
-          example: hmac-sha256
+          example: hmac
         header:
           type: string
           example: X-Hub-Signature-256
@@ -346,6 +582,14 @@ components:
         event_json_path:
           type: string
           example: type
+        event_allow_serviceConfigFile_path:
+          type: string
+          example: events
+        event_ignore:
+          type: array
+          items:
+            type: string
+          example: ["ping"]
         mappings:
           type: array
           items:
@@ -543,5 +787,7 @@ tags:
     description: Health check endpoints
   - name: Providers
     description: OAuth2 provider configuration endpoints
+  - name: Services
+    description: Service configuration endpoints
   - name: Webhooks
     description: Webhook provider configuration endpoints
