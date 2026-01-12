@@ -16,7 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _serverIpController = TextEditingController();
+  final _serverIpController = TextEditingController(); // ✅ Re-added controller
   bool _obscurePassword = true;
 
   @override
@@ -38,13 +38,12 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _serverIpController.dispose();
+    _serverIpController.dispose(); // ✅ Properly disposed
     super.dispose();
   }
 
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
-
     await ConfigService.setServerIp(_serverIpController.text);
 
     final authProvider = context.read<AuthProvider>();
@@ -52,7 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailController.text.trim(),
       _passwordController.text,
     );
-
     if (success && mounted) {
       Navigator.of(context).pushReplacementNamed("/main");
     }
@@ -65,16 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await authProvider.loginWithGoogleForLogin();
 
     if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed("/main");
-    } else {
-      if (mounted && authProvider.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erreur: ${authProvider.error}"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      Navigator.of(context).pushReplacementNamed('/main');
+    } else if (mounted && authProvider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${authProvider.error}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -98,14 +94,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text("CONNEXION", style: theme.textTheme.displayLarge),
+                      Text('CONNEXION', style: theme.textTheme.displayLarge),
                       const SizedBox(height: 8),
-                      Container(
-                        height: 2,
-                        width: 50,
-                        color: AppColors.deepBlue,
-                      ),
+                      Container(height: 2, width: 50, color: AppColors.deepBlue),
                       const SizedBox(height: 24),
+
                       if (error != null)
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -115,17 +108,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.red.shade200),
                           ),
-                          child: Text(
-                            error,
-                            style: TextStyle(color: Colors.red.shade700),
-                          ),
+                          child: Text(error,
+                              style: TextStyle(color: Colors.red.shade700)),
                         ),
+
                       _SocialLoginButton(
                         icon: FontAwesomeIcons.google,
                         label: "Continuer avec Google",
                         onPressed: isLoading ? null : _loginWithGoogle,
                       ),
                       const SizedBox(height: 24),
+
                       Row(
                         children: const [
                           Expanded(child: Divider(color: AppColors.grey)),
@@ -143,37 +136,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 24),
+
                       TextFormField(
                         controller: _emailController,
                         textInputAction: TextInputAction.next,
-                        enabled: !isLoading,
                         decoration: const InputDecoration(
-                          labelText: "EMAIL OU NOM D'UTILISATEUR",
+                          labelText: 'EMAIL OU NOM D\'UTILISATEUR',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return "Entrez un identifiant";
-                          }
-                          return null;
-                        },
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Entrez un identifiant'
+                            : null,
                       ),
                       const SizedBox(height: 16),
+
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
-                        enabled: !isLoading,
-                        onFieldSubmitted: (_) => _loginWithEmail(),
+                        textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
-                          labelText: "MOT DE PASSE",
+                          labelText: 'MOT DE PASSE',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined),
                             onPressed: () {
                               setState(() {
                                 _obscurePassword = !_obscurePassword;
@@ -181,22 +168,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) {
-                            return "Entrez votre mot de passe";
-                          }
-                          return null;
-                        },
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Entrez votre mot de passe'
+                            : null,
+                        onFieldSubmitted: (_) => _loginWithEmail(),
                       ),
+
                       const SizedBox(height: 16),
+
                       TextFormField(
                         controller: _serverIpController,
                         keyboardType: TextInputType.url,
                         decoration: const InputDecoration(
-                          labelText: "Server IP (ex: 192.168.1.10)",
+                          labelText: 'Server IP (ex: 192.168.1.10)',
                           prefixIcon: Icon(Icons.cloud_outlined),
                         ),
                       ),
+
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
@@ -213,21 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 )
                               : const Text("Se connecter"),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).pushNamed("/register");
-                              },
-                        child: const Text(
-                          "CRÉER UN COMPTE",
-                          style: TextStyle(
-                            color: AppColors.deepBlue,
-                            fontWeight: FontWeight.w600,
-                          ),
                         ),
                       ),
                     ],
@@ -266,9 +239,8 @@ class _SocialLoginButton extends StatelessWidget {
           foregroundColor: Colors.black87,
           elevation: 0,
           side: const BorderSide(color: AppColors.grey),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: onPressed,
       ),

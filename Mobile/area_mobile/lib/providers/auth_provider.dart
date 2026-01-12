@@ -97,7 +97,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Used by LoginScreen for "Continue with Google"
   Future<bool> loginWithGoogleForLogin() async {
     _error = null;
     _isLoading = true;
@@ -105,7 +104,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final result = await _authService.loginWithGoogleWithoutUser();
-      _token = result["token"] as String?;
+      _token = result['token'];
 
       final userData = await _authService.fetchCurrentUser();
       _user = userData;
