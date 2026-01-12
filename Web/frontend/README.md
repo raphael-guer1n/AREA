@@ -31,13 +31,13 @@ docker-compose.yml, Dockerfile, eslint.config.mjs, tsconfig.json
 ## Configuration (backend/gateway)
 Créer un `.env.local` à la racine du front (variables en miroir côté serveur et client) :
 ```bash
-API_BASE_URL=http://localhost:8080/auth-service
+API_BASE_URL=http://localhost:8080/area_auth_api
 NEXT_PUBLIC_API_BASE_URL=$API_BASE_URL
 
-AREA_API_BASE_URL=http://localhost:8080/area-service
+AREA_API_BASE_URL=http://localhost:8080/area_area_api
 NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
 
-SERVICES_API_BASE_URL=http://localhost:8080/service-service
+SERVICES_API_BASE_URL=http://localhost:8080/area_service_api
 NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
 
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
@@ -64,7 +64,7 @@ npm run lint
 
 ## Docker
 - Build : `docker build -t area-frontend .`
-- Run : `docker run --rm -p 3000:3000 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service area-frontend`
+- Run : `docker run --rm -p 3000:3000 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/area_auth_api area-frontend`
 - Compose (depuis ce dossier) : `docker compose up --build`
   - Variables par défaut : navigateur → `http://localhost:8080/{service}`, serveur Next → `http://host.docker.internal:8080/{service}`.
   - Override en exportant les variables avant le `compose` si le backend est ailleurs.
