@@ -3,6 +3,7 @@ import "package:font_awesome_flutter/font_awesome_flutter.dart";
 import "package:provider/provider.dart";
 import "../../providers/auth_provider.dart";
 import "../../theme/colors.dart";
+import "../../services/config_service.dart";
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,17 +16,36 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _serverIpController = TextEditingController();
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServerIp();
+  }
+
+  Future<void> _loadServerIp() async {
+    final ip = await ConfigService.getServerIp();
+    if (mounted) {
+      setState(() {
+        _serverIpController.text = ip ?? '';
+      });
+    }
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _serverIpController.dispose();
     super.dispose();
   }
 
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
+
+    await ConfigService.setServerIp(_serverIpController.text);
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.loginWithEmail(
@@ -39,6 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
+    await ConfigService.setServerIp(_serverIpController.text);
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.loginWithGoogleForLogin();
 
@@ -166,6 +188,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _serverIpController,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          labelText: "Server IP (ex: 192.168.1.10)",
+                          prefixIcon: Icon(Icons.cloud_outlined),
+                        ),
+                      ),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
@@ -185,8 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Restored Create Account button
                       TextButton(
                         onPressed: isLoading
                             ? null

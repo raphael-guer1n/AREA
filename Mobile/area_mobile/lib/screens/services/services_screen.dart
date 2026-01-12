@@ -27,15 +27,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
   String? _connectingService;
 
   @override
-  void initState() {
-    super.initState();
-    _connector = ServiceConnector(
-      baseUrl: dotenv.env['BASE_URL'] ??
-          'https://nonbeatifically-stridulatory-denver.ngrok-free.dev',
-    );
-    _loadServices();
-    _listenToDeepLinks();
-  }
+void initState() {
+  super.initState();
+  _connector = ServiceConnector();
+  _loadServices();
+  _listenToDeepLinks();
+}
 
   @override
   void dispose() {

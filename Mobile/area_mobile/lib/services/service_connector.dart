@@ -1,21 +1,11 @@
 import "dart:convert";
-
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:http/http.dart" as http;
-
 import "../models/service_model.dart";
+import "../services/config_service.dart";
 
 class ServiceConnector {
-  final String baseUrl;
   final _storage = const FlutterSecureStorage();
-
-  final String authPrefix =
-      dotenv.env["AUTH_SERVICE_PREFIX"] ?? "area_auth_api";
-
-  ServiceConnector({required this.baseUrl});
-
-  String get _authBase => "$baseUrl/$authPrefix";
 
   Future<List<ServiceModel>> fetchServices(int userId) async {
     try {
@@ -24,7 +14,9 @@ class ServiceConnector {
         throw Exception("JWT token missing — please log in again.");
       }
 
-      final url = Uri.parse("$_authBase/oauth2/providers/$userId");
+      final baseUrl = await ConfigService.getBaseUrl();
+      final url = Uri.parse("$baseUrl/area_auth_api/oauth2/providers/$userId");
+
       final response = await http.get(
         url,
         headers: {"Authorization": "Bearer $token"},
@@ -51,12 +43,13 @@ class ServiceConnector {
         throw Exception("JWT token missing — please log in first.");
       }
 
+      final baseUrl = await ConfigService.getBaseUrl();
       const redirectUri =
           "https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback";
       final encodedRedirect = Uri.encodeComponent(redirectUri);
 
       final uri = Uri.parse(
-        "$_authBase/oauth2/authorize"
+        "$baseUrl/area_auth_api/oauth2/authorize"
         "?provider=$serviceName&user_id=$userId"
         "&callback_url=$encodedRedirect&platform=android",
       );
@@ -70,9 +63,7 @@ class ServiceConnector {
       );
 
       if (response.statusCode != 200) {
-        throw Exception(
-          "Failed to get auth URL (${response.statusCode}): ${response.body}",
-        );
+        throw Exception("Failed to get auth URL (${response.statusCode})");
       }
 
       final data = jsonDecode(response.body);

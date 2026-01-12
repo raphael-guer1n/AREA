@@ -20,14 +20,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8080';
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(
           create: (_) => AreaProvider(
-            AreaService(baseUrl: baseUrl),
+            AreaService(), // ✅ removed baseUrl: argument
           ),
         ),
       ],

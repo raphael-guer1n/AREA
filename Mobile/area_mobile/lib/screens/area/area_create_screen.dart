@@ -42,9 +42,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   @override
   void initState() {
     super.initState();
-    final baseUrl = dotenv.env['BASE_URL'] ?? 'http://localhost:8080';
-    _catalogService = ServiceCatalogService(baseUrl: baseUrl);
-    _serviceConnector = ServiceConnector(baseUrl: baseUrl);
+    _catalogService = ServiceCatalogService();
+    _serviceConnector = ServiceConnector();
     _loadServices();
   }
 

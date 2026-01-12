@@ -1,34 +1,24 @@
 import "dart:async";
 import "dart:convert";
-
 import "package:app_links/app_links.dart";
 import "package:flutter/foundation.dart";
-import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:http/http.dart" as http;
 import "package:url_launcher/url_launcher.dart";
+import "../services/config_service.dart";
 
 class AuthService {
-  final String baseUrl = dotenv.env["BASE_URL"] ?? "http://localhost:8080";
-
-  // Gateway prefix for auth service (matches gateway service.config.json "name")
-  final String authPrefix =
-      dotenv.env["AUTH_SERVICE_PREFIX"] ?? "area_auth_api";
-
   final AppLinks _appLinks = AppLinks();
   final _storage = const FlutterSecureStorage();
 
   static const String redirectUri =
       "https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback";
 
-  String get _authBase => "$baseUrl/$authPrefix";
-
   Future<void> _saveToken(String token) async {
     await _storage.write(key: "jwt_token", value: token);
   }
 
   Future<String?> getToken() async => _storage.read(key: "jwt_token");
-
   Future<void> clearToken() async => _storage.delete(key: "jwt_token");
 
   Future<Map<String, dynamic>> loginWithEmail(
@@ -36,7 +26,8 @@ class AuthService {
     String password,
   ) async {
     try {
-      final url = Uri.parse("$_authBase/auth/login");
+      final baseUrl = await ConfigService.getBaseUrl();
+      final url = Uri.parse("$baseUrl/area_auth_api/auth/login");
       debugPrint("[AUTH] POST $url");
 
       final response = await http.post(
@@ -49,18 +40,15 @@ class AuthService {
       );
 
       final body = jsonDecode(response.body);
-
       if (response.statusCode == 200) {
         final token = body["data"]?["token"] ?? body["token"];
         final user = body["data"]?["user"] ?? body["user"];
-
         if (token != null) {
           await _saveToken(token);
           return {"token": token, "user": user};
         }
         throw Exception("Invalid response format");
       }
-
       throw Exception(body["error"] ?? "Invalid credentials");
     } catch (e) {
       throw Exception("Login error: $e");
@@ -73,7 +61,8 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final url = Uri.parse("$_authBase/auth/register");
+      final baseUrl = await ConfigService.getBaseUrl();
+      final url = Uri.parse("$baseUrl/area_auth_api/auth/register");
       debugPrint("[AUTH] POST $url");
 
       final response = await http.post(
@@ -87,34 +76,26 @@ class AuthService {
       );
 
       final body = jsonDecode(response.body);
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final token = body["data"]?["token"] ?? body["token"];
         final user = body["data"]?["user"] ?? body["user"];
-
         if (token != null) {
           await _saveToken(token);
           return {"token": token, "user": user};
         }
         throw Exception("Invalid response format");
       }
-
       throw Exception(body["error"] ?? "Registration failed");
     } catch (e) {
       throw Exception("Registration error: $e");
     }
   }
 
-  // Login via Google from the LOGIN screen (no userId required).
   Future<Map<String, dynamic>> loginWithGoogleWithoutUser() async {
     try {
-      final encodedRedirect = Uri.encodeComponent(redirectUri);
-
+      final baseUrl = await ConfigService.getBaseUrl();
       final url = Uri.parse(
-        "$_authBase/loginwith"
-        "?provider=google&callback_url=$encodedRedirect&platform=android",
-      );
-
+          "$baseUrl/area_auth_api/loginwith?provider=google&callback_url=${Uri.encodeComponent(redirectUri)}&platform=android");
       debugPrint("[AUTH] GET $url");
 
       final response = await http.get(
@@ -143,11 +124,8 @@ class AuthService {
         }
       });
 
-      final ok = await launchUrl(
-        Uri.parse(authUrl),
-        mode: LaunchMode.externalApplication,
-      );
-
+      final ok =
+          await launchUrl(Uri.parse(authUrl), mode: LaunchMode.externalApplication);
       if (!ok) {
         await sub.cancel();
         throw Exception("Cannot open browser");
@@ -163,7 +141,6 @@ class AuthService {
       }
 
       await _saveToken(tokenParam);
-
       return {
         "token": tokenParam,
         "provider": body["data"]["provider"] ?? "google",
@@ -175,12 +152,13 @@ class AuthService {
 
   Future<Map<String, dynamic>> fetchCurrentUser() async {
     try {
+      final baseUrl = await ConfigService.getBaseUrl();
       final token = await _storage.read(key: "jwt_token");
       if (token == null || token.isEmpty) {
         throw Exception("Missing token");
       }
 
-      final url = Uri.parse("$_authBase/auth/me");
+      final url = Uri.parse("$baseUrl/area_auth_api/auth/me");
       debugPrint("[AUTH] GET $url");
 
       final response = await http.get(
@@ -192,20 +170,16 @@ class AuthService {
       );
 
       final body = jsonDecode(response.body);
-
       if (response.statusCode == 200 &&
           body["success"] == true &&
           body["data"]?["user"] != null) {
         return Map<String, dynamic>.from(body["data"]["user"]);
       }
-
       throw Exception("Fetch user failed: ${response.body}");
     } catch (e) {
       throw Exception("Fetch user error: $e");
     }
   }
 
-  Future<void> logout() async {
-    await clearToken();
-  }
+  Future<void> logout() async => clearToken();
 }
