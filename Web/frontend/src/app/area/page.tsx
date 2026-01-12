@@ -9,10 +9,10 @@ import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { saveArea } from "@/lib/api/area";
+import { fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
 import {
   fetchServiceConfig,
-  fetchServices,
+  fetchServiceNames,
   fetchUserServiceStatuses,
   type ServiceActionConfig,
   type ServiceConfig,
@@ -71,6 +71,7 @@ type CreatedArea = {
   actionName: string;
   reactionName: string;
   gradient: AreaGradient;
+  active: boolean;
 };
 
 function formatServiceNameFromId(serviceId: string) {
@@ -145,14 +146,6 @@ function matchesAreaSearch(area: CreatedArea, normalizedTerm: string) {
   return haystack.includes(normalizedTerm);
 }
 
-function pickRandomGradient(): AreaGradient {
-  if (!gradientPalette.length) {
-    return { from: "#0b3c5d", to: "#e59500" };
-  }
-  const index = Math.floor(Math.random() * gradientPalette.length);
-  return gradientPalette[index];
-}
-
 function initializeFieldValues(fields: FieldDefinition[]): Record<string, string> {
   return fields.reduce<Record<string, string>>((acc, field) => {
     const defaultValue = field.default ?? "";
@@ -202,13 +195,117 @@ function buildInputFields(
   }));
 }
 
+type BackendAction = BackendArea["actions"][number];
+type BackendReaction = BackendArea["reactions"][number];
+
+function inputFieldsToRecord(
+  input?: Array<{ name: string; value: string }>,
+): Record<string, string> {
+  if (!input?.length) return {};
+  return input.reduce<Record<string, string>>((acc, field) => {
+    acc[field.name] = field.value;
+    return acc;
+  }, {});
+}
+
+function resolveServiceById(
+  services: AreaService[],
+  serviceId?: string,
+): AreaService | undefined {
+  if (!serviceId) return undefined;
+  return services.find((service) => service.id === serviceId);
+}
+
+function resolveServiceName(
+  services: AreaService[],
+  serviceId?: string,
+): string {
+  if (!serviceId) return "";
+  return (
+    resolveServiceById(services, serviceId)?.name ??
+    formatServiceNameFromId(serviceId) ??
+    serviceId
+  );
+}
+
+function resolveActionLabel(
+  action: BackendAction | undefined,
+  services: AreaService[],
+): string {
+  if (!action) return "Action";
+  const service = resolveServiceById(services, action.service);
+  const config = service?.actions.find((item) => item.title === action.title);
+  return config?.label ?? action.title ?? "Action";
+}
+
+function resolveReactionLabel(
+  reaction: BackendReaction | undefined,
+  services: AreaService[],
+): string {
+  if (!reaction) return "Réaction";
+  const service = resolveServiceById(services, reaction.service);
+  const config = service?.reactions.find((item) => item.title === reaction.title);
+  return config?.label ?? reaction.title ?? "Réaction";
+}
+
+function pickGradientForKey(key: string): AreaGradient {
+  if (!gradientPalette.length) {
+    return { from: "#0b3c5d", to: "#e59500" };
+  }
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % gradientPalette.length;
+  return gradientPalette[index] ?? gradientPalette[0] ?? { from: "#0b3c5d", to: "#e59500" };
+}
+
+function resolveGradient(
+  services: AreaService[],
+  key?: string,
+): AreaGradient {
+  const service = resolveServiceById(services, key);
+  if (service?.gradient) return service.gradient;
+  return pickGradientForKey(key ?? "");
+}
+
+function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea {
+  const action = area.actions?.[0];
+  const reaction = area.reactions?.[0];
+  const actionInputs = inputFieldsToRecord(action?.input);
+  const reactionInputs = inputFieldsToRecord(reaction?.input);
+  const actionServiceName = resolveServiceName(services, action?.service);
+  const reactionServiceName = resolveServiceName(services, reaction?.service);
+  const delayValue = Number.parseInt(actionInputs.delay ?? "0", 10);
+  const delay = Number.isFinite(delayValue) ? delayValue : 0;
+  const summary = (reactionInputs.summary ?? "").trim() || area.name;
+
+  return {
+    id: String(area.id),
+    name: area.name,
+    summary,
+    startTime: reactionInputs.start_time ?? "",
+    endTime: reactionInputs.end_time ?? "",
+    delay,
+    serviceName: actionServiceName || reactionServiceName || area.name,
+    actionService: actionServiceName,
+    reactionService: reactionServiceName,
+    actionName: resolveActionLabel(action, services),
+    reactionName: resolveReactionLabel(reaction, services),
+    gradient: resolveGradient(services, action?.service ?? reaction?.service ?? area.name),
+    active: area.active,
+  };
+}
+
 function AreaPageContent() {
   const { token, user } = useAuth();
   const searchParams = useSearchParams();
   const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
   const { status, error } = useOAuthCallback("/area", { enabled: hasOAuthParams });
   const isProcessingOAuth = hasOAuthParams && status !== "error";
-  const [areas, setAreas] = useState<CreatedArea[]>([]);
+  const [rawAreas, setRawAreas] = useState<BackendArea[]>([]);
+  const [areasError, setAreasError] = useState<string | null>(null);
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
   const [services, setServices] = useState<AreaService[]>([]);
   const [servicesError, setServicesError] = useState<string | null>(null);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
@@ -226,10 +323,14 @@ function AreaPageContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const normalizedSearch = normalizeSearchValue(searchTerm);
-  const filteredAreas = areas.filter((area) => matchesAreaSearch(area, normalizedSearch));
+  const displayAreas = useMemo(() => {
+    const sortedAreas = [...rawAreas].sort((a, b) => b.id - a.id);
+    return sortedAreas.map((area) => mapBackendArea(area, services));
+  }, [rawAreas, services]);
+  const filteredAreas = displayAreas.filter((area) => matchesAreaSearch(area, normalizedSearch));
   const hasSearch = Boolean(normalizedSearch);
-  const totalAreas = areas.length;
-  const activeCount = areas.length;
+  const totalAreas = displayAreas.length;
+  const activeCount = displayAreas.filter((area) => area.active).length;
   const hasConnectedServices = useMemo(
     () => services.some((service) => service.connected),
     [services],
@@ -315,10 +416,8 @@ function AreaPageContent() {
     setServicesError(null);
 
     try {
-      const serviceIds = await fetchServices();
-      const uniqueServiceIds = Array.from(
-        new Set([...serviceIds.filter(Boolean), "timer"]),
-      );
+      const serviceIds = await fetchServiceNames();
+      const uniqueServiceIds = Array.from(new Set(serviceIds.filter(Boolean)));
 
       const configResults = await Promise.allSettled(
         uniqueServiceIds.map((serviceId) => fetchServiceConfig(serviceId)),
@@ -352,9 +451,11 @@ function AreaPageContent() {
       }
 
       const mappedServices = availableServices.map((service) => {
-        const connectedStatus = statusByService[service.id];
-        const isInternalService = !service.provider || service.id === "timer";
-        const isConnected = isInternalService ? true : Boolean(connectedStatus);
+        const providerKey = service.provider;
+        const isInternalService = !providerKey;
+        const isConnected = isInternalService
+          ? true
+          : Boolean(statusByService[providerKey]);
 
         return {
           ...service,
@@ -376,6 +477,32 @@ function AreaPageContent() {
   useEffect(() => {
     void loadServices();
   }, [loadServices]);
+
+  const loadAreas = useCallback(async () => {
+    if (!token) {
+      setRawAreas([]);
+      setAreasError(null);
+      return;
+    }
+
+    setIsLoadingAreas(true);
+    setAreasError(null);
+
+    try {
+      const areas = await fetchAreas(token);
+      setRawAreas(areas);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Impossible de récupérer les areas.";
+      setAreasError(message);
+    } finally {
+      setIsLoadingAreas(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    void loadAreas();
+  }, [loadAreas]);
 
   useEffect(() => {
     setCreateError(null);
@@ -483,17 +610,6 @@ function AreaPageContent() {
     setCreateError(null);
 
     try {
-      const gradient = pickRandomGradient();
-      const actionName = selectedAction?.label ?? "Action sélectionnée";
-      const reactionName = selectedReaction?.label ?? "Réaction sélectionnée";
-      const delayValueRaw = Number(actionFieldValues["delay"] ?? 0);
-      const delayValue = Number.isFinite(delayValueRaw) ? delayValueRaw : 0;
-      const startTimeValue = reactionFieldValues["start_time"] ?? "";
-      const endTimeValue = reactionFieldValues["end_time"] ?? "";
-      const summaryValue =
-        reactionFieldValues["summary"]?.trim() || areaName.trim();
-      const descriptionValue = reactionFieldValues["description"] ?? "";
-
       const actionInputs = buildInputFields(selectedAction.fields, actionFieldValues);
       const reactionInputs = buildInputFields(selectedReaction.fields, reactionFieldValues);
 
@@ -519,22 +635,7 @@ function AreaPageContent() {
         ],
       });
 
-      const newArea: CreatedArea = {
-        id: `area-${Date.now()}`,
-        name: areaName.trim(),
-        summary: summaryValue,
-        startTime: startTimeValue,
-        endTime: endTimeValue,
-        delay: delayValue,
-        serviceName: actionService.name,
-        actionService: actionService.name,
-        reactionService: reactionService.name,
-        actionName,
-        reactionName,
-        gradient,
-      };
-
-      setAreas((prev) => [newArea, ...prev]);
+      await loadAreas();
       setIsCreateModalOpen(false);
       resetForm();
     } catch (err) {
@@ -1049,6 +1150,18 @@ function AreaPageContent() {
                 />
               </div>
 
+              {areasError ? (
+                <div className="rounded-xl border border-[var(--accent)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
+                  {areasError}
+                </div>
+              ) : null}
+
+              {isLoadingAreas ? (
+                <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+                  Chargement des areas...
+                </div>
+              ) : null}
+
               {filteredAreas.length ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredAreas.map((area) => {
@@ -1065,7 +1178,7 @@ function AreaPageContent() {
                         reactionIcon={<span>{reactionBadge}</span>}
                         gradientFrom={area.gradient.from}
                         gradientTo={area.gradient.to}
-                        isActive
+                        isActive={area.active}
                         onClick={() => setSelectedAreaDetail(area)}
                         className="h-full"
                       />

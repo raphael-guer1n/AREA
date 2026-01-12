@@ -94,19 +94,27 @@ export type UserServiceStatus = {
   is_logged: boolean;
 };
 
-export async function fetchServices(): Promise<string[]> {
-  const response = await fetch(
-    `${SERVICE_SERVICE_BASE_URL}/providers/services`,
-    { method: "GET", cache: "no-store" },
-  );
+async function fetchServiceList(path: string, fallbackError: string): Promise<string[]> {
+  const response = await fetch(`${SERVICE_SERVICE_BASE_URL}${path}`, {
+    method: "GET",
+    cache: "no-store",
+  });
 
   const body = (await response.json().catch(() => null)) as ServiceListResponse | null;
 
   if (!body?.success || !Array.isArray(body.data?.services)) {
-    throw new Error(body?.error ?? "Impossible de récupérer les services.");
+    throw new Error(body?.error ?? fallbackError);
   }
 
   return body.data.services;
+}
+
+export async function fetchServices(): Promise<string[]> {
+  return fetchServiceList("/providers/services", "Impossible de récupérer les services.");
+}
+
+export async function fetchServiceNames(): Promise<string[]> {
+  return fetchServiceList("/services/services", "Impossible de récupérer la liste des services.");
 }
 
 export async function fetchServiceConfig(serviceName: string): Promise<ServiceConfig> {

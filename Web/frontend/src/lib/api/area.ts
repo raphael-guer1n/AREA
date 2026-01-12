@@ -66,6 +66,21 @@ export type SaveAreaRequest = {
   reactions: AreaReactionPayload[];
 };
 
+export type BackendArea = {
+  id: number;
+  user_id?: number;
+  name: string;
+  active: boolean;
+  actions: AreaActionPayload[];
+  reactions: AreaReactionPayload[];
+};
+
+type GetAreasResponse = {
+  success?: boolean;
+  data?: BackendArea[];
+  error?: string;
+};
+
 function toIsoString(value: string): string {
   // Ensure the backend receives RFC3339 (with timezone) for time.Time decoding.
   const date = new Date(value);
@@ -130,4 +145,22 @@ export async function saveArea(
       `Impossible de créer l'area (statut ${response.status}).`;
     throw new Error(errorMessage);
   }
+}
+
+export async function fetchAreas(token: string): Promise<BackendArea[]> {
+  const response = await fetch(`${AREA_SERVICE_BASE_URL}/getAreas`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  const body = (await response.json().catch(() => null)) as GetAreasResponse | null;
+
+  if (!response.ok || !body?.success || !Array.isArray(body.data)) {
+    throw new Error(body?.error ?? "Impossible de récupérer les areas.");
+  }
+
+  return body.data;
 }
