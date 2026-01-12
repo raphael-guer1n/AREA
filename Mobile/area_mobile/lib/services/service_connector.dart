@@ -1,89 +1,100 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/service_model.dart';
+import "dart:convert";
+
+import "package:flutter_dotenv/flutter_dotenv.dart";
+import "package:flutter_secure_storage/flutter_secure_storage.dart";
+import "package:http/http.dart" as http;
+
+import "../models/service_model.dart";
 
 class ServiceConnector {
   final String baseUrl;
   final _storage = const FlutterSecureStorage();
 
+  final String authPrefix =
+      dotenv.env["AUTH_SERVICE_PREFIX"] ?? "area_auth_api";
+
   ServiceConnector({required this.baseUrl});
+
+  String get _authBase => "$baseUrl/$authPrefix";
 
   Future<List<ServiceModel>> fetchServices(int userId) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
+      final token = await _storage.read(key: "jwt_token");
       if (token == null || token.isEmpty) {
-        throw Exception('JWT token missing — please log in again.');
+        throw Exception("JWT token missing — please log in again.");
       }
 
-      final url = Uri.parse('$baseUrl/auth-service/oauth2/providers/$userId');
+      final url = Uri.parse("$_authBase/oauth2/providers/$userId");
       final response = await http.get(
         url,
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {"Authorization": "Bearer $token"},
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true && data['data'] != null) {
-          final providers = data['data']['providers'] as List;
+        if (data["success"] == true && data["data"] != null) {
+          final providers = data["data"]["providers"] as List;
           return providers.map((p) => ServiceModel.fromJson(p)).toList();
         }
       }
-      throw Exception('Failed to load services');
+
+      throw Exception("Failed to load services (${response.statusCode})");
     } catch (e) {
-      throw Exception('Error fetching services: $e');
+      throw Exception("Error fetching services: $e");
     }
   }
 
   Future<String> getAuthUrl(String serviceName, int userId) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
+      final token = await _storage.read(key: "jwt_token");
       if (token == null || token.isEmpty) {
-        throw Exception('JWT token missing — please log in first.');
+        throw Exception("JWT token missing — please log in first.");
       }
 
       const redirectUri =
-          'https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback';
+          "https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback";
       final encodedRedirect = Uri.encodeComponent(redirectUri);
 
       final uri = Uri.parse(
-        '$baseUrl/auth-service/oauth2/authorize?provider=$serviceName&user_id=$userId'
-        '&callback_url=$encodedRedirect&platform=android',
+        "$_authBase/oauth2/authorize"
+        "?provider=$serviceName&user_id=$userId"
+        "&callback_url=$encodedRedirect&platform=android",
       );
-
-      print('[CONNECT SERVICE]');
-      print('Request URL: $uri');
 
       final response = await http.get(
         uri,
         headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
         },
       );
 
       if (response.statusCode != 200) {
         throw Exception(
-            'Failed to get auth URL (${response.statusCode}): ${response.body}');
+          "Failed to get auth URL (${response.statusCode}): ${response.body}",
+        );
       }
 
       final data = jsonDecode(response.body);
-      if (data['success'] != true || data['data'] == null) {
-        throw Exception(data['error'] ?? 'Invalid backend response');
+      if (data["success"] != true || data["data"] == null) {
+        throw Exception(data["error"] ?? "Invalid backend response");
       }
 
-      String authUrl = data['data']['auth_url']
-          .replaceAll('\\u0026', '&')
-          .replaceAll('\u0026', '&');
+      String authUrl = (data["data"]["auth_url"] as String)
+          .replaceAll("\\u0026", "&")
+          .replaceAll("\u0026", "&");
 
       return authUrl;
     } catch (e) {
-      throw Exception('Error getting auth URL: $e');
+      throw Exception("Error getting auth URL: $e");
     }
   }
 
   Future<void> disconnectService(
-      String serviceName, int userId, String token) async {
-    throw UnimplementedError('Disconnect endpoint not implemented yet.');
+    String serviceName,
+    int userId,
+    String token,
+  ) async {
+    throw UnimplementedError("Disconnect endpoint not implemented yet.");
   }
 }

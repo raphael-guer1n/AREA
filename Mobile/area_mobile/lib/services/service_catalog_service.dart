@@ -7,7 +7,7 @@ class ServiceCatalogService {
   ServiceCatalogService({required this.baseUrl});
 
   Future<List<String>> fetchServices() async {
-    final url = Uri.parse('$baseUrl/service-service/providers/services');
+    final url = Uri.parse('$baseUrl/area_service_api/providers/services');
     try {
       final response = await http.get(url);
       final body = jsonDecode(response.body);
