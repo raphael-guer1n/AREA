@@ -14,8 +14,7 @@ class AreaService {
     if (token == null || token.isEmpty) {
       throw Exception('Missing JWT token');
     }
-
-    final url = Uri.parse('$baseUrl/area-service/createEvent');
+    final url = Uri.parse('$baseUrl/area_area_api/createEvent');
     final response = await http.post(
       url,
       headers: {
