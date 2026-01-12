@@ -2,9 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
+import '../../services/config_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final TextEditingController _ipController = TextEditingController();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServerIp();
+  }
+
+  Future<void> _loadServerIp() async {
+    final ip = await ConfigService.getServerIp();
+    if (mounted) {
+      setState(() => _ipController.text = ip ?? '');
+    }
+  }
+
+  Future<void> _saveServerIp() async {
+    setState(() => _isSaving = true);
+    await ConfigService.setServerIp(_ipController.text);
+    setState(() => _isSaving = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Server IP sauvegardée avec succès'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _ipController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +63,7 @@ class ProfileScreen extends StatelessWidget {
         foregroundColor: AppColors.almostBlack,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,17 +88,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
+              // --- User information
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Informations',
-                        style: theme.textTheme.titleMedium,
-                      ),
+                      Text('Informations', style: theme.textTheme.titleMedium),
                       const SizedBox(height: 16),
                       _InfoRow(
                         icon: Icons.person_outline,
@@ -79,8 +119,54 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 16),
 
+              // --- Server configuration
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Configuration serveur',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _ipController,
+                        decoration: const InputDecoration(
+                          labelText: 'Adresse du serveur (IP)',
+                          prefixIcon: Icon(Icons.cloud_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 45,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _saveServerIp,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.save),
+                          label: const Text('Sauvegarder'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // --- Logout button
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -109,8 +195,9 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
+              // --- Version display
               Center(
                 child: Text(
                   'Version 1.0.0',
@@ -119,6 +206,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -168,11 +256,7 @@ class _InfoRow extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(
-          icon,
-          color: AppColors.deepBlue,
-          size: 24,
-        ),
+        Icon(icon, color: AppColors.deepBlue, size: 24),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -180,16 +264,14 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.darkGrey,
-                ),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppColors.darkGrey),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(fontWeight: FontWeight.w500),
               ),
             ],
           ),

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../theme/colors.dart';
+import "package:flutter/material.dart";
+import "package:font_awesome_flutter/font_awesome_flutter.dart";
+import "package:provider/provider.dart";
+import "../../providers/auth_provider.dart";
+import "../../theme/colors.dart";
+import "../../services/config_service.dart";
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,44 +16,61 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _serverIpController = TextEditingController(); // ✅ Re-added controller
   bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServerIp();
+  }
+
+  Future<void> _loadServerIp() async {
+    final ip = await ConfigService.getServerIp();
+    if (mounted) {
+      setState(() {
+        _serverIpController.text = ip ?? '';
+      });
+    }
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _serverIpController.dispose(); // ✅ Properly disposed
     super.dispose();
   }
 
   Future<void> _loginWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
+    await ConfigService.setServerIp(_serverIpController.text);
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.loginWithEmail(
       _emailController.text.trim(),
       _passwordController.text,
     );
-
     if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/main');
+      Navigator.of(context).pushReplacementNamed("/main");
     }
   }
 
   Future<void> _loginWithGoogle() async {
+    await ConfigService.setServerIp(_serverIpController.text);
+
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.loginWithGoogleForLogin();
 
     if (success && mounted) {
       Navigator.of(context).pushReplacementNamed('/main');
-    } else {
-      if (mounted && authProvider.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${authProvider.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    } else if (mounted && authProvider.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: ${authProvider.error}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -96,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       _SocialLoginButton(
                         icon: FontAwesomeIcons.google,
-                        label: 'Continuer avec Google',
+                        label: "Continuer avec Google",
                         onPressed: isLoading ? null : _loginWithGoogle,
                       ),
                       const SizedBox(height: 24),
@@ -107,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 8),
                             child: Text(
-                              'OU',
+                              "OU",
                               style: TextStyle(
                                 color: AppColors.darkGrey,
                                 fontSize: 12,
@@ -126,15 +144,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           labelText: 'EMAIL OU NOM D\'UTILISATEUR',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Entrez un identifiant' : null,
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Entrez un identifiant'
+                            : null,
                       ),
                       const SizedBox(height: 16),
 
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           labelText: 'MOT DE PASSE',
                           prefixIcon: const Icon(Icons.lock_outline),
@@ -149,23 +168,39 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Entrez votre mot de passe' : null,
+                        validator: (v) => v == null || v.isEmpty
+                            ? 'Entrez votre mot de passe'
+                            : null,
                         onFieldSubmitted: (_) => _loginWithEmail(),
                       ),
-                      const SizedBox(height: 32),
 
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                        controller: _serverIpController,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          labelText: 'Server IP (ex: 192.168.1.10)',
+                          prefixIcon: Icon(Icons.cloud_outlined),
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
                           onPressed: isLoading ? null : _loginWithEmail,
                           child: isLoading
-                              ? const CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
-                              : const Text('Se connecter'),
+                              : const Text("Se connecter"),
                         ),
                       ),
                     ],

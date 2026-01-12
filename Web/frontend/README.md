@@ -39,13 +39,13 @@ public/               # Static assets
 ## Configuration (gateway alignment)
 Create `Web/frontend/.env.local`:
 ```bash
-API_BASE_URL=http://localhost:8080/auth-service
+API_BASE_URL=http://localhost:8080/area_auth_api
 NEXT_PUBLIC_API_BASE_URL=$API_BASE_URL
 
-AREA_API_BASE_URL=http://localhost:8080/area-service
+AREA_API_BASE_URL=http://localhost:8080/area_area_api
 NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
 
-SERVICES_API_BASE_URL=http://localhost:8080/service-service
+SERVICES_API_BASE_URL=http://localhost:8080/area_service_api
 NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
 
 NEXT_PUBLIC_SITE_URL=http://localhost:3000

@@ -1,10 +1,8 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../services/auth_service.dart';
+import "package:flutter/foundation.dart";
+import "../services/auth_service.dart";
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  final _storage = const FlutterSecureStorage();
 
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -28,18 +26,19 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final savedToken = await _authService.getToken();
-      if (savedToken != null) {
+      if (savedToken != null && savedToken.isNotEmpty) {
         _token = savedToken;
+
         try {
           final fetchedUser = await _authService.fetchCurrentUser();
           _user = fetchedUser;
           _isAuthenticated = true;
         } catch (e) {
-          debugPrint('Failed to fetch current user: $e');
+          debugPrint("Failed to fetch current user: $e");
         }
       }
     } catch (e) {
-      debugPrint('Error checking auth status: $e');
+      debugPrint("Error checking auth status: $e");
     }
 
     _isLoading = false;
@@ -53,14 +52,15 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final result = await _authService.loginWithEmail(email, password);
-      _token = result['token'];
-      _user = result['user'];
+      _token = result["token"] as String?;
+      _user = result["user"] as Map<String, dynamic>?;
       _isAuthenticated = true;
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = e.toString().replaceAll("Exception: ", "");
       _isLoading = false;
       notifyListeners();
       return false;
@@ -77,16 +77,20 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result =
-          await _authService.register(name: name, email: email, password: password);
-      _token = result['token'];
-      _user = result['user'];
+      final result = await _authService.register(
+        name: name,
+        email: email,
+        password: password,
+      );
+      _token = result["token"] as String?;
+      _user = result["user"] as Map<String, dynamic>?;
       _isAuthenticated = true;
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = e.toString().replaceAll("Exception: ", "");
       _isLoading = false;
       notifyListeners();
       return false;
@@ -110,7 +114,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = e.toString().replaceAll("Exception: ", "");
       _isLoading = false;
       notifyListeners();
       return false;
