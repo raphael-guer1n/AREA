@@ -1,49 +1,49 @@
-# Documentation des composants (Web/frontend)
+# Component Reference (Web/frontend)
 
-Principes : composants présentés ci-dessous sont écrits en TypeScript/React et stylés avec Tailwind 4 + variables CSS (`globals.css`). Utiliser le helper `cn` (`@/lib/helpers`) pour combiner des classes, et garder les appels réseau hors des composants UI (passer des callbacks/props).
+Principles: components are written in TypeScript/React and styled with Tailwind 4 + CSS variables (`globals.css`). Use the `cn` helper (`@/lib/helpers`) to combine classes, and keep network calls out of UI components (pass callbacks/props).
 
-## Navigation & layout
-- `AreaNavigation` (`src/components/navigation/AreaNavigation.tsx`)  
-  Barre d’onglets (Services / Area / Profil) qui surligne l’onglet actif via `usePathname`. Props : aucune.
-- `Card` (`src/components/ui/AreaCard.tsx`)  
-  Conteneur générique avec `title?`, `subtitle?`, `action?`, `tone?: "surface" | "background"`, `className?`. Sert de wrapper pour les sections principales.
-- `Card` (`src/components/ui/ServiceCard.tsx`)  
-  Variante identique pour les cartes de services ; même API de props que ci-dessus.
+## Navigation and layout
+- `AreaNavigation` (`src/components/navigation/AreaNavigation.tsx`)
+  Bottom tab navigation (Services / Area / Profile). Highlights the active route via `usePathname`.
+- `Card` (`src/components/ui/AreaCard.tsx`)
+  Generic container with `title?`, `subtitle?`, `action?`, `tone?: "surface" | "background"`, `className?`.
+- `Card` (`src/components/ui/ServiceCard.tsx`)
+  Generic container with `title?`, `subtitle?`, `action?`, `className?`.
 
-## Cartes métier
-- `AreaCard` (`src/components/area/AreaCard.tsx`)  
-  Carte gradient pour une AREA. Props : `id`, `name`, `actionLabel`, `reactionLabel`, `actionIcon`, `reactionIcon`, `isActive?`, `gradientFrom?`, `gradientTo?`, `lastRun?`, `href?`, `onClick?`, `className?`. Si `onClick` est fourni, la carte rend un bouton ; sinon un lien vers `href` ou `/area/{id}`.
-- `ServiceCard` (`src/components/service/ServiceCard.tsx`)  
-  Carte interactive (modale de détails + confirm connect/disconnect). Props : `name`, `url`, `badge`, `category?`, `gradientFrom?`, `gradientTo?`, `action?` (label “À connecter” par défaut), `actions?: string[]`, `reactions?: string[]`, `connected?: boolean`, `className?`, `onConnect?`, `onDisconnect?`. Gère l’état local `isConnected` et affiche deux modales intégrées (détails + confirmation).
-- `LoginWithGoogle` (`src/components/LoginWithGoogle.tsx`)  
-  Bouton OAuth rapide. Props : `label?` et `className?`. Utilise `useAuth.startOAuthLogin("google")`.
+## Domain cards
+- `AreaCard` (`src/components/area/AreaCard.tsx`)
+  Gradient card for an AREA. Props: `id`, `name`, `actionLabel`, `reactionLabel`, `actionIcon`, `reactionIcon`, `isActive?`, `gradientFrom?`, `gradientTo?`, `lastRun?`, `href?`, `onClick?`, `className?`.
+- `ServiceCard` (`src/components/service/ServiceCard.tsx`)
+  Interactive card with detail and confirmation modals. Props: `name`, `url`, `badge`, `category?`, `gradientFrom?`, `gradientTo?`, `action?`, `actions?: string[]`, `reactions?: string[]`, `connected?: boolean`, `className?`, `onConnect?`, `onDisconnect?`.
 
-## Auth & formulaires
-- `LoginForm` (`src/components/forms/LoginForm.tsx`)  
-  Formulaire email/mdp avec validation Zod, déclenche `useAuth.login` puis redirige vers `/area`. Inclut bouton Google via `startOAuthLogin`.
-- `RegisterForm` (`src/components/forms/RegisterForm.tsx`)  
-  Formulaire d’inscription minimal (email, username, password) qui appelle `useAuth.register`, puis redirige sur succès.
+## Auth and forms
+- `LoginWithGoogle` (`src/components/LoginWithGoogle.tsx`)
+  OAuth shortcut button using `useAuth.startOAuthLogin("google")`.
+- `LoginForm` (`src/components/forms/LoginForm.tsx`)
+  Email/username + password form with Zod validation.
+- `RegisterForm` (`src/components/forms/RegisterForm.tsx`)
+  Minimal signup form that calls `useAuth.register`.
 
-## Primitives UI
-- `Button` (`src/components/ui/Button.tsx`)  
-  Variantes `primary | secondary | ghost`. Accepte toutes les props HTML de bouton + `className`.
-- `ColorblindToggle` (`src/components/ui/ColorblindToggle.tsx`)  
-  Bascule tritanopie. Persiste l’état en `localStorage` et positionne `data-vision="tritanopia"` sur `<html>`.
+## UI primitives
+- `Button` (`src/components/ui/Button.tsx`)
+  Variants: `primary | secondary | ghost`.
+- `ColorblindToggle` (`src/components/ui/ColorblindToggle.tsx`)
+  Toggles tritanopia mode and persists `data-vision="tritanopia"` in `localStorage`.
 
-## Hooks support utilisés par les composants
-- `useAuth` (`src/hooks/useAuth.ts`) : machine à états client pour auth, login/register, OAuth connect/login, gestion token (HTTP-only cookie via `/api/session`).
-- `useOAuthCallback` (`src/hooks/useOAuthCallback.ts`) : traite le retour `code/state` OAuth2, persiste le token via `/api/session`, puis redirige.
+## Supporting hooks
+- `useAuth` (`src/hooks/useAuth.ts`) manages auth, OAuth connect/login, and session cookies via `/api/session`.
+- `useOAuthCallback` (`src/hooks/useOAuthCallback.ts`) handles OAuth callback flows and stores the session token.
 
-## Exemples rapides
+## Quick examples
 ```tsx
 import { AreaCard } from "@/components/area/AreaCard";
 import { ServiceCard } from "@/components/service/ServiceCard";
 
 <AreaCard
   id="demo-1"
-  name="Poster un message après un événement"
-  actionLabel="Nouveau ticket"
-  reactionLabel="Post Slack"
+  name="Post a message after an event"
+  actionLabel="New ticket"
+  reactionLabel="Post to Slack"
   actionIcon={<span>TI</span>}
   reactionIcon={<span>SL</span>}
   isActive
@@ -55,9 +55,9 @@ import { ServiceCard } from "@/components/service/ServiceCard";
   url="https://slack.com"
   badge="SL"
   category="Messaging"
-  actions={["Nouveau message", "Nouveau membre"]}
-  reactions={["Poster un message"]}
-  connected={true}
+  actions={["New message", "New member"]}
+  reactions={["Post a message"]}
+  connected
   onDisconnect={() => console.log("disconnect")}
 />
 ```
