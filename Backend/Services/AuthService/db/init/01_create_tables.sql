@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS user_service_profiles (
                                        refresh_token   TEXT,
                                        expires_at      TIMESTAMPTZ,
                                        raw_profile     JSONB,
+                                       needs_reconnect BOOLEAN NOT NULL DEFAULT FALSE,
+                                       last_refresh_error TEXT,
+                                       last_refresh_at TIMESTAMPTZ,
                                        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -34,6 +37,9 @@ CREATE INDEX IF NOT EXISTS idx_user_service_profiles_user_id
 
 CREATE INDEX IF NOT EXISTS idx_user_service_profiles_user_service
     ON user_service_profiles(user_id, service);
+
+CREATE INDEX IF NOT EXISTS idx_user_service_profiles_expires_at
+    ON user_service_profiles(expires_at);
 
 CREATE TABLE IF NOT EXISTS user_service_fields (
                                                    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

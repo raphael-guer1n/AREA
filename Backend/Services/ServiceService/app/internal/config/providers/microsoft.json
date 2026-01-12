@@ -13,7 +13,10 @@
       "offline_access",
       "User.Read"
     ],
-    "user_info_url": "https://graph.microsoft.com/v1.0/me"
+    "user_info_url": "https://graph.microsoft.com/v1.0/me",
+    "refresh": {
+      "enabled": true
+    }
   },
   "mappings": [
     {

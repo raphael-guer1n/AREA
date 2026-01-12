@@ -6,6 +6,10 @@
     "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
     "token_url": "https://oauth2.googleapis.com/token",
     "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "auth_params": {
+      "access_type": "offline",
+      "prompt": "consent"
+    },
     "scopes": [
       "openid",
       "email",
@@ -14,7 +18,10 @@
       "https://www.googleapis.com/auth/calendar",
       "https://www.googleapis.com/auth/youtube.readonly"
     ],
-    "user_info_url": "https://www.googleapis.com/oauth2/v2/userinfo"
+    "user_info_url": "https://www.googleapis.com/oauth2/v2/userinfo",
+    "refresh": {
+      "enabled": true
+    }
   },
   "mappings": [
     {

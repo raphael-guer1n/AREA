@@ -587,11 +587,17 @@ paths:
                               type: boolean
                               example: true
                               description: Whether the user has authenticated with this provider
+                            need_reconnecting:
+                              type: boolean
+                              example: false
+                              description: Whether the user must reconnect to refresh an expired token
                         example:
                           - provider: google
                             is_logged: true
+                            need_reconnecting: false
                           - provider: discord
                             is_logged: false
+                            need_reconnecting: true
         '400':
           description: Bad request - Invalid user_id
           content:
@@ -900,6 +906,19 @@ components:
           format: date-time
           example: '2025-01-15T10:30:00Z'
           description: Token expiration timestamp
+        needs_reconnect:
+          type: boolean
+          example: false
+          description: Whether the token refresh failed and the user must reconnect
+        last_refresh_error:
+          type: string
+          example: invalid_grant
+          description: Last refresh error returned by the provider
+        last_refresh_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:25:00Z'
+          description: Last refresh attempt timestamp
         raw_profile:
           type: object
           description: Raw profile payload returned by the provider

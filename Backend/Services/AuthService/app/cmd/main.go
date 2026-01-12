@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/config"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/db"
@@ -28,6 +30,14 @@ func main() {
 	// Initialize OAuth2 manager with service-service URL (lazy loading)
 	oauth2Manager := oauth2.NewManager(cfg.ServiceServiceURL, cfg.InternalSecret)
 	log.Printf("OAuth2 manager initialized (providers will be loaded on-demand from service-service)")
+
+	refreshWorker := service.NewOAuth2RefreshWorker(
+		userProfileRepo,
+		oauth2Manager,
+		time.Duration(cfg.OAuth2RefreshIntervalSeconds)*time.Second,
+		time.Duration(cfg.OAuth2RefreshLeewayMinutes)*time.Minute,
+	)
+	go refreshWorker.Start(context.Background())
 
 	// Build handlers
 	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager, authSvc)
