@@ -235,7 +235,14 @@ func (s *OAuth2StorageService) extractFields(profileId int, userInfo map[string]
 func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]interface{}, error) {
 	// Fetch all available providers from ServiceService API
 	url := fmt.Sprintf("%s/providers/services", s.serviceServiceURL)
-	resp, err := s.httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create providers request: %w", err)
+	}
+	if strings.TrimSpace(s.internalSecret) != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
+	}
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch providers from ServiceService: %w", err)
 	}
@@ -261,24 +268,29 @@ func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]i
 		return nil, fmt.Errorf("ServiceService error: %s", apiResp.Error)
 	}
 
-	// Get user's logged services
-	loggedServices, err := s.profileRepo.GetServicesByUserId(userId)
+	// Get user's logged services with reconnect status
+	loggedServices, err := s.profileRepo.GetServicesStatusByUserId(userId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user services: %w", err)
 	}
 
 	// Create a map for a quick lookup
 	loggedServicesMap := make(map[string]bool)
+	reconnectMap := make(map[string]bool)
 	for _, service := range loggedServices {
-		loggedServicesMap[service] = true
+		loggedServicesMap[service.Service] = true
+		reconnectMap[service.Service] = service.NeedsReconnect
 	}
 
 	// Build response
 	result := make([]map[string]interface{}, 0, len(apiResp.Data.Services))
 	for _, serviceName := range apiResp.Data.Services {
+		needsReconnect := reconnectMap[serviceName]
+		isLogged := loggedServicesMap[serviceName] && !needsReconnect
 		result = append(result, map[string]interface{}{
-			"provider":  serviceName,
-			"is_logged": loggedServicesMap[serviceName],
+			"provider":          serviceName,
+			"is_logged":         isLogged,
+			"need_reconnecting": needsReconnect,
 		})
 	}
 
