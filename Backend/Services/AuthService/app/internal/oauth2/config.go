@@ -12,14 +12,25 @@ import (
 
 // ProviderConfig defines configuration for a single OAuth2 provider
 type ProviderConfig struct {
-	Name         string   `json:"name"`
-	ClientID     string   `json:"client_id"`
-	ClientSecret string   `json:"client_secret"`
-	AuthURL      string   `json:"auth_url"`
-	TokenURL     string   `json:"token_url"`
-	RedirectURI  string   `json:"redirect_uri"`
-	Scopes       []string `json:"scopes"`
-	UserInfoURL  string   `json:"user_info_url"`
+	Name         string            `json:"name"`
+	ClientID     string            `json:"client_id"`
+	ClientSecret string            `json:"client_secret"`
+	AuthURL      string            `json:"auth_url"`
+	TokenURL     string            `json:"token_url"`
+	RedirectURI  string            `json:"redirect_uri"`
+	Scopes       []string          `json:"scopes"`
+	UserInfoURL  string            `json:"user_info_url"`
+	AuthParams   map[string]string `json:"auth_params,omitempty"`
+	Refresh      *RefreshConfig    `json:"refresh,omitempty"`
+}
+
+type RefreshConfig struct {
+	Enabled     bool              `json:"enabled"`
+	TokenURL    string            `json:"token_url,omitempty"`
+	Auth        string            `json:"auth,omitempty"`
+	ContentType string            `json:"content_type,omitempty"`
+	Params      map[string]string `json:"params,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
 }
 
 // ConfigLoader manages to load OAuth2 configurations from service-service API
@@ -86,13 +97,15 @@ func (l *ConfigLoader) GetProvider(name string) (*ProviderConfig, error) {
 	var apiResp struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ClientID     string   `json:"client_id"`
-			ClientSecret string   `json:"client_secret"`
-			AuthURL      string   `json:"auth_url"`
-			TokenURL     string   `json:"token_url"`
-			RedirectURI  string   `json:"redirect_uri"`
-			Scopes       []string `json:"scopes"`
-			UserInfoURL  string   `json:"user_info_url"`
+			ClientID     string            `json:"client_id"`
+			ClientSecret string            `json:"client_secret"`
+			AuthURL      string            `json:"auth_url"`
+			TokenURL     string            `json:"token_url"`
+			RedirectURI  string            `json:"redirect_uri"`
+			Scopes       []string          `json:"scopes"`
+			UserInfoURL  string            `json:"user_info_url"`
+			AuthParams   map[string]string `json:"auth_params,omitempty"`
+			Refresh      *RefreshConfig    `json:"refresh,omitempty"`
 		} `json:"data"`
 		Error string `json:"error,omitempty"`
 	}
@@ -115,6 +128,8 @@ func (l *ConfigLoader) GetProvider(name string) (*ProviderConfig, error) {
 		RedirectURI:  apiResp.Data.RedirectURI,
 		Scopes:       apiResp.Data.Scopes,
 		UserInfoURL:  apiResp.Data.UserInfoURL,
+		AuthParams:   apiResp.Data.AuthParams,
+		Refresh:      apiResp.Data.Refresh,
 	}
 
 	// Cache it
