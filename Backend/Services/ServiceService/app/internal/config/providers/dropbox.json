@@ -6,11 +6,17 @@
     "auth_url": "https://www.dropbox.com/oauth2/authorize",
     "token_url": "https://api.dropboxapi.com/oauth2/token",
     "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "auth_params": {
+      "token_access_type": "offline"
+    },
     "scopes": [
       "account_info.read",
       "files.metadata.read"
     ],
-    "user_info_url": "https://api.dropboxapi.com/2/users/get_current_account"
+    "user_info_url": "https://api.dropboxapi.com/2/users/get_current_account",
+    "refresh": {
+      "enabled": true
+    }
   },
   "mappings": [
     {
