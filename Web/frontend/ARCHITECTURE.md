@@ -29,7 +29,7 @@ This frontend keeps UI, client business logic, and network access in separate la
 - `api/auth`: small in-memory demo endpoint (not used for real auth in production).
 
 ## Configuration surface
-- Auth base URL: `API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` (defaults to `.../auth-service`).
+- Auth base URL: `API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` (defaults to `.../area_auth_api`).
 - Area service: `AREA_API_BASE_URL` / `NEXT_PUBLIC_AREA_API_BASE_URL`.
 - Services service: `SERVICES_API_BASE_URL` / `NEXT_PUBLIC_SERVICES_API_BASE_URL`.
 - OAuth/site URLs: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_OAUTH_CALLBACK_BASE`, `COOKIE_SECURE` flags.
