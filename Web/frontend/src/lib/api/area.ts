@@ -4,18 +4,27 @@
  */
 import { BACKEND_BASE_URL as AUTH_BASE } from "./auth";
 
-const DEFAULT_AREA_BASE = "http://localhost:8085/area-service";
+const DEFAULT_AREA_BASE = "http://localhost:8080/area_area_api";
 
 function normalizeAreaBase(): string {
   const raw =
     process.env.AREA_API_BASE_URL ??
     process.env.NEXT_PUBLIC_AREA_API_BASE_URL ??
-    AUTH_BASE.replace(/\/auth-service$/, "/area-service") ??
+    AUTH_BASE ??
     DEFAULT_AREA_BASE;
 
   const trimmed = raw.replace(/\/+$/, "");
-  if (/\/area-service$/.test(trimmed)) return trimmed;
-  return `${trimmed}/area-service`;
+  if (trimmed.endsWith("/area_area_api")) return trimmed;
+  if (trimmed.endsWith("/area_auth_api")) {
+    return `${trimmed.slice(0, -"/area_auth_api".length)}/area_area_api`;
+  }
+  if (trimmed.endsWith("/area-service")) {
+    return `${trimmed.slice(0, -"/area-service".length)}/area_area_api`;
+  }
+  if (trimmed.endsWith("/auth-service")) {
+    return `${trimmed.slice(0, -"/auth-service".length)}/area_area_api`;
+  }
+  return `${trimmed}/area_area_api`;
 }
 
 export const AREA_SERVICE_BASE_URL = normalizeAreaBase();
@@ -28,6 +37,33 @@ export type CreateEventRequest = {
     summary: string;
     description: string;
   };
+};
+
+export type AreaInputField = {
+  name: string;
+  value: string;
+};
+
+export type AreaActionPayload = {
+  service: string;
+  provider: string;
+  title: string;
+  type: string;
+  input: AreaInputField[];
+};
+
+export type AreaReactionPayload = {
+  service: string;
+  provider: string;
+  title: string;
+  input: AreaInputField[];
+};
+
+export type SaveAreaRequest = {
+  name: string;
+  active: boolean;
+  actions: AreaActionPayload[];
+  reactions: AreaReactionPayload[];
 };
 
 function toIsoString(value: string): string {
@@ -59,6 +95,30 @@ export async function createEventArea(
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    const errorMessage =
+      body?.error ??
+      `Impossible de créer l'area (statut ${response.status}).`;
+    throw new Error(errorMessage);
+  }
+}
+
+export async function saveArea(
+  token: string,
+  payload: SaveAreaRequest,
+): Promise<void> {
+  const response = await fetch(`${AREA_SERVICE_BASE_URL}/saveArea`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {

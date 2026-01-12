@@ -7,24 +7,23 @@ services:
       dockerfile: Dockerfile
     container_name: area_${SERVICE_NAME:-service}_api
     ports:
-      - "${SERVER_PORT:-8085}:${SERVER_PORT:-8085}"
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
-      DB_HOST: db
-      DB_PORT: ${DB_INTERNAL_PORT:-5432}
+      DB_HOST: area_${SERVICE_NAME:-service}_db
+      DB_PORT: 5432
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-webhook_service_db}
-      SERVER_PORT: ${SERVER_PORT:-8085}
-      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
-      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
+      DB_NAME: ${DB_NAME:-microservice_db}
+      SERVER_PORT: ${SERVER_PORT:-8080}
       AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/area_auth_api}
+      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
       AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://gateway:8080/area_webhook_api}
-    networks:
-      - area_network
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - area_network
     restart: unless-stopped
   db:
     image: postgres:16-alpine
@@ -32,7 +31,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-webhook_service_db}
+      POSTGRES_DB: ${DB_NAME:-microservice_db}
     ports:
       - "${DB_EXTERNAL_PORT:-5432}:5432"
     volumes:

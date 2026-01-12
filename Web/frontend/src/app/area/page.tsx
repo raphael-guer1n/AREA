@@ -9,20 +9,54 @@ import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { createEventArea } from "@/lib/api/area";
-import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
-
+import { saveArea } from "@/lib/api/area";
 import {
-  gradients as gradientPalette,
-  mockServices,
-  type ActionDefinition,
-  type FieldDefinition,
-  type MockService,
-  type ReactionDefinition,
-} from "../services/mockServices";
+  fetchServiceConfig,
+  fetchServices,
+  fetchUserServiceStatuses,
+  type ServiceActionConfig,
+  type ServiceConfig,
+  type ServiceFieldConfig,
+  type ServiceReactionConfig,
+} from "@/lib/api/services";
 
-type AreaService = MockService;
+type FieldDefinition = ServiceFieldConfig;
+type ActionDefinition = {
+  id: string;
+  title: string;
+  label: string;
+  type: string;
+  fields: FieldDefinition[];
+  output_fields?: FieldDefinition[];
+};
+type ReactionDefinition = {
+  id: string;
+  title: string;
+  label: string;
+  url?: string;
+  method?: string;
+  fields: FieldDefinition[];
+};
+
 type AreaGradient = { from: string; to: string };
+type AreaService = {
+  id: string;
+  name: string;
+  provider: string;
+  badge: string;
+  gradient: AreaGradient;
+  actions: ActionDefinition[];
+  reactions: ReactionDefinition[];
+  connected: boolean;
+};
+
+const gradientPalette: AreaGradient[] = [
+  { from: "#002642", to: "#0b3c5d" },
+  { from: "#840032", to: "#a33a60" },
+  { from: "#e59500", to: "#f2b344" },
+  { from: "#5B834D", to: "#68915a" },
+  { from: "#02040f", to: "#1b2640" },
+];
 
 type CreatedArea = {
   id: string;
@@ -38,6 +72,70 @@ type CreatedArea = {
   reactionName: string;
   gradient: AreaGradient;
 };
+
+function formatServiceNameFromId(serviceId: string) {
+  return serviceId
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function buildBadge(name: string) {
+  const parts = name.split(" ").filter(Boolean);
+  const letters =
+    parts.length >= 2
+      ? `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`
+      : name.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+function mapActionConfig(action: ServiceActionConfig): ActionDefinition {
+  return {
+    id: action.title,
+    title: action.title,
+    label: action.label ?? action.title,
+    type: action.type,
+    fields: action.fields ?? [],
+    output_fields: action.output_fields ?? [],
+  };
+}
+
+function mapReactionConfig(reaction: ServiceReactionConfig): ReactionDefinition {
+  return {
+    id: reaction.title,
+    title: reaction.title,
+    label: reaction.label ?? reaction.title,
+    url: reaction.url,
+    method: reaction.method,
+    fields: reaction.fields ?? [],
+  };
+}
+
+function mapServiceConfig(
+  serviceId: string,
+  config: ServiceConfig,
+  index: number,
+): AreaService {
+  const gradient = gradientPalette[index % gradientPalette.length] ?? {
+    from: "#0b3c5d",
+    to: "#e59500",
+  };
+  const name = config.label ?? formatServiceNameFromId(serviceId) ?? serviceId;
+  const actions = (config.actions ?? []).map(mapActionConfig);
+  const reactions = (config.reactions ?? []).map(mapReactionConfig);
+
+  return {
+    id: serviceId,
+    name,
+    provider: config.provider ?? "",
+    badge: buildBadge(name || serviceId),
+    gradient,
+    actions,
+    reactions,
+    connected: false,
+  };
+}
 
 function matchesAreaSearch(area: CreatedArea, normalizedTerm: string) {
   if (!normalizedTerm) return true;
@@ -72,6 +170,36 @@ function areRequiredFieldsFilled(
     const value = values[field.name];
     return value !== undefined && String(value).trim().length > 0;
   });
+}
+
+function toIsoString(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Date/heure invalide.");
+  }
+  return date.toISOString();
+}
+
+function formatInputValue(
+  field: FieldDefinition,
+  rawValue: string | undefined,
+): string {
+  const value = rawValue ?? "";
+  if (!value) return "";
+  if (field.type === "date") {
+    return toIsoString(value);
+  }
+  return String(value);
+}
+
+function buildInputFields(
+  fields: FieldDefinition[],
+  values: Record<string, string>,
+): Array<{ name: string; value: string }> {
+  return fields.map((field) => ({
+    name: field.name,
+    value: formatInputValue(field, values[field.name]),
+  }));
 }
 
 function AreaPageContent() {
@@ -192,6 +320,28 @@ function AreaPageContent() {
         new Set([...serviceIds.filter(Boolean), "timer"]),
       );
 
+      const configResults = await Promise.allSettled(
+        uniqueServiceIds.map((serviceId) => fetchServiceConfig(serviceId)),
+      );
+      const configs = configResults.map((result) =>
+        result.status === "fulfilled" ? result.value : null,
+      );
+      const availableServices = uniqueServiceIds
+        .map((serviceId, index) => {
+          const config = configs[index];
+          if (!config) return null;
+          return mapServiceConfig(serviceId, config, index);
+        })
+        .filter(Boolean) as AreaService[];
+
+      if (!availableServices.length) {
+        throw new Error("Impossible de récupérer la configuration des services.");
+      }
+
+      if (configResults.some((result) => result.status === "rejected")) {
+        setServicesError("Certains services ne sont pas disponibles pour le moment.");
+      }
+
       let statusByService: Record<string, boolean> = {};
       if (token && user?.id) {
         const statuses = await fetchUserServiceStatuses(token, user.id);
@@ -201,32 +351,15 @@ function AreaPageContent() {
         }, {});
       }
 
-      const mappedServices = uniqueServiceIds.map((serviceId, index) => {
-        const template = mockServices.find((service) => service.id === serviceId);
-        const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
-        const connectedStatus = statusByService[serviceId];
-        const isConnected =
-          connectedStatus !== undefined
-            ? connectedStatus
-            : serviceId === "timer"
-              ? true
-              : false;
+      const mappedServices = availableServices.map((service) => {
+        const connectedStatus = statusByService[service.id];
+        const isInternalService = !service.provider || service.id === "timer";
+        const isConnected = isInternalService ? true : Boolean(connectedStatus);
 
         return {
-          ...(template ?? {
-            id: serviceId,
-            name: serviceId,
-            url: "#",
-            badge: serviceId.slice(0, 2).toUpperCase(),
-            category: "Service",
-            gradient,
-            actions: [],
-            reactions: [],
-            connected: false,
-          }),
-          gradient,
+          ...service,
           connected: isConnected,
-        } as AreaService;
+        };
       });
 
       setServices(mappedServices);
@@ -361,14 +494,29 @@ function AreaPageContent() {
         reactionFieldValues["summary"]?.trim() || areaName.trim();
       const descriptionValue = reactionFieldValues["description"] ?? "";
 
-      await createEventArea(token, {
-        delay: delayValue,
-        event: {
-          startTime: startTimeValue,
-          endTime: endTimeValue,
-          summary: summaryValue,
-          description: descriptionValue.trim(),
-        },
+      const actionInputs = buildInputFields(selectedAction.fields, actionFieldValues);
+      const reactionInputs = buildInputFields(selectedReaction.fields, reactionFieldValues);
+
+      await saveArea(token, {
+        name: areaName.trim(),
+        active: true,
+        actions: [
+          {
+            service: actionService.id,
+            provider: actionService.provider,
+            title: selectedAction.title,
+            type: selectedAction.type,
+            input: actionInputs,
+          },
+        ],
+        reactions: [
+          {
+            service: reactionService.id,
+            provider: reactionService.provider,
+            title: selectedReaction.title,
+            input: reactionInputs,
+          },
+        ],
       });
 
       const newArea: CreatedArea = {
