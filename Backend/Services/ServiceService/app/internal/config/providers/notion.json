@@ -7,7 +7,10 @@
     "token_url": "https://api.notion.com/v1/oauth/token",
     "redirect_uri": "http://localhost:8083/oauth2/callback",
     "scopes": [],
-    "user_info_url": "https://api.notion.com/v1/users/me"
+    "user_info_url": "https://api.notion.com/v1/users/me",
+    "refresh": {
+      "enabled": false
+    }
   },
   "mappings": [
     {

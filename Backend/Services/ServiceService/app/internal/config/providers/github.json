@@ -12,7 +12,10 @@
             "admin:repo_hook"
         ],
         "user_info_url": "https://api.github.com/user",
-        "user_emails_url": "https://api.github.com/user/emails"
+        "user_emails_url": "https://api.github.com/user/emails",
+        "refresh": {
+            "enabled": false
+        }
     },
     "mappings": [
         {

@@ -10,7 +10,10 @@
       "identify",
       "email"
     ],
-    "user_info_url": "https://discord.com/api/users/@me"
+    "user_info_url": "https://discord.com/api/users/@me",
+    "refresh": {
+      "enabled": true
+    }
   },
   "mappings": [
     {

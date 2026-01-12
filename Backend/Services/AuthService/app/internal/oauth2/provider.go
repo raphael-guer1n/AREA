@@ -58,6 +58,20 @@ func (p *Provider) GenerateAuthURL(state string, callbackURI string) string {
 		params.Add("scope", strings.Join(p.config.Scopes, " "))
 	}
 
+	if len(p.config.AuthParams) > 0 {
+		for key, value := range p.config.AuthParams {
+			if key == "" || value == "" {
+				continue
+			}
+			switch key {
+			case "client_id", "redirect_uri", "response_type", "state", "scope":
+				continue
+			default:
+				params.Set(key, value)
+			}
+		}
+	}
+
 	return fmt.Sprintf("%s?%s", p.config.AuthURL, params.Encode())
 }
 
@@ -181,6 +195,120 @@ func (p *Provider) ExchangeCode(code string, callbackUri string) (*TokenResponse
 	var tokenResp TokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	return &tokenResp, nil
+}
+
+// RefreshToken exchanges a refresh token for a new access token.
+func (p *Provider) RefreshToken(refreshToken string) (*TokenResponse, error) {
+	if strings.TrimSpace(refreshToken) == "" {
+		return nil, fmt.Errorf("refresh token is empty")
+	}
+
+	if p.config.Refresh == nil || !p.config.Refresh.Enabled {
+		return nil, fmt.Errorf("refresh is not enabled for provider %s", p.config.Name)
+	}
+
+	refreshCfg := p.config.Refresh
+	tokenURL := strings.TrimSpace(refreshCfg.TokenURL)
+	if tokenURL == "" {
+		tokenURL = p.config.TokenURL
+	}
+	if tokenURL == "" {
+		return nil, fmt.Errorf("missing token_url for provider %s", p.config.Name)
+	}
+
+	params := map[string]string{}
+	for key, value := range refreshCfg.Params {
+		if key == "" || value == "" {
+			continue
+		}
+		params[key] = value
+	}
+	if _, ok := params["grant_type"]; !ok {
+		params["grant_type"] = "refresh_token"
+	}
+	params["refresh_token"] = refreshToken
+
+	authMode := strings.ToLower(strings.TrimSpace(refreshCfg.Auth))
+	switch authMode {
+	case "", "body":
+		if _, ok := params["client_id"]; !ok && p.config.ClientID != "" {
+			params["client_id"] = p.config.ClientID
+		}
+		if _, ok := params["client_secret"]; !ok && p.config.ClientSecret != "" {
+			params["client_secret"] = p.config.ClientSecret
+		}
+	case "basic":
+		// client credentials will be sent via Authorization header below.
+	case "none":
+	default:
+		return nil, fmt.Errorf("unsupported refresh auth mode %q", refreshCfg.Auth)
+	}
+
+	contentType := strings.ToLower(strings.TrimSpace(refreshCfg.ContentType))
+	if contentType == "" {
+		contentType = "application/x-www-form-urlencoded"
+	}
+
+	var (
+		body io.Reader
+	)
+
+	switch contentType {
+	case "application/json":
+		payload, err := json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal refresh payload: %w", err)
+		}
+		body = bytes.NewReader(payload)
+	default:
+		form := url.Values{}
+		for key, value := range params {
+			form.Set(key, value)
+		}
+		body = strings.NewReader(form.Encode())
+		contentType = "application/x-www-form-urlencoded"
+	}
+
+	req, err := http.NewRequest("POST", tokenURL, body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", contentType)
+
+	for key, value := range refreshCfg.Headers {
+		if key == "" || value == "" {
+			continue
+		}
+		req.Header.Set(key, value)
+	}
+
+	if authMode == "basic" {
+		basic := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", p.config.ClientID, p.config.ClientSecret)))
+		req.Header.Set("Authorization", "Basic "+basic)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("refresh failed: status=%d, body=%s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var tokenResp TokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode refresh response: %w", err)
+	}
+	if tokenResp.AccessToken == "" {
+		return nil, fmt.Errorf("refresh response missing access_token")
 	}
 
 	return &tokenResp, nil
