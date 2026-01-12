@@ -99,7 +99,7 @@ func (h *OAuth2Handler) HandleStoreOAuth2(w http.ResponseWriter, req *http.Reque
 	}
 
 	// Calculate expiration time
-	expiresAt := time.Now().Add(time.Duration(storeReq.ExpiresIn) * time.Second)
+	expiresAt := oauth2.ResolveExpiresAt(storeReq.ExpiresIn)
 
 	// Store OAuth2 data
 	err = h.oauth2StorageSvc.StoreOAuth2Response(
@@ -324,7 +324,7 @@ func (h *OAuth2Handler) handleOAuth2Callback(w http.ResponseWriter, req *http.Re
 		return
 	}
 
-	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	expiresAt := oauth2.ResolveExpiresAt(tokenResp.ExpiresIn)
 
 	var userIDForStorage int = stateData.UserID
 	var jwtToken string

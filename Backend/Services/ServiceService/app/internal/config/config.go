@@ -36,13 +36,24 @@ func getEnv(key, def string) string {
 }
 
 type OAuth2Config struct {
-	ClientID     string   `json:"client_id"`
-	ClientSecret string   `json:"client_secret"`
-	AuthURL      string   `json:"auth_url"`
-	TokenURL     string   `json:"token_url"`
-	RedirectURI  string   `json:"redirect_uri"`
-	Scopes       []string `json:"scopes"`
-	UserInfoURL  string   `json:"user_info_url"`
+	ClientID     string               `json:"client_id"`
+	ClientSecret string               `json:"client_secret"`
+	AuthURL      string               `json:"auth_url"`
+	TokenURL     string               `json:"token_url"`
+	RedirectURI  string               `json:"redirect_uri"`
+	Scopes       []string             `json:"scopes"`
+	UserInfoURL  string               `json:"user_info_url"`
+	AuthParams   map[string]string    `json:"auth_params,omitempty"`
+	Refresh      *OAuth2RefreshConfig `json:"refresh,omitempty"`
+}
+
+type OAuth2RefreshConfig struct {
+	Enabled     bool              `json:"enabled"`
+	TokenURL    string            `json:"token_url,omitempty"`
+	Auth        string            `json:"auth,omitempty"`
+	ContentType string            `json:"content_type,omitempty"`
+	Params      map[string]string `json:"params,omitempty"`
+	Headers     map[string]string `json:"headers,omitempty"`
 }
 
 type MappingConfig struct {
