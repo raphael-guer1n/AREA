@@ -4,6 +4,8 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 COMPOSE_FILE := docker-compose.yml
+COMPOSE_ENV := .env.docker
+COMPOSE_ARGS := --env-file $(COMPOSE_ENV)
 
 help: ## Show this help message
 	@printf 'Usage: make [target]\n'
@@ -30,13 +32,13 @@ clean: ## Remove build artifacts
 	rm -rf .next out
 
 docker-build: ## Build Docker image via compose
-	docker compose -f $(COMPOSE_FILE) build
+	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) build
 
 docker-up: ## Start Docker containers
-	docker compose -f $(COMPOSE_FILE) up -d --build
+	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) up -d --build
 
 docker-down: ## Stop Docker containers
-	docker compose -f $(COMPOSE_FILE) down
+	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) down
 
 docker-logs: ## Tail Docker logs
-	docker compose -f $(COMPOSE_FILE) logs -f
+	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) logs -f

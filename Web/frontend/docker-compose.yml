@@ -6,22 +6,35 @@ services:
     build:
       context: .
       args:
-        API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/area_auth_api}
+        API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
-        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area_area_api}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
         NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
-        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/area_service_api}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
         NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
     ports:
       - "8081:8081"
+    env_file:
+      - .env.docker
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/area_auth_api}
+      API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
-      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area_area_api}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
       NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
-      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/area_service_api}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
       NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:8081}
+      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-http://localhost:8081}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       PORT: 8081
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - area_network
     restart: unless-stopped
+
+networks:
+  area_network:
+    external: true
+    name: area_network
