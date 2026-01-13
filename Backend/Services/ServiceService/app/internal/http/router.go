@@ -9,13 +9,15 @@ type Router struct {
 	mux                    *http.ServeMux
 	providerHandler        *ProviderHandler
 	webhookProviderHandler *WebhookProviderHandler
+	pollingProviderHandler *PollingProviderHandler
 }
 
-func NewRouter(providerHandler *ProviderHandler, webhookProviderHandler *WebhookProviderHandler) *Router {
+func NewRouter(providerHandler *ProviderHandler, webhookProviderHandler *WebhookProviderHandler, pollingProviderHandler *PollingProviderHandler) *Router {
 	r := &Router{
 		mux:                    http.NewServeMux(),
 		providerHandler:        providerHandler,
 		webhookProviderHandler: webhookProviderHandler,
+		pollingProviderHandler: pollingProviderHandler,
 	}
 
 	r.routes()
@@ -33,6 +35,9 @@ func (r *Router) routes() {
 	// Webhook provider configuration endpoints
 	r.mux.HandleFunc("/webhooks/providers", r.webhookProviderHandler.HandleGetProviders)
 	r.mux.HandleFunc("/webhooks/providers/config", r.webhookProviderHandler.HandleGetProviderConfig)
+	// Polling provider configuration endpoints
+	r.mux.HandleFunc("/polling/providers", r.pollingProviderHandler.HandleGetProviders)
+	r.mux.HandleFunc("/polling/providers/config", r.pollingProviderHandler.HandleGetProviderConfig)
 	r.mux.HandleFunc("/services/services", r.providerHandler.HandleGetServices)
 	r.mux.HandleFunc("/services/service-config", r.providerHandler.HandleGetServiceConfig)
 }
