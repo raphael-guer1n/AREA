@@ -241,6 +241,95 @@ func (s *SubscriptionService) UpdateSubscription(userID, actionID int, provider,
 	return saved, nil
 }
 
+func (s *SubscriptionService) ActivateSubscription(userID, actionID int, webhookBaseURL string) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, true, webhookBaseURL)
+}
+
+func (s *SubscriptionService) DeactivateSubscription(userID, actionID int, webhookBaseURL string) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, false, webhookBaseURL)
+}
+
+func (s *SubscriptionService) setSubscriptionActive(userID, actionID int, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+	subscription, err := s.repo.FindByActionID(actionID)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	if subscription.UserID != userID {
+		return nil, ErrUnauthorizedAction
+	}
+	if subscription.Active == active {
+		return subscription, nil
+	}
+
+	providerConfig, err := s.providerConfig.GetProviderConfig(subscription.Service)
+	if err != nil {
+		if errors.Is(err, ErrProviderConfigNotFound) {
+			return nil, ErrProviderNotSupported
+		}
+		return nil, err
+	}
+
+	cfgMap, err := decodeSubscriptionConfig(subscription.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	if active && providerConfig.Signature != nil {
+		secretValue, ok := utils.ExtractJSONPath(cfgMap, providerConfig.Signature.SecretJSONPath)
+		if !ok || fmt.Sprint(secretValue) == "" {
+			return nil, ErrMissingSecret
+		}
+	}
+
+	if subscription.Active && !active && s.webhookSetupSvc != nil && providerConfig.Teardown != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		if err := s.webhookSetupSvc.DeleteWebhook(providerConfig, subscription, webhookURL, cfgMap); err != nil {
+			return nil, err
+		}
+	}
+
+	updatedSub := *subscription
+	updatedSub.Active = active
+
+	if active && s.webhookSetupSvc != nil && providerConfig.Setup != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, &updatedSub, webhookURL, cfgMap)
+		if err != nil {
+			return nil, err
+		}
+		updatedSub.ProviderHookID = providerHookID
+	} else if !active {
+		updatedSub.ProviderHookID = ""
+	}
+
+	saved, err := s.repo.UpdateByActionID(&updatedSub)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	return saved, nil
+}
+
+func decodeSubscriptionConfig(raw json.RawMessage) (map[string]any, error) {
+	if len(raw) == 0 {
+		return map[string]any{}, nil
+	}
+	var cfgPayload any
+	if err := json.Unmarshal(raw, &cfgPayload); err != nil {
+		return nil, ErrInvalidConfig
+	}
+	cfgMap, ok := cfgPayload.(map[string]any)
+	if !ok {
+		return nil, ErrInvalidConfig
+	}
+	return cfgMap, nil
+}
+
 func (s *SubscriptionService) DeleteSubscription(actionID int, webhookBaseURL string) error {
 	subscription, err := s.repo.FindByActionID(actionID)
 	if err != nil {
