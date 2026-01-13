@@ -82,6 +82,11 @@ export function useOAuthCallback(redirectTo = "/area", options: UseOAuthCallback
         // receive one to avoid clobbering the existing session with a provider access token.
         if (token) {
           await persistSessionToken(token);
+          // Force a reload so server components re-read the session cookie.
+          if (typeof window !== "undefined") {
+            window.location.assign(redirectTo);
+            return;
+          }
         }
 
         setCallbackState({ status: "success" });
