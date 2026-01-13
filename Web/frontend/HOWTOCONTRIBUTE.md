@@ -19,7 +19,7 @@ flowchart LR
 
 ## Dev loop
 1. Install deps: `npm install`
-2. Start dev server: `npm run dev` (http://localhost:3000)
+2. Start dev server: `npm run dev` (http://localhost:8081)
 3. Before pushing: `npm run lint` and ideally `npm run build`
 
 ## Add or modify a component
