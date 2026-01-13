@@ -145,6 +145,23 @@
           ]
         }
       ]
+    },
+    {
+      "title": "delete_playlist",
+      "label": "Delete Playlist",
+      "url": "https://www.googleapis.com/youtube/v3/playlists?id={{playlistId}}",
+      "fields": [
+        {
+          "name": "playlistId",
+          "type": "text",
+          "label": "Playlist ID",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "method": "DELETE",
+      "bodyType": "json",
+      "body_struct": []
     }
   ]
 }
