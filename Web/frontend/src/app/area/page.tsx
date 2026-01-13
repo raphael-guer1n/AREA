@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
+import { activateArea, deactivateArea, fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
 import {
   fetchServiceConfig,
   fetchServiceNames,
@@ -320,7 +320,9 @@ function AreaPageContent() {
   const [wizardStep, setWizardStep] = useState<"action" | "reaction" | "details">("action");
   const [selectedAreaDetail, setSelectedAreaDetail] = useState<CreatedArea | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [areaActionError, setAreaActionError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [updatingAreaId, setUpdatingAreaId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const normalizedSearch = normalizeSearchValue(searchTerm);
   const displayAreas = useMemo(() => {
@@ -491,6 +493,7 @@ function AreaPageContent() {
     try {
       const areas = await fetchAreas(token);
       setRawAreas(areas);
+      setAreaActionError(null);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Impossible de récupérer les areas.";
@@ -503,6 +506,43 @@ function AreaPageContent() {
   useEffect(() => {
     void loadAreas();
   }, [loadAreas]);
+
+  const handleToggleArea = useCallback(
+    async (areaId: string, targetActive: boolean) => {
+      if (!token) {
+        setAreaActionError("Vous devez être connecté pour modifier une area.");
+        return;
+      }
+
+      const numericId = Number.parseInt(areaId, 10);
+      if (!Number.isFinite(numericId)) {
+        setAreaActionError("Identifiant d'area invalide.");
+        return;
+      }
+
+      setAreaActionError(null);
+      setUpdatingAreaId(areaId);
+      try {
+        if (targetActive) {
+          await activateArea(token, numericId);
+        } else {
+          await deactivateArea(token, numericId);
+        }
+        await loadAreas();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Impossible de mettre à jour l'area.";
+        setAreaActionError(message);
+      } finally {
+        setUpdatingAreaId(null);
+      }
+    },
+    [token, loadAreas],
+  );
+
+  const handleDeleteArea = useCallback((areaName: string) => {
+    setAreaActionError(`La suppression de "${areaName}" n'est pas encore disponible sur l'API.`);
+  }, []);
 
   useEffect(() => {
     setCreateError(null);
@@ -1155,6 +1195,11 @@ function AreaPageContent() {
                   {areasError}
                 </div>
               ) : null}
+              {areaActionError ? (
+                <div className="rounded-xl border border-[var(--accent)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
+                  {areaActionError}
+                </div>
+              ) : null}
 
               {isLoadingAreas ? (
                 <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
@@ -1179,6 +1224,10 @@ function AreaPageContent() {
                         gradientFrom={area.gradient.from}
                         gradientTo={area.gradient.to}
                         isActive={area.active}
+                        onActivate={() => handleToggleArea(area.id, true)}
+                        onDeactivate={() => handleToggleArea(area.id, false)}
+                        onDelete={() => handleDeleteArea(area.name)}
+                        isBusy={updatingAreaId === area.id}
                         onClick={() => setSelectedAreaDetail(area)}
                         className="h-full"
                       />

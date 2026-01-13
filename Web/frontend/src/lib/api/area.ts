@@ -164,3 +164,44 @@ export async function fetchAreas(token: string): Promise<BackendArea[]> {
 
   return body.data;
 }
+
+type ToggleAreaPayload = {
+  area_id: number;
+};
+
+async function toggleArea(
+  token: string,
+  areaId: number,
+  endpoint: "activateArea" | "deactivateArea",
+): Promise<void> {
+  const response = await fetch(`${AREA_SERVICE_BASE_URL}/${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ area_id: areaId } satisfies ToggleAreaPayload),
+  });
+
+  const body = (await response.json().catch(() => null)) as
+    | { error?: string }
+    | { success?: boolean; error?: string }
+    | null;
+
+  if (!response.ok || body?.error) {
+    const errorMessage =
+      body?.error ??
+      `Impossible de ${endpoint === "activateArea" ? "activer" : "désactiver"} l'area (statut ${
+        response.status
+      }).`;
+    throw new Error(errorMessage);
+  }
+}
+
+export async function activateArea(token: string, areaId: number): Promise<void> {
+  return toggleArea(token, areaId, "activateArea");
+}
+
+export async function deactivateArea(token: string, areaId: number): Promise<void> {
+  return toggleArea(token, areaId, "deactivateArea");
+}
