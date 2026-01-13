@@ -1,0 +1,27 @@
+{
+  "name": "area_polling_api",
+  "base_url": "http://area_polling_api:8087",
+  "routes": [
+    {
+      "path": "/health",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/actions",
+      "methods": ["POST", "PUT"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/actions/{actionId}",
+      "methods": ["GET", "DELETE"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    }
+  ]
+}
