@@ -320,6 +320,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.appColors;
     final connectedServices =
         _services.where((service) => service.connected).toList();
     final steps = const [
@@ -341,433 +342,435 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     ];
     final currentIndex =
         steps.indexWhere((step) => step.step == _wizardStep);
+    final safeIndex = currentIndex >= 0 ? currentIndex : 0;
+    final currentStep = steps[safeIndex];
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Créer une AREA'),
+        title: Text('${safeIndex + 1}/${steps.length} · ${currentStep.title}'),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+        child: Column(
           children: [
-            if (_isLoadingServices)
-              const LinearProgressIndicator(minHeight: 2),
-            const SizedBox(height: 12),
-            Text(
-              'Composez votre automation',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Sélectionnez un déclencheur et une réaction pour structurer votre AREA.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: steps.asMap().entries.map((entry) {
-                final index = entry.key;
-                final step = entry.value;
-                final isActive = step.step == _wizardStep;
-                final isDone = index < currentIndex;
-                return Expanded(
-                  child: Container(
-                    margin: EdgeInsets.only(
-                      right: index == steps.length - 1 ? 0 : 8,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? AppColors.deepBlue.withOpacity(0.08)
-                          : AppColors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isActive || isDone
-                            ? AppColors.deepBlue
-                            : AppColors.grey,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${index + 1}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isActive || isDone
-                                ? AppColors.deepBlue
-                                : AppColors.darkGrey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          step.title,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          step.description,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppColors.darkGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            if (_servicesError != null)
-              Card(
-                color: Colors.red.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _servicesError!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.red.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: _loadServices,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (_wizardStep == AreaWizardStep.action)
-              _AreaSection(
-                title: 'Action (Déclencheur)',
-                subtitle:
-                    'Choisissez un service connecté puis le déclencheur.',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel(label: 'Service'),
-                    if (connectedServices.isEmpty)
-                      Text(
-                        'Aucun service connecté. Connectez-en un depuis l\'onglet Services.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: connectedServices.map((service) {
-                          final isSelected = _actionService?.id == service.id;
-                          return ChoiceChip(
-                            label: Text(service.displayName),
-                            selected: isSelected,
-                            onSelected: (_) {
-                              final defaultAction =
-                                  service.actions.isNotEmpty
-                                      ? service.actions.first
-                                      : null;
-                              setState(() {
-                                _actionService = service;
-                                _selectedAction = defaultAction;
-                                _actionFieldValues = defaultAction != null
-                                    ? _initializeFieldValues(
-                                        defaultAction.fields,
-                                      )
-                                    : {};
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    const SizedBox(height: 16),
-                    _SectionLabel(label: 'Déclencheur'),
-                    if (_actionService == null)
-                      Text(
-                        'Choisissez un service pour voir ses déclencheurs.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else if (_actionService!.actions.isEmpty)
-                      Text(
-                        'Aucun déclencheur disponible pour ce service.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else
-                      Column(
-                        children: _actionService!.actions.map((action) {
-                          return RadioListTile<String>(
-                            value: action.id,
-                            groupValue: _selectedAction?.id,
-                            title: Text(action.label),
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            onChanged: (_) {
-                              setState(() {
-                                _selectedAction = action;
-                                _actionFieldValues =
-                                    _initializeFieldValues(action.fields);
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    if (_selectedAction != null) ...[
-                      const SizedBox(height: 16),
-                      _SectionLabel(label: 'Paramètres du déclencheur'),
-                      _FieldList(
-                        keyPrefix: _selectedAction!.id,
-                        fields: _selectedAction!.fields,
-                        values: _actionFieldValues,
-                        onChanged: (name, value) {
-                          setState(() {
-                            _actionFieldValues = {
-                              ..._actionFieldValues,
-                              name: value,
-                            };
-                          });
-                        },
-                        onDatePick: _pickDateTime,
-                        formatDate: _formatDateTime,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            if (_wizardStep == AreaWizardStep.reaction)
-              _AreaSection(
-                title: 'Réaction',
-                subtitle:
-                    'Sélectionnez le service qui exécutera l\'action après le déclencheur.',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionLabel(label: 'Service'),
-                    if (connectedServices.isEmpty)
-                      Text(
-                        'Aucun service connecté. Connectez-en un depuis l\'onglet Services.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: connectedServices.map((service) {
-                          final isSelected = _reactionService?.id == service.id;
-                          return ChoiceChip(
-                            label: Text(service.displayName),
-                            selected: isSelected,
-                            onSelected: (_) {
-                              final defaultReaction =
-                                  service.reactions.isNotEmpty
-                                      ? service.reactions.first
-                                      : null;
-                              setState(() {
-                                _reactionService = service;
-                                _selectedReaction = defaultReaction;
-                                _reactionFieldValues = defaultReaction != null
-                                    ? _initializeFieldValues(
-                                        defaultReaction.fields,
-                                      )
-                                    : {};
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    const SizedBox(height: 16),
-                    _SectionLabel(label: 'Action'),
-                    if (_reactionService == null)
-                      Text(
-                        'Choisissez un service pour voir ses actions.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else if (_reactionService!.reactions.isEmpty)
-                      Text(
-                        'Aucune action disponible pour ce service.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
-                      )
-                    else
-                      Column(
-                        children: _reactionService!.reactions.map((reaction) {
-                          return RadioListTile<String>(
-                            value: reaction.id,
-                            groupValue: _selectedReaction?.id,
-                            title: Text(reaction.label),
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            onChanged: (_) {
-                              setState(() {
-                                _selectedReaction = reaction;
-                                _reactionFieldValues =
-                                    _initializeFieldValues(reaction.fields);
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    if (_selectedReaction != null) ...[
-                      const SizedBox(height: 16),
-                      _SectionLabel(label: 'Paramètres de la réaction'),
-                      _FieldList(
-                        keyPrefix: _selectedReaction!.id,
-                        fields: _selectedReaction!.fields,
-                        values: _reactionFieldValues,
-                        onChanged: (name, value) {
-                          setState(() {
-                            _reactionFieldValues = {
-                              ..._reactionFieldValues,
-                              name: value,
-                            };
-                          });
-                        },
-                        onDatePick: _pickDateTime,
-                        formatDate: _formatDateTime,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            if (_wizardStep == AreaWizardStep.details)
-              Column(
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
                 children: [
-                  _AreaSection(
-                    title: 'Détails de l\'AREA',
-                    subtitle:
-                        'Ajoutez un nom et vérifiez les paramètres.',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          onChanged: (value) {
-                            setState(() {
-                              _areaName = value;
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Nom de l\'AREA',
-                            hintText: 'Démo marketing',
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.lightGrey,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppColors.grey),
-                          ),
-                          child: Text(
-                            'Vérifiez les paramètres du déclencheur et de la réaction avant de créer l\'AREA.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppColors.darkGrey,
-                            ),
-                          ),
-                        ),
-                      ],
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: (safeIndex + 1) / steps.length,
+                        minHeight: 8,
+                        backgroundColor: colors.lightGrey,
+                        color: colors.deepBlue,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _AreaSection(
-                    title: 'Récapitulatif',
-                    subtitle: 'Vue rapide des informations saisies.',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SummaryBlock(
-                          title: 'Déclencheur',
-                          serviceName: _actionService?.displayName ?? 'Non défini',
-                          actionName: _selectedAction?.label ?? 'Aucun',
-                          fields: _selectedAction?.fields ?? const [],
-                          values: _actionFieldValues,
-                          formatFieldValue: _formatFieldValue,
-                        ),
-                        const SizedBox(height: 12),
-                        _SummaryBlock(
-                          title: 'Réaction',
-                          serviceName:
-                              _reactionService?.displayName ?? 'Non défini',
-                          actionName: _selectedReaction?.label ?? 'Aucune',
-                          fields: _selectedReaction?.fields ?? const [],
-                          values: _reactionFieldValues,
-                          formatFieldValue: _formatFieldValue,
-                        ),
-                      ],
+                  const SizedBox(width: 12),
+                  Text(
+                    currentStep.description,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.darkGrey,
                     ),
                   ),
                 ],
               ),
-            if (_createError != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Card(
-                  color: Colors.red.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      _createError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.red.shade700,
-                      ),
-                    ),
-                  ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: _buildStepContent(
+                  theme: theme,
+                  colors: colors,
+                  connectedServices: connectedServices,
                 ),
               ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                if (_wizardStep != AreaWizardStep.action)
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: Row(
+                children: [
+                  if (_wizardStep != AreaWizardStep.action)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _goToPreviousStep,
+                        child: const Text('Précédent'),
+                      ),
+                    ),
+                  if (_wizardStep != AreaWizardStep.action)
+                    const SizedBox(width: 12),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: _goToPreviousStep,
-                      child: const Text('Étape précédente'),
+                    child: ElevatedButton(
+                      onPressed: _wizardStep == AreaWizardStep.details
+                          ? (_isCreating ? null : _handleCreateArea)
+                          : (_wizardStep == AreaWizardStep.action
+                              ? (_canProceedAction ? _goToNextStep : null)
+                              : (_canProceedReaction ? _goToNextStep : null)),
+                      child: _wizardStep == AreaWizardStep.details
+                          ? (_isCreating
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Créer l\'AREA'))
+                          : const Text('Suivant'),
                     ),
                   ),
-                if (_wizardStep != AreaWizardStep.action)
-                  const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _wizardStep == AreaWizardStep.details
-                        ? (_isCreating ? null : _handleCreateArea)
-                        : (_wizardStep == AreaWizardStep.action
-                            ? (_canProceedAction ? _goToNextStep : null)
-                            : (_canProceedReaction ? _goToNextStep : null)),
-                    child: _wizardStep == AreaWizardStep.details
-                        ? (_isCreating
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                        : const Text('Créer l\'AREA'))
-                        : const Text('Continuer'),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStepContent({
+    required ThemeData theme,
+    required AppColorPalette colors,
+    required List<AreaServiceDefinition> connectedServices,
+  }) {
+    if (_wizardStep == AreaWizardStep.action) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_isLoadingServices)
+            const LinearProgressIndicator(minHeight: 2),
+          if (_servicesError != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: Colors.red.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _servicesError!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.red.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _loadServices,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Réessayer'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _AreaSection(
+            title: 'Action (Déclencheur)',
+            subtitle: 'Choisissez un service connecté puis le déclencheur.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SectionLabel(label: 'Service'),
+                if (connectedServices.isEmpty)
+                  Text(
+                    'Aucun service connecté. Connectez-en un depuis l\'onglet Services.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.darkGrey,
+                    ),
+                  )
+                else
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 2.6,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemCount: connectedServices.length,
+                    itemBuilder: (context, index) {
+                      final service = connectedServices[index];
+                      final isSelected = _actionService?.id == service.id;
+                      return _ServiceSelectCard(
+                        service: service,
+                        selected: isSelected,
+                        onTap: () {
+                          final defaultAction = service.actions.isNotEmpty
+                              ? service.actions.first
+                              : null;
+                          setState(() {
+                            _actionService = service;
+                            _selectedAction = defaultAction;
+                            _actionFieldValues = defaultAction != null
+                                ? _initializeFieldValues(
+                                    defaultAction.fields,
+                                  )
+                                : {};
+                          });
+                        },
+                      );
+                    },
+                  ),
+                const SizedBox(height: 16),
+                _SectionLabel(label: 'Déclencheur'),
+                if (_actionService == null)
+                  Text(
+                    'Choisissez un service pour voir ses déclencheurs.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.darkGrey,
+                    ),
+                  )
+                else if (_actionService!.actions.isEmpty)
+                  Text(
+                    'Aucun déclencheur disponible pour ce service.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.darkGrey,
+                    ),
+                  )
+                else
+                  Column(
+                    children: _actionService!.actions.map((action) {
+                      return RadioListTile<String>(
+                        value: action.id,
+                        groupValue: _selectedAction?.id,
+                        title: Text(action.label),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (_) {
+                          setState(() {
+                            _selectedAction = action;
+                            _actionFieldValues =
+                                _initializeFieldValues(action.fields);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                if (_selectedAction != null) ...[
+                  const SizedBox(height: 16),
+                  _SectionLabel(label: 'Paramètres du déclencheur'),
+                  _FieldList(
+                    keyPrefix: _selectedAction!.id,
+                    fields: _selectedAction!.fields,
+                    values: _actionFieldValues,
+                    onChanged: (name, value) {
+                      setState(() {
+                        _actionFieldValues = {
+                          ..._actionFieldValues,
+                          name: value,
+                        };
+                      });
+                    },
+                    onDatePick: _pickDateTime,
+                    formatDate: _formatDateTime,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_wizardStep == AreaWizardStep.reaction) {
+      return _AreaSection(
+        title: 'Réaction',
+        subtitle:
+            'Sélectionnez le service qui exécutera l\'action après le déclencheur.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionLabel(label: 'Service'),
+            if (connectedServices.isEmpty)
+              Text(
+                'Aucun service connecté. Connectez-en un depuis l\'onglet Services.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.darkGrey,
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate:
+                    const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 2.6,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: connectedServices.length,
+                itemBuilder: (context, index) {
+                  final service = connectedServices[index];
+                  final isSelected = _reactionService?.id == service.id;
+                  final defaultReaction = service.reactions.isNotEmpty
+                      ? service.reactions.first
+                      : null;
+                  return _ServiceSelectCard(
+                    service: service,
+                    selected: isSelected,
+                    onTap: () {
+                      setState(() {
+                        _reactionService = service;
+                        _selectedReaction = defaultReaction;
+                        _reactionFieldValues = defaultReaction != null
+                            ? _initializeFieldValues(
+                                defaultReaction.fields,
+                              )
+                            : {};
+                      });
+                    },
+                  );
+                },
+              ),
+            const SizedBox(height: 16),
+            _SectionLabel(label: 'Action'),
+            if (_reactionService == null)
+              Text(
+                'Choisissez un service pour voir ses actions.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.darkGrey,
+                ),
+              )
+            else if (_reactionService!.reactions.isEmpty)
+              Text(
+                'Aucune action disponible pour ce service.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.darkGrey,
+                ),
+              )
+            else
+              Column(
+                children: _reactionService!.reactions.map((reaction) {
+                  return RadioListTile<String>(
+                    value: reaction.id,
+                    groupValue: _selectedReaction?.id,
+                    title: Text(reaction.label),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (_) {
+                      setState(() {
+                        _selectedReaction = reaction;
+                        _reactionFieldValues =
+                            _initializeFieldValues(reaction.fields);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            if (_selectedReaction != null) ...[
+              const SizedBox(height: 16),
+              _SectionLabel(label: 'Paramètres de la réaction'),
+              _FieldList(
+                keyPrefix: _selectedReaction!.id,
+                fields: _selectedReaction!.fields,
+                values: _reactionFieldValues,
+                onChanged: (name, value) {
+                  setState(() {
+                    _reactionFieldValues = {
+                      ..._reactionFieldValues,
+                      name: value,
+                    };
+                  });
+                },
+                onDatePick: _pickDateTime,
+                formatDate: _formatDateTime,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _AreaSection(
+          title: 'Détails de l\'AREA',
+          subtitle: 'Ajoutez un nom et vérifiez les paramètres.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                onChanged: (value) {
+                  setState(() {
+                    _areaName = value;
+                  });
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Nom de l\'AREA',
+                  hintText: 'Démo marketing',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colors.lightGrey,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colors.grey),
+                ),
+                child: Text(
+                  'Vérifiez les paramètres du déclencheur et de la réaction avant de créer l\'AREA.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.darkGrey,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _AreaSection(
+          title: 'Récapitulatif',
+          subtitle: 'Vue rapide des informations saisies.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SummaryBlock(
+                title: 'Déclencheur',
+                serviceName: _actionService?.displayName ?? 'Non défini',
+                actionName: _selectedAction?.label ?? 'Aucun',
+                fields: _selectedAction?.fields ?? const [],
+                values: _actionFieldValues,
+                formatFieldValue: _formatFieldValue,
+              ),
+              const SizedBox(height: 12),
+              _SummaryBlock(
+                title: 'Réaction',
+                serviceName: _reactionService?.displayName ?? 'Non défini',
+                actionName: _selectedReaction?.label ?? 'Aucune',
+                fields: _selectedReaction?.fields ?? const [],
+                values: _reactionFieldValues,
+                formatFieldValue: _formatFieldValue,
+              ),
+            ],
+          ),
+        ),
+        if (_createError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Card(
+              color: Colors.red.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  _createError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -798,29 +801,41 @@ class _AreaSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+    final colors = context.appColors;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.grey),
+        boxShadow: [
+          BoxShadow(
+            color: colors.grey.withOpacity(0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.darkGrey,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.darkGrey,
             ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }
@@ -834,12 +849,13 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         label,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: AppColors.darkGrey,
+          color: colors.darkGrey,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -867,6 +883,7 @@ class _FieldList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.appColors;
     return Column(
       children: fields.map((field) {
         final value = values[field.name] ?? '';
@@ -892,8 +909,8 @@ class _FieldList extends StatelessWidget {
                         display,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: value.isEmpty
-                              ? AppColors.darkGrey
-                              : AppColors.almostBlack,
+                              ? colors.darkGrey
+                              : colors.almostBlack,
                         ),
                       ),
                       const Icon(Icons.calendar_today, size: 18),
@@ -939,6 +956,71 @@ class _FieldList extends StatelessWidget {
   }
 }
 
+class _ServiceSelectCard extends StatelessWidget {
+  final AreaServiceDefinition service;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ServiceSelectCard({
+    required this.service,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = context.appColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 56,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? colors.deepBlue : colors.grey,
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors.grey.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              service.displayName,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colors.almostBlack,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (selected) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.check_circle, color: colors.deepBlue, size: 18),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _badgeFrom(String value) {
+    if (value.isEmpty) return '--';
+    final trimmed = value.trim();
+    if (trimmed.length <= 2) return trimmed.toUpperCase();
+    return trimmed.substring(0, 2).toUpperCase();
+  }
+}
+
 class _SummaryBlock extends StatelessWidget {
   final String title;
   final String serviceName;
@@ -960,12 +1042,13 @@ class _SummaryBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.lightGrey,
+        color: colors.lightGrey,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.grey),
+        border: Border.all(color: colors.grey),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -973,7 +1056,7 @@ class _SummaryBlock extends StatelessWidget {
           Text(
             title,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.darkGrey,
+              color: colors.darkGrey,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -987,7 +1070,7 @@ class _SummaryBlock extends StatelessWidget {
           Text(
             actionName,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.darkGrey,
+              color: colors.darkGrey,
             ),
           ),
           const SizedBox(height: 8),
@@ -997,7 +1080,7 @@ class _SummaryBlock extends StatelessWidget {
               child: Text(
                 '${field.label}: ${formatFieldValue(field, values)}',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: AppColors.darkGrey,
+                  color: colors.darkGrey,
                 ),
               ),
             ),

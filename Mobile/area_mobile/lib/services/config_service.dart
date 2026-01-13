@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ConfigService {
   static const _keyServerIp = 'server_ip';
+  static const _keyVision = 'vision_mode';
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   /// Get currently stored server IP or fall back to .env BASE_URL
@@ -27,5 +28,14 @@ class ConfigService {
   /// Clear the IP override (revert to .env BASE_URL)
   static Future<void> clearServerIp() async {
     await _storage.delete(key: _keyServerIp);
+  }
+
+  /// Accessibility vision mode (normal | tritanopia)
+  static Future<String?> getVisionMode() async {
+    return await _storage.read(key: _keyVision);
+  }
+
+  static Future<void> setVisionMode(String mode) async {
+    await _storage.write(key: _keyVision, value: mode);
   }
 }
