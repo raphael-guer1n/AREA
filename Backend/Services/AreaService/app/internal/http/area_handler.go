@@ -193,7 +193,6 @@ func (h *AreaHandler) getActionDetails(action domain.AreaAction) (domain.ActionC
 	if h.cfg.InternalSecret != "" {
 		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
 	}
-	log.Println(req.URL.String())
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return actionConfig, err
@@ -695,8 +694,6 @@ func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive boo
 	}
 	for _, action := range otherActions {
 		createUrl, exist := h.cfg.CreateActionsUrls[action.Type]
-		log.Printf("url configs : %v", h.cfg.CreateActionsUrls)
-		log.Printf("url configs : %v", h.cfg.CreateActionsUrls["webhook"])
 		if !exist {
 			return fmt.Errorf("action type %s not supported", action.Type)
 		}
