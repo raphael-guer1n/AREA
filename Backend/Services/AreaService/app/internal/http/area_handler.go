@@ -193,6 +193,7 @@ func (h *AreaHandler) getActionDetails(action domain.AreaAction) (domain.ActionC
 	if h.cfg.InternalSecret != "" {
 		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
 	}
+	log.Println(req.URL.String())
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return actionConfig, err
@@ -353,17 +354,13 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	if area.Active == true {
-		for _, action := range area.Actions {
-			err := h.TriggerAction(action)
-			if err != nil {
-				respondJSON(w, http.StatusInternalServerError, map[string]any{
-					"success": false,
-					"error":   err.Error(),
-				})
-				return
-			}
-		}
+	err = h.TriggerAction(area.Actions, area.Active)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]any{})
 }
@@ -505,6 +502,10 @@ func (h *AreaHandler) HandleDeactivateArea(w http.ResponseWriter, req *http.Requ
 func (h *AreaHandler) ActivateAction(req *http.Request, areaAction domain.AreaAction) error {
 	switch areaAction.Type {
 	case "cron":
+		err := h.TriggerCronAction(areaAction)
+		if err != nil {
+			return err
+		}
 		return nil
 	default:
 		return fmt.Errorf("action type %s not supported", areaAction.Type)
@@ -673,13 +674,54 @@ func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFi
 	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
 }
 
-func (h *AreaHandler) TriggerAction(areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
-		return h.TriggerCronAction(areaAction)
-	default:
-		return fmt.Errorf("only cron actions are supported")
+func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool) error {
+	cronActions := make([]domain.AreaAction, 0)
+	otherActions := make([]domain.AreaAction, 0)
+	for _, action := range areaAction {
+		action.Active = isActive
+		if action.Type == "cron" {
+			cronActions = append(cronActions, action)
+		} else {
+			otherActions = append(otherActions, action)
+		}
 	}
+	if isActive {
+		for _, action := range cronActions {
+			err := h.TriggerCronAction(action)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, action := range otherActions {
+		createUrl, exist := h.cfg.CreateActionsUrls[action.Type]
+		log.Printf("url configs : %v", h.cfg.CreateActionsUrls)
+		log.Printf("url configs : %v", h.cfg.CreateActionsUrls["webhook"])
+		if !exist {
+			return fmt.Errorf("action type %s not supported", action.Type)
+		}
+		var body struct {
+			Actions []domain.AreaAction `json:"actions"`
+		}
+		body.Actions = areaAction
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		resp, err := http.NewRequest(http.MethodPost, createUrl, bytes.NewBuffer(payload))
+		if err != nil {
+			return err
+		}
+		if h.cfg.InternalSecret != "" {
+			resp.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		client := &http.Client{}
+		_, err = client.Do(resp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
