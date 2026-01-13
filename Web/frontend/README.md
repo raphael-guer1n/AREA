@@ -48,8 +48,8 @@ NEXT_PUBLIC_AREA_API_BASE_URL=$AREA_API_BASE_URL
 SERVICES_API_BASE_URL=http://localhost:8080/area_service_api
 NEXT_PUBLIC_SERVICES_API_BASE_URL=$SERVICES_API_BASE_URL
 
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-NEXT_PUBLIC_OAUTH_CALLBACK_BASE=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:8081
+NEXT_PUBLIC_OAUTH_CALLBACK_BASE=http://localhost:8081
 COOKIE_SECURE=false
 ```
 Notes:
@@ -61,7 +61,7 @@ Notes:
 ```bash
 cd Web/frontend
 npm install
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:8081
 
 # Production build
 npm run build
@@ -73,7 +73,7 @@ npm run lint
 
 ## Docker
 - Build: `docker build -t area-frontend .`
-- Run: `docker run --rm -p 3000:3000 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service area-frontend`
+- Run: `docker run --rm -p 8081:8081 -e NEXT_PUBLIC_API_BASE_URL=http://host.docker.internal:8080/auth-service area-frontend`
 - Compose (from this folder): `docker compose up --build`
 
 ## Screenshots
