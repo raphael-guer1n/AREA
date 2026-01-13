@@ -35,9 +35,12 @@ flutter:
   assets:
     - .env
     - assets/logo.png
+    - assets/logo_icon.png
 
 flutter_launcher_icons:
-  image_path: assets/logo.png
+  image_path: assets/logo_icon.png
   android: true
   ios: true
+  adaptive_icon_foreground: assets/logo_icon.png
+  adaptive_icon_background: "#FFFFFF"
   remove_alpha_ios: true
