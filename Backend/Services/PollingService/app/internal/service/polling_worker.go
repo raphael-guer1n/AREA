@@ -93,6 +93,7 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 		Config:   cfgMap,
 		UserID:   sub.UserID,
 		Provider: sub.Provider,
+		Env:      utils.EnvMap(),
 	}
 
 	payloadBody, err := w.requestSvc.ExecuteRequest(providerConfig.Request, sub.Provider, sub.UserID, ctx, nil)

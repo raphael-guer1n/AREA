@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -22,6 +23,7 @@ type TemplateContext struct {
 	Path           string
 	URL            string
 	Query          string
+	Env            map[string]string
 }
 
 var placeholderRegexp = regexp.MustCompile(`\{\{\s*([^}]+)\s*\}\}`)
@@ -143,5 +145,32 @@ func resolvePlaceholder(key string, ctx TemplateContext) (any, bool) {
 		return val, ok
 	}
 
+	if strings.HasPrefix(key, "env.") {
+		if ctx.Env == nil {
+			return nil, false
+		}
+		name := strings.TrimPrefix(key, "env.")
+		if name == "" {
+			return nil, false
+		}
+		val, ok := ctx.Env[name]
+		if !ok || val == "" {
+			return nil, false
+		}
+		return val, true
+	}
+
 	return nil, false
+}
+
+func EnvMap() map[string]string {
+	out := make(map[string]string)
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		out[parts[0]] = parts[1]
+	}
+	return out
 }

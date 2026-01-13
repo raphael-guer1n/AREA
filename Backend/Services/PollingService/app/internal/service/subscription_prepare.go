@@ -120,6 +120,7 @@ func (s *SubscriptionService) applyFetchStep(userID int, provider string, fetch 
 		Config:   cfg,
 		UserID:   userID,
 		Provider: provider,
+		Env:      utils.EnvMap(),
 	}
 
 	var items []any
@@ -232,6 +233,7 @@ func applyTemplateListStep(step *config.PollingProviderTemplateListConfig, cfg m
 			Config:      cfg,
 			Item:        item,
 			RepeatIndex: idx,
+			Env:         utils.EnvMap(),
 		}
 		rendered, err := utils.RenderTemplateString(step.Template, ctx)
 		if err != nil {
