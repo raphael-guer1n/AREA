@@ -1,41 +1,53 @@
-# Guide de contribution (Frontend)
+# Frontend Contribution Guide (Web)
 
-## Pré-requis
-- Node.js 18.18+ (20 recommandé) + npm (lockfile présent).
-- Backend/gateway accessible (par défaut `localhost:8080`).
-- Installe les deps : `npm install`.
+This guide explains how to work on the Next.js frontend and how to add new pages cleanly.
 
-## Boucle de dev
-1. `npm run dev` (http://localhost:3000) pour tester en local.
-2. Mets à jour `.env.local` si tu ajoutes/modifies des variables (miroir `NEXT_PUBLIC_*`).
-3. Avant de pousser : `npm run lint` (et idéalement `npm run build`).
+## Workflow overview
+```mermaid
+flowchart LR
+  Idea --> Branch
+  Branch --> Code
+  Code --> Test
+  Test --> Docs
+  Docs --> PR
+```
 
-## Ajouter ou modifier un composant
-- Range le composant dans `src/components/...` (UI seule) ; tape toutes les props et garde les effets réseau dans les hooks/lib.
-- Réutilise les primitives (`Button`, `Card`, `AreaCard`, `ServiceCard`, `AreaNavigation`) et le helper `cn`.
-- Styles : Tailwind 4 + variables CSS définies dans `globals.css`. Respecte le thème et la variation tritanopie (`ColorblindToggle`).
-- Si besoin d’assets, place-les dans `public/` et référence-les via un chemin relatif (`/docs/...`).
-- Ajoute une entrée dans `COMPONENTS.md` si le composant est “public”.
+## Prerequisites
+- Node.js 18.18+ (20 recommended)
+- npm (lockfile present)
+- Backend gateway reachable (default `http://localhost:8080`)
 
-## Ajouter une page/route
-- Crée un dossier sous `src/app/<route>/page.tsx` (App Router).
-- Si la page doit partager la navigation principale, importe `AreaNavigation`.
-- Place les appels réseau dans `src/lib/api/*` ou un hook dédié (`src/hooks/*`) plutôt que dans le JSX.
-- Pense au rendu serveur vs client : ajoute `"use client";` si tu utilises `useState/useEffect` ou des hooks de navigation.
-- Renseigne les API utilisées dans `PAGES_ROUTES.md` (composant principal + endpoints).
+## Dev loop
+1. Install deps: `npm install`
+2. Start dev server: `npm run dev` (http://localhost:3000)
+3. Before pushing: `npm run lint` and ideally `npm run build`
 
-## Conventions de code
-- Typage strict TypeScript ; évite `any`.
-- Validation côté client avec Zod (`zod`), gestion d’erreurs utilisateur (messages clairs).
-- Auth/OAuth : passe toujours par `useAuth` + `/api/session` pour gérer le cookie HTTP-only.
-- Nom des classes Tailwind : privilégie la lisibilité (groupes logiques) ; factorise via des composants si besoin.
+## Add or modify a component
+- Place UI-only components in `src/components/`.
+- Keep network calls in `src/lib/api` or hooks in `src/hooks`.
+- Reuse existing primitives (`Button`, `Card`, `AreaCard`, `ServiceCard`, `AreaNavigation`).
+- Add public components to `Web/frontend/COMPONENTS.md`.
 
-## Tests manuels rapides
-- Auth : login/register -> redirection `/area`.
-- Services : ouvrir la modale, lancer un connect OAuth, vérifier l’état “Connecté”.
-- Area : créer une area via le wizard (dates/summary requis).
-- Profil : vérifier affichage du token masqué et le logout.
+## Add a new page or route
+- Create a folder under `src/app/<route>/page.tsx` (App Router).
+- If the page uses hooks or client state, add `"use client"`.
+- For shared navigation, import `AreaNavigation`.
+- Document new routes in `Web/frontend/PAGES_ROUTES.md`.
 
-## Documentation & captures
-- Mets à jour `README.md`, `COMPONENTS.md`, `PAGES_ROUTES.md` si tu modifies la structure ou les API.
-- Dépose/actualise les captures dans `public/docs/` pour garder les visuels à jour.
+For a full backend-linked page walkthrough, see:
+`Web/frontend/CREATE_BACKEND_PAGE.md`.
+
+## Backend integration rules
+- Use `src/lib/api/*` for external requests.
+- Prefer `src/app/api/*` routes when you need to manage cookies or hide secrets.
+- Keep auth-sensitive requests `cache: "no-store"`.
+
+## Quick manual checks
+- Auth: login/register redirects to `/area`.
+- Services: provider list loads and OAuth connect launches.
+- AREA: creation flow triggers the backend call.
+- Profile: user data loads, logout clears session.
+
+## Documentation updates
+- Update `README.md` and `ARCHITECTURE.md` when structure or env changes.
+- Update `COMPONENTS.md` and `PAGES_ROUTES.md` when UI or routes change.
