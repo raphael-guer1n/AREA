@@ -29,6 +29,8 @@ func (r *Router) routes() {
 	// Action webhook management (intended for internal use via AreaService)
 	r.mux.HandleFunc("/actions", r.actionHandler.HandleActions)
 	r.mux.HandleFunc("/actions/", r.actionHandler.HandleAction)
+	r.mux.HandleFunc("/activate/", r.actionHandler.HandleActivateAction)
+	r.mux.HandleFunc("/deactivate/", r.actionHandler.HandleDeactivateAction)
 
 	// Webhook receivers
 	r.mux.HandleFunc("/webhooks/", r.webhookHandler.HandleReceiveWebhook)

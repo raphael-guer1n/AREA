@@ -261,6 +261,132 @@ func (h *ActionHandler) HandleAction(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (h *ActionHandler) HandleActivateAction(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	userID, err := h.resolveUser(req)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	actionID, err := parseActionID(req.URL.Path, "/activate/")
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid action_id",
+		})
+		return
+	}
+
+	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
+	subscription, err := h.subscriptionSvc.ActivateSubscription(userID, actionID, webhookBaseURL)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, service.ErrProviderNotSupported):
+			status = http.StatusNotFound
+		case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrMissingSecret):
+			status = http.StatusBadRequest
+		case errors.Is(err, service.ErrSubscriptionNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, service.ErrUnauthorizedAction):
+			status = http.StatusForbidden
+		}
+		respondJSON(w, status, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"action_id":        subscription.ActionID,
+			"active":           subscription.Active,
+			"hook_id":          subscription.HookID,
+			"provider_hook_id": subscription.ProviderHookID,
+			"provider":         subscription.Provider,
+			"service":          subscription.Service,
+			"webhook_url":      webhookURL,
+		},
+	})
+}
+
+func (h *ActionHandler) HandleDeactivateAction(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	userID, err := h.resolveUser(req)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	actionID, err := parseActionID(req.URL.Path, "/deactivate/")
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid action_id",
+		})
+		return
+	}
+
+	webhookBaseURL := buildWebhookBaseURL(req, h.cfg.PublicBaseURL)
+	subscription, err := h.subscriptionSvc.DeactivateSubscription(userID, actionID, webhookBaseURL)
+	if err != nil {
+		status := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, service.ErrProviderNotSupported):
+			status = http.StatusNotFound
+		case errors.Is(err, service.ErrInvalidConfig), errors.Is(err, service.ErrProviderHookMissing):
+			status = http.StatusBadRequest
+		case errors.Is(err, service.ErrSubscriptionNotFound):
+			status = http.StatusNotFound
+		case errors.Is(err, service.ErrUnauthorizedAction):
+			status = http.StatusForbidden
+		}
+		respondJSON(w, status, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"action_id":        subscription.ActionID,
+			"active":           subscription.Active,
+			"hook_id":          subscription.HookID,
+			"provider_hook_id": subscription.ProviderHookID,
+			"provider":         subscription.Provider,
+			"service":          subscription.Service,
+			"webhook_url":      webhookURL,
+		},
+	})
+}
+
 func (h *ActionHandler) handleGetAction(w http.ResponseWriter, req *http.Request) {
 	userID, err := h.resolveUser(req)
 	if err != nil {
