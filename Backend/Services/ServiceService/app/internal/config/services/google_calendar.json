@@ -181,6 +181,37 @@
           "value": "{{summary}}"
         }
       ]
+    },
+    {
+      "title": "delete_event",
+      "label": "Delete Event",
+      "url": "https://www.googleapis.com/calendar/v3/calendars/{{calendarId}}/events/{{eventId}}",
+      "fields": [
+        {
+          "name": "calendarId",
+          "type": "text",
+          "label": "Calendar ID",
+          "required": true,
+          "default": "primary"
+        },
+        {
+          "name": "eventId",
+          "type": "text",
+          "label": "Event ID",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "sendUpdates",
+          "type": "text",
+          "label": "Send Updates",
+          "required": false,
+          "default": "none"
+        }
+      ],
+      "method": "DELETE",
+      "bodyType": "json",
+      "body_struct": []
     }
   ]
 }
