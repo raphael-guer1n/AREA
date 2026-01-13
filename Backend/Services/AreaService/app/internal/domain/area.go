@@ -6,6 +6,7 @@ type InputField struct {
 }
 
 type AreaAction struct {
+	Active   bool         `json:"active"`
 	ID       int          `json:"id"`
 	Provider string       `json:"provider"`
 	Service  string       `json:"service"`
