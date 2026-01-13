@@ -2,40 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
-/// Typography configuration for AREA mobile.
-/// Modern sans-serif (Inter) with clarity and readability as core values.
-
-final AppTextTheme = TextTheme(
-  displayLarge: GoogleFonts.inter(
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
-    color: AppColors.almostBlack,
-  ),
-  titleLarge: GoogleFonts.inter(
-    fontSize: 22,
-    fontWeight: FontWeight.bold,
-    color: AppColors.deepBlue,
-  ),
-  titleMedium: GoogleFonts.inter(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: AppColors.deepBlue,
-  ),
-  bodyLarge: GoogleFonts.inter(
-    fontSize: 18,
-    color: AppColors.almostBlack,
-  ),
-  bodyMedium: GoogleFonts.inter(
-    fontSize: 16,
-    color: AppColors.almostBlack,
-  ),
-  bodySmall: GoogleFonts.inter(
-    fontSize: 14,
-    color: AppColors.darkGrey,
-  ),
-  labelLarge: GoogleFonts.inter(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    color: AppColors.deepBlue,
-  ),
-);
+/// Typography using Josefin Sans to mirror the Web globals.css.
+TextTheme buildTextTheme(AppColorPalette palette) {
+  return TextTheme(
+    displayLarge: GoogleFonts.josefinSans(
+      fontSize: 32,
+      fontWeight: FontWeight.w700,
+      color: palette.almostBlack,
+      letterSpacing: -0.5,
+    ),
+    titleLarge: GoogleFonts.josefinSans(
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      color: palette.deepBlue,
+    ),
+    titleMedium: GoogleFonts.josefinSans(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: palette.deepBlue,
+    ),
+    bodyLarge: GoogleFonts.josefinSans(
+      fontSize: 18,
+      color: palette.almostBlack,
+      height: 1.35,
+    ),
+    bodyMedium: GoogleFonts.josefinSans(
+      fontSize: 16,
+      color: palette.almostBlack,
+      height: 1.4,
+    ),
+    bodySmall: GoogleFonts.josefinSans(
+      fontSize: 14,
+      color: palette.darkGrey,
+    ),
+    labelLarge: GoogleFonts.josefinSans(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      color: palette.deepBlue,
+      letterSpacing: 0.1,
+    ),
+  );
+}

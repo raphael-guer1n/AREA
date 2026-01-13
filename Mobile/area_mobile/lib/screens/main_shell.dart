@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/colors.dart';
-import 'home/home_screen.dart';
 import 'area/area_screen.dart';
 import 'services/services_screen.dart';
 import 'profile/profile_screen.dart';
+import '../theme/colors.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -17,7 +16,6 @@ class _MainShellState extends State<MainShell> {
 
   // List of pages in the order they appear in the nav bar
   final List<Widget> _pages = const [
-    HomeScreen(),
     AreaScreen(),
     ServicesScreen(),
     ProfileScreen(),
@@ -33,54 +31,55 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final colors = context.appColors;
 
     return Scaffold(
       backgroundColor: colorScheme.background,
       body: SafeArea(child: _pages[_selectedIndex]),
 
-      // AREA Design System inspired navigation bar
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: const Border(
-            top: BorderSide(color: AppColors.grey, width: 0.6),
+      // Modern Material 3 navigation
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: colors.grey.withOpacity(0.25),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.grey.withOpacity(0.15),
-              blurRadius: 6,
-              offset: const Offset(0, -2),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: NavigationBar(
+              height: 72,
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: _onItemTapped,
+              backgroundColor: colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
+              indicatorColor: colors.deepBlue.withOpacity(0.12),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.auto_awesome_motion_outlined),
+                  selectedIcon: Icon(Icons.auto_awesome_motion_rounded),
+                  label: 'AREA',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.hub_outlined),
+                  selectedIcon: Icon(Icons.hub_rounded),
+                  label: 'Services',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_rounded),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profil',
+                ),
+              ],
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          backgroundColor: colorScheme.surface,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: AppColors.darkGrey.withOpacity(0.7),
-          selectedLabelStyle: theme.textTheme.labelLarge,
-          unselectedLabelStyle: theme.textTheme.bodySmall,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.sync_alt_rounded),
-              label: 'AREA',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.widgets_outlined),
-              label: 'Services',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              label: 'Profile',
-            ),
-          ],
+          ),
         ),
       ),
     );
