@@ -57,6 +57,24 @@
       "internal_only": true
     },
     {
+      "path": "/polling/providers",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
+    },
+    {
+      "path": "/polling/providers/config",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
+    },
+    {
       "path": "/services/services",
       "methods": [
         "GET"

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: area_${SERVICE_NAME:-service}_api
+    ports:
+      - "${SERVER_PORT:-8087}:${SERVER_PORT:-8087}"
+    environment:
+      DB_HOST: db
+      DB_PORT: ${DB_INTERNAL_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-polling_service_db}
+      SERVER_PORT: ${SERVER_PORT:-8087}
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
+      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/area_auth_api}
+      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      POLLING_TICK_SECONDS: ${POLLING_TICK_SECONDS:-60}
+      IDFM_API_TOKEN: ${IDFM_API_TOKEN:-}
+    networks:
+      - area_network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    container_name: area_${SERVICE_NAME:-service}_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-polling_service_db}
+    ports:
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  area_network:
+    external: true
+
+volumes:
+  postgres_data:

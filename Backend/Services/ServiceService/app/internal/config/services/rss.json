@@ -1,0 +1,29 @@
+{
+  "provider": "",
+  "name": "rss",
+  "label": "RSS",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "rss_feed",
+      "label": "RSS Feed",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "feed_url",
+          "type": "text",
+          "label": "Feed URL",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "title", "type": "text", "label": "Title" },
+        { "name": "link", "type": "text", "label": "Link" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "pub_date", "type": "text", "label": "Published" }
+      ]
+    }
+  ],
+  "reactions": []
+}
