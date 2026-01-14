@@ -17,10 +17,12 @@ type Config struct {
 	AreaServiceURL    string
 	InternalSecret    string
 	CreateActionsUrls map[string]string
+	DelActionsUrls    map[string]string
 }
 
 func Load() Config {
-	createActionsUrls := GetActionsUrls()
+	createActionsUrls := GetActionsUrls("CREATE_ACTIONS_URLS")
+	delActionsUrls := GetActionsUrls("DEL_ACTIONS_URLS")
 
 	return Config{
 		HTTPPort:          getEnv("SERVER_PORT", "8080"),
@@ -34,12 +36,13 @@ func Load() Config {
 		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
 		InternalSecret:    getEnv("INTERNAL_SECRET", ""),
 		CreateActionsUrls: createActionsUrls,
+		DelActionsUrls:    delActionsUrls,
 	}
 }
 
-func GetActionsUrls() map[string]string {
+func GetActionsUrls(envVarName string) map[string]string {
 	urls := make(map[string]string)
-	data := os.Getenv("CREATE_ACTIONS_URLS")
+	data := os.Getenv(envVarName)
 
 	if data == "" {
 		return urls
@@ -62,7 +65,7 @@ func GetActionsUrls() map[string]string {
 		key := strings.Trim(strings.TrimSpace(pair[:colonIdx]), `"`)
 		value := strings.Trim(strings.TrimSpace(pair[colonIdx+1:]), `"`)
 
-		if key != "" && value != "" {
+		if key != "" {
 			urls[key] = value
 		}
 	}
