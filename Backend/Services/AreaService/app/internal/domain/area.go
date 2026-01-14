@@ -43,4 +43,5 @@ type AreaRepository interface {
 	GetArea(areaID int) (Area, error)
 	ToggleArea(areaID int, isActive bool) error
 	DeleteArea(areaID int) error
+	DeactivateAreasByProvider(userID int, provider string) (int, error)
 }
