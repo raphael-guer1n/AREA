@@ -235,6 +235,11 @@ type FieldConfig struct {
 	Label         string `json:"label"`
 	Required      bool   `json:"required"`
 	DefaultValuer string `json:"default"`
+	Selection     []struct {
+		Value string `json:"value"`
+		Label string `json:"label"`
+	} `json:"selection,omitempty"`
+	Multiple bool `json:"multiple,omitempty"`
 }
 
 type OutputField struct {
