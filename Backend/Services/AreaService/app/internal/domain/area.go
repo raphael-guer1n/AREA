@@ -42,4 +42,5 @@ type AreaRepository interface {
 	GetAreaFromAction(actionId int) (Area, error)
 	GetArea(areaID int) (Area, error)
 	ToggleArea(areaID int, isActive bool) error
+	DeleteArea(areaID int) error
 }
