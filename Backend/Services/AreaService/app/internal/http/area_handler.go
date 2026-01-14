@@ -980,3 +980,52 @@ func (h *AreaHandler) HandleDeleteArea(w http.ResponseWriter, req *http.Request)
 	}
 	respondJSON(w, http.StatusOK, map[string]any{})
 }
+
+func (h *AreaHandler) HandleDeactivateAreasByProvider(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		UserId   int    `json:"user_id"`
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	if body.UserId == 0 {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id is required",
+		})
+		return
+	}
+	if body.Provider == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "provider is required",
+		})
+		return
+	}
+	deactivatedCount, err := h.areaService.DeactivateAreasByProvider(body.UserId, body.Provider)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"deactivated_count": deactivatedCount,
+		},
+	})
+}
