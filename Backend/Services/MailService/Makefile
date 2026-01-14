@@ -20,16 +20,16 @@ clean: ## Remove build artifacts
 	cd app && go clean
 
 docker-build: ## Build Docker image
-	docker-compose build
+	docker compose build
 
 docker-up: ## Start Docker containers
-	docker-compose up -d
+	docker compose up -d
 
 docker-down: ## Stop Docker containers
-	docker-compose down
+	docker compose down
 
 docker-logs: ## View Docker logs
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-restart: docker-down docker-up ## Restart Docker containers
 
