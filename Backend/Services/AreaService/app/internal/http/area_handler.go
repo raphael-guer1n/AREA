@@ -792,3 +792,84 @@ func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
 	})
 	return nil
 }
+
+func (h *AreaHandler) HandleDeleteArea(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		AreaId int `json:"area_id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	userId, err := h.getUserId(req)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error getting user ID," + err.Error(),
+		})
+		return
+	}
+	area, err := h.areaService.GetArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	log.Printf("Deleting area of %d by user %d", area.UserID, userId)
+	if area.UserID != userId {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "You are not allowed to delete this area",
+		})
+		return
+	}
+	for _, action := range area.Actions {
+		delUrl, exist := h.cfg.DelActionsUrls[action.Type]
+		if !exist || delUrl == "nil" {
+			continue
+		}
+		deleteUrl := delUrl + "/" + strconv.Itoa(action.ID)
+		delReq, err := http.NewRequest(http.MethodDelete, deleteUrl, nil)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+		if h.cfg.InternalSecret != "" {
+			delReq.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		delReq.Header.Set("Authorization", req.Header.Get("Authorization"))
+		client := &http.Client{}
+		_, err = client.Do(delReq)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+	err = h.areaService.DeleteArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{})
+}
