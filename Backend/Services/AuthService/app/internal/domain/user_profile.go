@@ -42,4 +42,5 @@ type UserProfileRepository interface {
 	ListRefreshCandidates(expireBefore time.Time) ([]RefreshCandidate, error)
 	UpdateTokens(profileID int, accessToken, refreshToken string, expiresAt time.Time) error
 	MarkNeedsReconnect(profileID int, reason string) error
+	DeleteByUserIdAndService(userId int, service string) error
 }
