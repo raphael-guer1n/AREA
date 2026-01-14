@@ -12,11 +12,15 @@ import (
 )
 
 type AreaService struct {
-	areaRepo domain.AreaRepository
+	areaRepo       domain.AreaRepository
+	internalSecret string
 }
 
-func NewAreaService(repository domain.AreaRepository) *AreaService {
-	return &AreaService{areaRepo: repository}
+func NewAreaService(repository domain.AreaRepository, internalSecret string) *AreaService {
+	return &AreaService{
+		areaRepo:       repository,
+		internalSecret: internalSecret,
+	}
 }
 
 func (s *AreaService) CreateCalendarEvent(authToken string, event domain.Event) (domain.Event, error) {
@@ -146,7 +150,12 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+userToken)
+	if strings.TrimSpace(userToken) != "" {
+		req.Header.Set("Authorization", "Bearer "+userToken)
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	fmt.Println(payload)
