@@ -419,6 +419,23 @@ components:
         default:
           type: string
           example: ""
+        selection:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldSelectionOption'
+        multiple:
+          type: boolean
+          example: false
+
+    FieldSelectionOption:
+      type: object
+      properties:
+        value:
+          type: string
+          example: push
+        label:
+          type: string
+          example: Push
 
     OutputField:
       type: object
