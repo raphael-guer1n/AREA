@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { activateArea, deactivateArea, fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
+import { activateArea, deactivateArea, deleteArea, fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
 import {
   fetchServiceConfig,
   fetchServiceNames,
@@ -49,6 +49,13 @@ type AreaService = {
   actions: ActionDefinition[];
   reactions: ReactionDefinition[];
   connected: boolean;
+};
+
+type ReactionForm = {
+  id: string;
+  service: AreaService | null;
+  reaction: ReactionDefinition | null;
+  fieldValues: Record<string, FieldValue>;
 };
 
 const gradientPalette: AreaGradient[] = [
@@ -348,19 +355,19 @@ function AreaPageContent() {
   const [isLoadingServices, setIsLoadingServices] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [actionService, setActionService] = useState<AreaService | null>(null);
-  const [reactionService, setReactionService] = useState<AreaService | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionDefinition | null>(null);
-  const [selectedReaction, setSelectedReaction] = useState<ReactionDefinition | null>(null);
   const [actionFieldValues, setActionFieldValues] = useState<Record<string, FieldValue>>({});
-  const [reactionFieldValues, setReactionFieldValues] = useState<Record<string, FieldValue>>({});
+  const [reactions, setReactions] = useState<ReactionForm[]>([]);
   const [areaName, setAreaName] = useState("");
-  const [wizardStep, setWizardStep] = useState<"action" | "reaction" | "details">("action");
+  const [wizardStep, setWizardStep] = useState<"action" | "reactions" | "details">("action");
+  const [expandedReactionId, setExpandedReactionId] = useState<string | null>(null);
   const [selectedAreaDetail, setSelectedAreaDetail] = useState<CreatedArea | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [areaActionError, setAreaActionError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [updatingAreaId, setUpdatingAreaId] = useState<string | null>(null);
   const selectRefs = useRef<Record<string, HTMLDetailsElement | null>>({});
+  const reactionIdRef = useRef(0);
   const [searchTerm, setSearchTerm] = useState("");
   const normalizedSearch = normalizeSearchValue(searchTerm);
   const displayAreas = useMemo(() => {
@@ -380,11 +387,15 @@ function AreaPageContent() {
     fields: FieldDefinition[],
     values: Record<string, FieldValue>,
     onChange: (name: string, value: FieldValue) => void,
+    fieldKeyPrefix = "",
+    tokenOptions?: Array<{ token: string; label: string }>,
+    onInsertToken?: (name: string, token: string) => void,
   ) => (
     <div className="grid gap-3 sm:grid-cols-2">
       {fields.map((field) => {
         const rawValue = values[field.name];
         const value = Array.isArray(rawValue) ? rawValue.join(", ") : rawValue ?? "";
+        const selectKey = fieldKeyPrefix ? `${fieldKeyPrefix}-${field.name}` : field.name;
         const baseClasses =
           "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25";
 
@@ -409,7 +420,7 @@ function AreaPageContent() {
               </span>
               <details
                 ref={(node) => {
-                  selectRefs.current[field.name] = node;
+                  selectRefs.current[selectKey] = node;
                 }}
                 className="group relative"
               >
@@ -528,19 +539,53 @@ function AreaPageContent() {
               {field.required ? " *" : ""}
             </span>
             {useTextArea ? (
-              <textarea
-                value={value}
-                onChange={(e) => onChange(field.name, e.target.value)}
-                rows={4}
-                className={baseClasses}
-              />
+              <>
+                <textarea
+                  value={value}
+                  onChange={(e) => onChange(field.name, e.target.value)}
+                  rows={4}
+                  className={baseClasses}
+                />
+                {tokenOptions?.length && onInsertToken ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tokenOptions.map((token) => (
+                      <button
+                        key={`${field.name}-${token.token}`}
+                        type="button"
+                        onClick={() => onInsertToken(field.name, token.token)}
+                        className="inline-flex items-center gap-1 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--muted)] transition hover:border-[var(--blue-primary-2)] hover:text-[var(--foreground)]"
+                      >
+                        <span className="text-[var(--blue-primary-3)]">+</span>
+                        <span>{token.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
             ) : (
-              <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(field.name, e.target.value)}
-                className={baseClasses}
-              />
+              <>
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => onChange(field.name, e.target.value)}
+                  className={baseClasses}
+                />
+                {tokenOptions?.length && onInsertToken ? (
+                  <div className="flex flex-wrap gap-2">
+                    {tokenOptions.map((token) => (
+                      <button
+                        key={`${field.name}-${token.token}`}
+                        type="button"
+                        onClick={() => onInsertToken(field.name, token.token)}
+                        className="inline-flex items-center gap-1 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-1 text-xs font-semibold text-[var(--muted)] transition hover:border-[var(--blue-primary-2)] hover:text-[var(--foreground)]"
+                      >
+                        <span className="text-[var(--blue-primary-3)]">+</span>
+                        <span>{token.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
             )}
           </label>
         );
@@ -675,76 +720,128 @@ function AreaPageContent() {
     [token, loadAreas],
   );
 
-  const handleDeleteArea = useCallback((areaName: string) => {
-    setAreaActionError(`La suppression de "${areaName}" n'est pas encore disponible sur l'API.`);
-  }, []);
+  const handleDeleteArea = useCallback(
+    async (areaId: string, areaName: string) => {
+      if (!token) {
+        setAreaActionError("Vous devez être connecté pour supprimer une area.");
+        return;
+      }
+      const numericId = Number.parseInt(areaId, 10);
+      if (!Number.isFinite(numericId)) {
+        setAreaActionError("Identifiant d'area invalide.");
+        return;
+      }
 
-  useEffect(() => {
-    setCreateError(null);
-  }, [wizardStep]);
+      setAreaActionError(null);
+      setUpdatingAreaId(areaId);
+      try {
+        await deleteArea(token, numericId);
+        await loadAreas();
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : `Impossible de supprimer "${areaName}".`;
+        setAreaActionError(message);
+      } finally {
+        setUpdatingAreaId(null);
+      }
+    },
+    [token, loadAreas],
+  );
 
   const connectedServices = useMemo(
     () => services.filter((service) => service.connected),
     [services],
   );
+  const actionServices = useMemo(
+    () => connectedServices.filter((service) => service.actions.length > 0),
+    [connectedServices],
+  );
+  const reactionServices = useMemo(
+    () => connectedServices.filter((service) => service.reactions.length > 0),
+    [connectedServices],
+  );
 
+  useEffect(() => {
+    setCreateError(null);
+  }, [wizardStep]);
+
+  const reactionIsValid = (reaction: ReactionForm) =>
+    Boolean(
+      reaction.service &&
+        reaction.service.connected &&
+        reaction.reaction &&
+        areRequiredFieldsFilled(reaction.reaction.fields, reaction.fieldValues),
+    );
+  const allReactionsValid = reactions.length > 0 && reactions.every((reaction) => reactionIsValid(reaction));
+  const actionOutputTokens = useMemo(
+    () =>
+      (selectedAction?.output_fields ?? []).map((field) => ({
+        token: `{{${field.name}}}`,
+        label: field.label ?? field.name,
+      })),
+    [selectedAction],
+  );
   const canProceedAction =
     Boolean(actionService && actionService.connected && selectedAction) &&
     areRequiredFieldsFilled(selectedAction?.fields ?? [], actionFieldValues);
-  const canProceedReaction =
-    Boolean(reactionService && reactionService.connected && selectedReaction) &&
-    areRequiredFieldsFilled(selectedReaction?.fields ?? [], reactionFieldValues);
-
-  const wizardSteps: Array<{ id: "action" | "reaction" | "details"; title: string; description: string }> = [
+  const canProceedReactions = allReactionsValid;
+  const wizardSteps: Array<{ id: "action" | "reactions" | "details"; title: string; description: string }> = [
     { id: "action", title: "Action", description: "Déclencheur" },
-    { id: "reaction", title: "Réaction", description: "Action exécutée" },
-    { id: "details", title: "Détails", description: "Planification" },
+    { id: "reactions", title: "Réactions", description: "Actions exécutées" },
+    { id: "details", title: "Détails", description: "Récapitulatif" },
   ];
+  const currentStepIndex = wizardSteps.findIndex((step) => step.id === wizardStep);
 
   const canCreate =
     Boolean(
       actionService &&
         actionService.connected &&
         selectedAction &&
-        reactionService &&
-        reactionService.connected &&
-        selectedReaction &&
         areaName.trim() &&
         areRequiredFieldsFilled(selectedAction.fields, actionFieldValues) &&
-        areRequiredFieldsFilled(selectedReaction.fields, reactionFieldValues),
+        allReactionsValid,
     ) && hasConnectedServices;
-  const currentStepIndex = wizardSteps.findIndex((step) => step.id === wizardStep);
 
   const goToNextStep = () => {
-    if (wizardStep === "action" && canProceedAction) {
-      setWizardStep("reaction");
+    setCreateError(null);
+    if (wizardStep === "action") {
+      if (canProceedAction) {
+        setWizardStep("reactions");
+      } else {
+        setCreateError("Complétez le déclencheur avant de continuer.");
+      }
       return;
     }
-    if (wizardStep === "reaction" && canProceedReaction) {
-      setWizardStep("details");
+    if (wizardStep === "reactions") {
+      if (canProceedReactions) {
+        setWizardStep("details");
+      } else {
+        setCreateError("Ajoutez au moins une réaction complète avant de continuer.");
+      }
     }
   };
 
   const goToPreviousStep = () => {
-    if (wizardStep === "details") {
-      setWizardStep("reaction");
+    setCreateError(null);
+    if (wizardStep === "reactions") {
+      setWizardStep("action");
       return;
     }
-    if (wizardStep === "reaction") {
-      setWizardStep("action");
+    if (wizardStep === "details") {
+      setWizardStep("reactions");
     }
   };
 
   const resetForm = () => {
     setActionService(null);
-    setReactionService(null);
     setSelectedAction(null);
-    setSelectedReaction(null);
     setActionFieldValues({});
-    setReactionFieldValues({});
+    setReactions([]);
+    reactionIdRef.current = 0;
     setAreaName("");
     setCreateError(null);
     setWizardStep("action");
+    setExpandedReactionId(null);
   };
 
   const openModal = () => {
@@ -756,17 +853,87 @@ function AreaPageContent() {
     setIsCreateModalOpen(false);
   };
 
+  const clearCreateError = () => setCreateError(null);
+
+  const addReaction = () => {
+    const newId = `reaction-${reactionIdRef.current++}`;
+    setReactions((prev) => [
+      ...prev,
+      { id: newId, service: null, reaction: null, fieldValues: {} },
+    ]);
+    setExpandedReactionId(newId);
+    clearCreateError();
+  };
+
+  const removeReaction = (reactionId: string) => {
+    setReactions((prev) => {
+      const nextReactions = prev.filter((reaction) => reaction.id !== reactionId);
+      setExpandedReactionId((current) => (current === reactionId ? nextReactions[0]?.id ?? null : current));
+      return nextReactions;
+    });
+    clearCreateError();
+  };
+
+  const updateReactionService = (reactionId: string, service: AreaService) => {
+    setReactions((prev) =>
+      prev.map((reaction) =>
+        reaction.id === reactionId
+          ? { ...reaction, service, reaction: null, fieldValues: {} }
+          : reaction,
+      ),
+    );
+    clearCreateError();
+  };
+
+  const updateReactionSelection = (reactionId: string, reactionDef: ReactionDefinition) => {
+    setReactions((prev) =>
+      prev.map((reaction) =>
+        reaction.id === reactionId
+          ? { ...reaction, reaction: reactionDef, fieldValues: initializeFieldValues(reactionDef.fields) }
+          : reaction,
+      ),
+    );
+    clearCreateError();
+  };
+
+  const updateReactionField = (reactionId: string, name: string, value: FieldValue) => {
+    setReactions((prev) =>
+      prev.map((reaction) =>
+        reaction.id === reactionId
+          ? { ...reaction, fieldValues: { ...reaction.fieldValues, [name]: value } }
+          : reaction,
+      ),
+    );
+  };
+
+  const insertTokenIntoReactionField = (reactionId: string, name: string, token: string) => {
+    setReactions((prev) =>
+      prev.map((reaction) => {
+        if (reaction.id !== reactionId) return reaction;
+        const current = reaction.fieldValues[name];
+        const asString = Array.isArray(current) ? current.join(", ") : current ? String(current) : "";
+        const nextValue = asString ? `${asString} ${token}` : token;
+        return { ...reaction, fieldValues: { ...reaction.fieldValues, [name]: nextValue } };
+      }),
+    );
+    clearCreateError();
+  };
+
   const handleCreateArea = async () => {
     if (!token) {
       setCreateError("Vous devez être connecté pour créer une area.");
       return;
     }
-    if (!actionService || !reactionService) {
-      setCreateError("Sélectionnez un service pour le déclencheur et la réaction.");
+    if (!actionService) {
+      setCreateError("Sélectionnez un service pour le déclencheur.");
       return;
     }
-    if (!selectedAction || !selectedReaction) {
-      setCreateError("Choisissez un déclencheur et une réaction.");
+    if (!selectedAction) {
+      setCreateError("Choisissez un déclencheur.");
+      return;
+    }
+    if (!reactions.length) {
+      setCreateError("Ajoutez au moins une réaction.");
       return;
     }
     if (!areaName.trim()) {
@@ -775,9 +942,9 @@ function AreaPageContent() {
     }
     if (
       !areRequiredFieldsFilled(selectedAction.fields, actionFieldValues) ||
-      !areRequiredFieldsFilled(selectedReaction.fields, reactionFieldValues)
+      reactions.some((reaction) => !reactionIsValid(reaction))
     ) {
-      setCreateError("Complétez tous les champs obligatoires du déclencheur et de la réaction.");
+      setCreateError("Complétez tous les champs obligatoires du déclencheur et des réactions.");
       return;
     }
 
@@ -786,7 +953,15 @@ function AreaPageContent() {
 
     try {
       const actionInputs = buildInputFields(selectedAction.fields, actionFieldValues);
-      const reactionInputs = buildInputFields(selectedReaction.fields, reactionFieldValues);
+      const reactionPayloads = reactions.map((reaction) => {
+        const reactionInputs = buildInputFields(reaction.reaction?.fields ?? [], reaction.fieldValues);
+        return {
+          service: reaction.service?.id ?? "",
+          provider: reaction.service?.provider || reaction.service?.id || "",
+          title: reaction.reaction?.title ?? "",
+          input: reactionInputs,
+        };
+      });
 
       await saveArea(token, {
         name: areaName.trim(),
@@ -794,20 +969,13 @@ function AreaPageContent() {
         actions: [
           {
             service: actionService.id,
-            provider: actionService.provider,
+            provider: actionService.provider || actionService.id,
             title: selectedAction.title,
             type: selectedAction.type,
             input: actionInputs,
           },
         ],
-        reactions: [
-          {
-            service: reactionService.id,
-            provider: reactionService.provider,
-            title: selectedReaction.title,
-            input: reactionInputs,
-          },
-        ],
+        reactions: reactionPayloads,
       });
 
       await loadAreas();
@@ -943,19 +1111,17 @@ function AreaPageContent() {
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Service</p>
                         {isLoadingServices ? (
                           <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
-                        ) : connectedServices.length ? (
-                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {connectedServices.map((service) => (
+                        ) : actionServices.length ? (
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                            {actionServices.map((service) => (
                               <button
                                 key={service.id}
                                 type="button"
                                 onClick={() => {
-                                  const defaultAction = service.actions?.[0] ?? null;
+                                  clearCreateError();
                                   setActionService(service);
-                                  setSelectedAction(defaultAction ?? null);
-                                  setActionFieldValues(
-                                    defaultAction ? initializeFieldValues(defaultAction.fields) : {},
-                                  );
+                                  setSelectedAction(null);
+                                  setActionFieldValues({});
                                 }}
                                 className={cn(
                                   "flex h-14 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition",
@@ -970,7 +1136,7 @@ function AreaPageContent() {
                           </div>
                         ) : (
                           <p className="text-sm text-[var(--muted)]">
-                            Aucun service connecté. Connectez un service pour commencer.
+                            Aucun service avec déclencheur disponible. Connectez un service compatible pour commencer.
                           </p>
                         )}
                       </div>
@@ -981,26 +1147,28 @@ function AreaPageContent() {
                         </p>
                         {actionService && actionService.actions?.length ? (
                           <div className="space-y-3">
-                            {actionService.actions.map((action) => {
-                              const isSelected = selectedAction?.id === action.id;
-                              return (
+                          {actionService.actions.map((action) => {
+                            const isSelected = selectedAction?.id === action.id;
+                            return (
                               <button
                                 key={action.id}
                                 type="button"
                                 onClick={() => {
+                                  clearCreateError();
                                   setSelectedAction(action);
                                   setActionFieldValues(initializeFieldValues(action.fields));
+                                  setExpandedReactionId(null);
                                 }}
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
-                                  isSelected
-                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
-                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
-                                )}
-                              >
-                                <span>{action.label}</span>
-                                {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
-                              </button>
+                                  className={cn(
+                                    "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                                    isSelected
+                                      ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                      : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
+                                  )}
+                                >
+                                  <span>{action.label}</span>
+                                  {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
+                                </button>
                               );
                             })}
                           </div>
@@ -1016,8 +1184,14 @@ function AreaPageContent() {
                             Paramètres du déclencheur
                           </p>
                           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4">
-                            {renderFieldInputs(selectedAction.fields, actionFieldValues, (name, value) =>
-                              setActionFieldValues((prev) => ({ ...prev, [name]: value })),
+                            {renderFieldInputs(
+                              selectedAction.fields,
+                              actionFieldValues,
+                              (name, value) => {
+                                clearCreateError();
+                                setActionFieldValues((prev) => ({ ...prev, [name]: value }));
+                              },
+                              "action",
                             )}
                           </div>
                         </div>
@@ -1026,106 +1200,217 @@ function AreaPageContent() {
                   </div>
                 ) : null}
 
-                {wizardStep === "reaction" ? (
+                {wizardStep === "reactions" ? (
                   <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
                     <div className="space-y-1">
-                      <h3 className="text-lg font-semibold text-[var(--foreground)]">Réaction</h3>
+                      <h3 className="text-lg font-semibold text-[var(--foreground)]">Réactions</h3>
                       <p className="text-sm text-[var(--muted)]">
-                        Sélectionnez le service qui exécutera l&apos;action après le déclencheur.
+                        Ajoutez une ou plusieurs actions exécutées après le déclencheur.
                       </p>
                     </div>
 
-                    <div className="mt-5 space-y-5">
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Service</p>
-                        {isLoadingServices ? (
-                          <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
-                        ) : connectedServices.length ? (
-                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {connectedServices.map((service) => (
-                              <button
-                                key={service.id}
-                                type="button"
-                                onClick={() => {
-                                  const defaultReaction = service.reactions?.[0] ?? null;
-                                  setReactionService(service);
-                                  setSelectedReaction(defaultReaction ?? null);
-                                  setReactionFieldValues(
-                                    defaultReaction ? initializeFieldValues(defaultReaction.fields) : {},
-                                  );
-                                }}
-                                className={cn(
-                                  "flex h-14 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition",
-                                  reactionService?.id === service.id
-                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
-                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:-translate-y-0.5 hover:border-[var(--blue-primary-2)]",
-                                )}
+                    <div className="mt-5 space-y-4">
+                  {isLoadingServices ? (
+                    <p className="text-sm text-[var(--muted)]">Chargement des services...</p>
+                  ) : null}
+                  {!isLoadingServices && !reactionServices.length ? (
+                    <p className="text-sm text-[var(--muted)]">
+                          Aucun service avec réaction disponible. Connectez un service compatible pour commencer.
+                        </p>
+                      ) : null}
+                      {!isLoadingServices && reactionServices.length ? (
+                        reactions.length ? (
+                          <div className="space-y-4">
+                            {reactions.map((reaction, index) => (
+                              <div
+                                key={reaction.id}
+                                className="space-y-3 rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4 shadow-[0_6px_18px_rgba(12,24,46,0.06)]"
                               >
-                                {service.name}
-                              </button>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedReactionId((current) =>
+                                        current === reaction.id ? null : reaction.id,
+                                      )
+                                    }
+                                    className="flex flex-1 items-start gap-3 text-left"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                                        Réaction {index + 1}
+                                      </p>
+                                      <p className="text-sm font-semibold text-[var(--foreground)] truncate">
+                                        {reaction.service?.name ?? "Sélectionnez un service"}
+                                      </p>
+                                      <p className="text-[var(--muted)] text-xs truncate">
+                                        {reaction.reaction?.label ?? "Aucune action sélectionnée"}
+                                      </p>
+                                    </div>
+                                    <span
+                                      className={cn(
+                                        "rounded-full px-3 py-1 text-xs font-semibold",
+                                        reactionIsValid(reaction)
+                                          ? "bg-[var(--success,#22c55e)]/15 text-[var(--success,#22c55e)]"
+                                          : "bg-[var(--danger,#ef4444)]/15 text-[var(--danger,#ef4444)]",
+                                      )}
+                                    >
+                                      {reactionIsValid(reaction) ? "Prête" : "Incomplète"}
+                                    </span>
+                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedReactionId((current) =>
+                                          current === reaction.id ? null : reaction.id,
+                                        )
+                                      }
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                                      aria-label={`Réduire ou développer la réaction ${index + 1}`}
+                                    >
+                                      <svg
+                                        className={cn(
+                                          "h-4 w-4 transition",
+                                          expandedReactionId === reaction.id ? "rotate-180" : "",
+                                        )}
+                                        viewBox="0 0 20 20"
+                                        fill="none"
+                                        aria-hidden
+                                      >
+                                        <path
+                                          d="m5 7.5 5 5 5-5"
+                                          stroke="currentColor"
+                                          strokeWidth="1.6"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeReaction(reaction.id)}
+                                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                                      aria-label={`Supprimer la réaction ${index + 1}`}
+                                    >
+                                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden>
+                                        <path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.6" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {expandedReactionId === reaction.id ? (
+                                  <div className="space-y-3">
+                                    <div className="space-y-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-3">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                                        Service
+                                      </p>
+                                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                                        {reactionServices.map((service) => (
+                                          <button
+                                            key={`${reaction.id}-${service.id}`}
+                                            type="button"
+                                            onClick={() => updateReactionService(reaction.id, service)}
+                                            className={cn(
+                                              "flex h-12 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition sm:text-sm",
+                                              reaction.service?.id === service.id
+                                                ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                                : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
+                                            )}
+                                          >
+                                            {service.name}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-3">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                                        Action
+                                      </p>
+                                  {reaction.service && reaction.service.reactions?.length ? (
+                                    <div className="space-y-2">
+                                      {reaction.service.reactions.map((reactionDef) => {
+                                        const isSelected = reaction.reaction?.id === reactionDef.id;
+                                        return (
+                                              <button
+                                                key={`${reaction.id}-${reactionDef.id}`}
+                                                type="button"
+                                                onClick={() => updateReactionSelection(reaction.id, reactionDef)}
+                                                className={cn(
+                                                  "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
+                                                  isSelected
+                                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
+                                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
+                                                )}
+                                              >
+                                                <span>{reactionDef.label}</span>
+                                                {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
+                                          Choisissez un service pour afficher les actions disponibles.
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {reaction.reaction ? (
+                                      <div className="space-y-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-3">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                                          Paramètres de la réaction
+                                        </p>
+                                        {actionOutputTokens.length ? (
+                                          <p className="text-xs text-[var(--muted)]">
+                                            Utilisez les boutons + sous les champs pour insérer les données du déclencheur.
+                                          </p>
+                                        ) : null}
+                                        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4 space-y-3">
+                                          {renderFieldInputs(
+                                            reaction.reaction.fields,
+                                            reaction.fieldValues,
+                                            (name, value) => {
+                                              clearCreateError();
+                                              updateReactionField(reaction.id, name, value);
+                                            },
+                                            reaction.id,
+                                            actionOutputTokens,
+                                            (name, token) => insertTokenIntoReactionField(reaction.id, name, token),
+                                          )}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                              </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-[var(--muted)]">
-                            Aucun service connecté. Connectez un service pour commencer.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Action</p>
-                        {reactionService && reactionService.reactions?.length ? (
-                          <div className="space-y-3">
-                            {reactionService.reactions.map((reaction) => {
-                              const isSelected = selectedReaction?.id === reaction.id;
-                              return (
-                              <button
-                                key={reaction.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedReaction(reaction);
-                                  setReactionFieldValues(
-                                    initializeFieldValues(reaction.fields),
-                                  );
-                                }}
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition",
-                                  isSelected
-                                    ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
-                                    : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
-                                )}
-                              >
-                                <span>{reaction.label}</span>
-                                {isSelected ? <span className="text-[var(--blue-primary-3)]">●</span> : null}
-                              </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
                           <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
-                            Choisissez un service pour afficher ses actions disponibles.
+                            Cliquez sur &quot;Ajouter une réaction&quot; pour définir l&apos;action à exécuter après le déclencheur.
                           </div>
-                        )}
-                      </div>
-                      {selectedReaction ? (
-                        <div className="space-y-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                            Paramètres de la réaction
-                          </p>
-                          <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-4">
-                            {renderFieldInputs(selectedReaction.fields, reactionFieldValues, (name, value) =>
-                              setReactionFieldValues((prev) => ({ ...prev, [name]: value })),
-                            )}
-                          </div>
-                        </div>
+                        )
                       ) : null}
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={addReaction}
+                          disabled={isLoadingServices || !reactionServices.length}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Ajouter une réaction
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : null}
 
                 {wizardStep === "details" ? (
-                  <div className="grid gap-5 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+                  <div className="space-y-4">
+                    <div className="space-y-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
                       <div className="space-y-1">
                         <h3 className="text-lg font-semibold text-[var(--foreground)]">Détails de l&apos;area</h3>
                         <p className="text-sm text-[var(--muted)]">Nom et validation finale.</p>
@@ -1135,27 +1420,36 @@ function AreaPageContent() {
                         <input
                           type="text"
                           value={areaName}
-                          onChange={(e) => setAreaName(e.target.value)}
+                          onChange={(e) => {
+                            clearCreateError();
+                            setAreaName(e.target.value);
+                          }}
                           placeholder="Démo marketing"
                           className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-[var(--foreground)] shadow-sm focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
                         />
                       </label>
                       <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--muted)]">
-                        Les paramètres du déclencheur et de la réaction ont été saisis ci-dessus. Vérifiez-les avant de créer l&apos;area.
+                        Les paramètres du déclencheur et des réactions ont été saisis ci-dessus. Vérifiez-les avant de créer l&apos;area.
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6">
+
+                    <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6 shadow-[0_10px_40px_rgba(10,25,45,0.05)] ring-1 ring-[rgba(28,61,99,0.18)]">
                       <div className="space-y-1">
-                        <h3 className="text-lg font-semibold text-[var(--foreground)]">Récapitulatif</h3>
-                        <p className="text-sm text-[var(--muted)]">Vue rapide des informations saisies.</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
+                          Récapitulatif
+                        </p>
+                        <h3 className="text-lg font-semibold text-[var(--foreground)]">Vue globale</h3>
+                        <p className="text-sm text-[var(--muted)]">Action, réactions et paramètres essentiels regroupés ici.</p>
                       </div>
-                      <div className="mt-4 space-y-3 text-sm">
+                      <div className="mt-4 space-y-4 text-sm">
                         <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3">
                           <p className="text-[var(--muted)] text-xs">Déclencheur</p>
                           <p className="text-base font-semibold text-[var(--foreground)]">
                             {actionService?.name ?? "Non défini"}
                           </p>
-                          <p className="text-[var(--muted)] text-xs">{selectedAction?.label ?? "Aucun"}</p>
+                          <p className="text-[var(--muted)] text-xs">
+                            {selectedAction?.label ?? "Aucun déclencheur sélectionné"}
+                          </p>
                           {selectedAction?.fields.map((field) => (
                             <p key={`action-${field.name}`} className="text-xs text-[var(--muted)]">
                               {field.label}:{" "}
@@ -1165,20 +1459,53 @@ function AreaPageContent() {
                             </p>
                           ))}
                         </div>
-                        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3">
-                          <p className="text-[var(--muted)] text-xs">Réaction</p>
+
+                        <div className="space-y-2">
+                          <p className="text-[var(--muted)] text-xs">Réactions</p>
+                          {reactions.length ? (
+                            <div className="space-y-2">
+                              {reactions.map((reaction, index) => (
+                                <div
+                                  key={`recap-${reaction.id}`}
+                                  className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="text-xs font-semibold text-[var(--muted)]">#{index + 1}</p>
+                                      <p className="text-sm font-semibold text-[var(--foreground)]">
+                                        {reaction.service?.name ?? "Service non défini"}
+                                      </p>
+                                      <p className="text-[var(--muted)] text-xs">
+                                        {reaction.reaction?.label ?? "Aucune action sélectionnée"}
+                                      </p>
+                                    </div>
+                                    <span className="text-[var(--muted)] text-xs">
+                                      {reactionIsValid(reaction) ? "Prête" : "Incomplète"}
+                                    </span>
+                                  </div>
+                                  {reaction.reaction?.fields.map((field) => (
+                                    <p key={`recap-${reaction.id}-${field.name}`} className="text-xs text-[var(--muted)]">
+                                      {field.label}:{" "}
+                                      <span className="text-[var(--foreground)]">
+                                        {formatFieldDisplayValue(reaction.fieldValues[field.name]) || "—"}
+                                      </span>
+                                    </p>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-3 py-2 text-[var(--muted)]">
+                              Ajoutez au moins une réaction pour finaliser.
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-3 py-2">
+                          <p className="text-[var(--muted)] text-xs">Nom de l&apos;area</p>
                           <p className="text-base font-semibold text-[var(--foreground)]">
-                            {reactionService?.name ?? "Non défini"}
+                            {areaName.trim() || "Non renseigné"}
                           </p>
-                          <p className="text-[var(--muted)] text-xs">{selectedReaction?.label ?? "Aucune"}</p>
-                          {selectedReaction?.fields.map((field) => (
-                            <p key={`reaction-${field.name}`} className="text-xs text-[var(--muted)]">
-                              {field.label}:{" "}
-                              <span className="text-[var(--foreground)]">
-                                {formatFieldDisplayValue(reactionFieldValues[field.name]) || "—"}
-                              </span>
-                            </p>
-                          ))}
                         </div>
                       </div>
                     </div>
@@ -1208,7 +1535,7 @@ function AreaPageContent() {
                       type="button"
                       onClick={() => {
                         closeModal();
-                        setWizardStep("action");
+                        resetForm();
                       }}
                       className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] shadow-sm transition hover:border-[var(--blue-primary-2)] hover:text-[var(--blue-primary-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
                     >
@@ -1218,9 +1545,7 @@ function AreaPageContent() {
                       <button
                         type="button"
                         onClick={goToNextStep}
-                        disabled={
-                          wizardStep === "action" ? !canProceedAction : wizardStep === "reaction" ? !canProceedReaction : false
-                        }
+                        disabled={wizardStep === "action" ? !canProceedAction : !canProceedReactions}
                         className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Continuer
@@ -1232,7 +1557,7 @@ function AreaPageContent() {
                         disabled={isCreating || !canCreate}
                         className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--blue-primary-2)] bg-[var(--blue-primary-2)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-[var(--blue-primary-3)] hover:bg-[var(--blue-primary-3)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {isCreating ? "Création..." : "Créer l'area"}
+                        {isCreating ? "Création..." : "Finaliser et créer"}
                       </button>
                     )}
                   </div>
@@ -1361,7 +1686,7 @@ function AreaPageContent() {
                         isActive={area.active}
                         onActivate={() => handleToggleArea(area.id, true)}
                         onDeactivate={() => handleToggleArea(area.id, false)}
-                        onDelete={() => handleDeleteArea(area.name)}
+                        onDelete={() => handleDeleteArea(area.id, area.name)}
                         isBusy={updatingAreaId === area.id}
                         onClick={() => setSelectedAreaDetail(area)}
                         className="h-full"
@@ -1415,81 +1740,115 @@ function AreaPageContent() {
 
         {selectedAreaDetail ? (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.5)] px-4 py-10 backdrop-blur-sm"
-            onClick={() => setSelectedAreaDetail(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Détail de l'area"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(6,14,25,0.5)] px-4 py-10 backdrop-blur-sm"
+          onClick={() => setSelectedAreaDetail(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Détail de l'area"
+        >
+          <div
+            className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div
-              className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl"
-              onClick={(event) => event.stopPropagation()}
-            >
               <div
                 className="h-2 w-full"
                 style={{
                   background: `linear-gradient(90deg, ${selectedAreaDetail.gradient.from}, ${selectedAreaDetail.gradient.to})`,
                 }}
               />
-              <div className="flex items-start justify-between px-6 py-5">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
-                    Détail de l&apos;automation
-                  </p>
-                  <h3 className="text-2xl font-semibold text-[var(--foreground)]">
-                    {selectedAreaDetail.summary || selectedAreaDetail.name}
-                  </h3>
-                  <p className="text-sm text-[var(--muted)]">{selectedAreaDetail.name}</p>
+              <div className="space-y-4 px-7 pb-7 pt-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
+                      Détail de l&apos;automation
+                    </p>
+                    <h3 className="text-2xl font-semibold text-[var(--foreground)]">
+                      {selectedAreaDetail.summary || selectedAreaDetail.name}
+                    </h3>
+                    <p className="text-sm text-[var(--muted)]">{selectedAreaDetail.name}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-xs font-semibold",
+                        selectedAreaDetail.active
+                          ? "bg-[var(--success,#22c55e)]/15 text-[var(--success,#22c55e)]"
+                          : "bg-[var(--danger,#ef4444)]/15 text-[var(--danger,#ef4444)]",
+                      )}
+                    >
+                      {selectedAreaDetail.active ? "Active" : "Inactive"}
+                    </span>
+                    <p className="text-[var(--muted)] text-xs">ID: {selectedAreaDetail.id}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAreaDetail(null)}
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
+                      aria-label="Fermer"
+                    >
+                      <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden>
+                        <path d="M15 5 5 15m0-10 10 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAreaDetail(null)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[var(--muted)] transition hover:text-[var(--foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--blue-primary-3)]"
-                  aria-label="Fermer"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden>
-                    <path d="M15 5 5 15m0-10 10 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
 
-              <div className="grid gap-6 px-6 pb-6 md:grid-cols-2">
-                <div className="space-y-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
+                <div className="space-y-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Service d&apos;action
+                    Vue d&apos;ensemble
                   </p>
-                  <p className="text-base font-semibold text-[var(--foreground)]">
-                    {selectedAreaDetail.actionService}
-                  </p>
-                  <p className="text-sm text-[var(--muted)]">{selectedAreaDetail.actionName}</p>
-                </div>
-                <div className="space-y-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Service de réaction
-                  </p>
-                  <p className="text-base font-semibold text-[var(--foreground)]">
-                    {selectedAreaDetail.reactionService}
-                  </p>
-                  <p className="text-sm text-[var(--muted)]">{selectedAreaDetail.reactionName}</p>
-                </div>
-                <div className="space-y-2 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4 md:col-span-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Paramètres
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <p className="text-[var(--muted)] text-xs">Début</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.startTime}</p>
-                    </div>
-                    <div>
-                      <p className="text-[var(--muted)] text-xs">Fin</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.endTime}</p>
-                    </div>
-                    <div>
-                      <p className="text-[var(--muted)] text-xs">Délai</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">
-                        {selectedAreaDetail.delay}s
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Déclencheur</p>
+                      <p className="font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.actionService || "—"}
                       </p>
+                      <p className="text-[var(--muted)] text-xs">{selectedAreaDetail.actionName || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Réaction principale</p>
+                      <p className="font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.reactionService || "—"}
+                      </p>
+                      <p className="text-[var(--muted)] text-xs">{selectedAreaDetail.reactionName || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Service associé</p>
+                      <p className="font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.serviceName || selectedAreaDetail.actionService || "—"}
+                      </p>
+                      <p className="text-[var(--muted)] text-xs">Résumé: {selectedAreaDetail.summary || "—"}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Début</p>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.startTime || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Fin</p>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.endTime || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Délai</p>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.delay}s</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+                    Récapitulatif
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Titre</p>
+                      <p className="font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.summary || selectedAreaDetail.name}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                      <p className="text-[var(--muted)] text-xs">Nom interne</p>
+                      <p className="font-semibold text-[var(--foreground)]">{selectedAreaDetail.name}</p>
                     </div>
                   </div>
                 </div>

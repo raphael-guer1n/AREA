@@ -198,6 +198,27 @@ async function toggleArea(
   }
 }
 
+type DeleteAreaPayload = {
+  area_id: number;
+};
+
+export async function deleteArea(token: string, areaId: number): Promise<void> {
+  const response = await fetch(`${AREA_SERVICE_BASE_URL}/deleteArea`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ area_id: areaId } satisfies DeleteAreaPayload),
+  });
+
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  if (!response.ok || body?.error) {
+    const errorMessage = body?.error ?? `Impossible de supprimer l'area (statut ${response.status}).`;
+    throw new Error(errorMessage);
+  }
+}
+
 export async function activateArea(token: string, areaId: number): Promise<void> {
   return toggleArea(token, areaId, "activateArea");
 }
