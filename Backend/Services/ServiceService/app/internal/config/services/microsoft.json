@@ -1,0 +1,161 @@
+{
+  "provider": "microsoft",
+  "name": "microsoft",
+  "label": "Microsoft",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "outlook_new_email",
+      "label": "Outlook - New Email Received",
+      "type": "webhook",
+      "fields": [
+        { "name": "from_contains", "type": "text", "label": "Expéditeur contient (optionnel)", "required": false, "default": "" },
+        { "name": "subject_contains", "type": "text", "label": "Sujet contient (optionnel)", "required": false, "default": "" }
+      ],
+      "output_fields": [
+        { "name": "subject", "type": "text", "label": "Sujet" },
+        { "name": "from", "type": "text", "label": "Expéditeur" },
+        { "name": "body", "type": "text", "label": "Contenu" }
+      ]
+    },
+    {
+      "title": "teams_new_message",
+      "label": "Teams - New Message Posted",
+      "type": "webhook",
+      "fields": [
+        { "name": "channel_name", "type": "text", "label": "Nom du canal Teams", "required": true, "default": "General" }
+      ],
+      "output_fields": [
+        { "name": "author", "type": "text", "label": "Auteur" },
+        { "name": "message", "type": "text", "label": "Message" }
+      ]
+    },
+    {
+      "title": "onedrive_new_file",
+      "label": "OneDrive - New File Added",
+      "type": "webhook",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier surveillé", "required": true, "default": "/Documents" }
+      ],
+      "output_fields": [
+        { "name": "file_name", "type": "text", "label": "Nom du fichier" }
+      ]
+    },
+    {
+      "title": "calendar_event_soon",
+      "label": "Outlook Calendar - Event Starting Soon",
+      "type": "webhook",
+      "fields": [
+        { "name": "minutes_before", "type": "number", "label": "Minutes avant l’événement", "required": true, "default": "15" }
+      ],
+      "output_fields": [
+        { "name": "subject", "type": "text", "label": "Titre de l’événement" },
+        { "name": "start_time", "type": "text", "label": "Heure de début" }
+      ]
+    },
+    {
+      "title": "todo_task_completed",
+      "label": "Microsoft To Do - Task Completed",
+      "type": "webhook",
+      "fields": [
+        { "name": "list_name", "type": "text", "label": "Nom de la liste", "required": false, "default": "Tasks" }
+      ],
+      "output_fields": [
+        { "name": "task_title", "type": "text", "label": "Tâche terminée" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "outlook_send_email",
+      "label": "Outlook - Send an Email",
+      "url": "https://graph.microsoft.com/v1.0/me/sendMail",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "to", "type": "text", "label": "Destinataire", "required": true, "default": "" },
+        { "name": "subject", "type": "text", "label": "Sujet", "required": true, "default": "" },
+        { "name": "message", "type": "textarea", "label": "Message", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "message.subject", "type": "text", "value": "{{subject}}" },
+        { "path": "message.body.contentType", "type": "text", "value": "Text" },
+        { "path": "message.body.content", "type": "text", "value": "{{message}}" },
+        {
+          "path": "message.toRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [
+                { "path": "emailAddress.address", "type": "text", "value": "{{to}}" }
+              ]
+            }
+          ]
+        },
+        { "path": "saveToSentItems", "type": "boolean", "value": "true" }
+      ]
+    },
+    {
+      "title": "teams_post_message",
+      "label": "Teams - Post a Message",
+      "url": "https://graph.microsoft.com/v1.0/teams/{{team_id}}/channels/{{channel_id}}/messages",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "team_id", "type": "text", "label": "ID de l’équipe", "required": true, "default": "" },
+        { "name": "channel_id", "type": "text", "label": "ID du canal", "required": true, "default": "" },
+        { "name": "message", "type": "textarea", "label": "Message à envoyer", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "body.contentType", "type": "text", "value": "html" },
+        { "path": "body.content", "type": "text", "value": "{{message}}" }
+      ]
+    },
+    {
+      "title": "onedrive_create_file",
+      "label": "OneDrive - Create Text File",
+      "url": "https://graph.microsoft.com/v1.0/me/drive/root:/Documents/{{file_name}}:/content",
+      "method": "PUT",
+      "bodyType": "text",
+      "fields": [
+        { "name": "file_name", "type": "text", "label": "Nom du fichier", "required": true, "default": "" },
+        { "name": "content", "type": "textarea", "label": "Contenu", "required": true, "default": "" }
+      ]
+    },
+    {
+      "title": "calendar_create_event",
+      "label": "Outlook Calendar - Create Event",
+      "url": "https://graph.microsoft.com/v1.0/me/events",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "subject", "type": "text", "label": "Titre", "required": true, "default": "" },
+        { "name": "start_datetime", "type": "datetime-local", "label": "Début", "required": true, "default": "" },
+        { "name": "end_datetime", "type": "datetime-local", "label": "Fin", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "subject", "type": "text", "value": "{{subject}}" },
+        { "path": "start.dateTime", "type": "text", "value": "{{start_datetime}}" },
+        { "path": "start.timeZone", "type": "text", "value": "UTC" },
+        { "path": "end.dateTime", "type": "text", "value": "{{end_datetime}}" },
+        { "path": "end.timeZone", "type": "text", "value": "UTC" }
+      ]
+    },
+    {
+      "title": "todo_create_task",
+      "label": "Microsoft To Do - Create Task",
+      "url": "https://graph.microsoft.com/v1.0/me/todo/lists/{{list_id}}/tasks",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "list_id", "type": "text", "label": "ID de la liste", "required": true, "default": "" },
+        { "name": "title", "type": "text", "label": "Titre de la tâche", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "title", "type": "text", "value": "{{title}}" }
+      ]
+    }
+  ]
+}
