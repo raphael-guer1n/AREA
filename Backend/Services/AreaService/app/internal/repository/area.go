@@ -195,6 +195,32 @@ func (a areaRepository) DeleteArea(areaID int) error {
 	return err
 }
 
+func (a areaRepository) DeactivateAreasByProvider(userID int, provider string) (int, error) {
+	query := `
+		UPDATE areas
+		SET active = false
+		WHERE user_id = $1
+		  AND active = true
+		  AND id IN (
+			SELECT DISTINCT area_id
+			FROM (
+			  SELECT area_id FROM actions WHERE provider = $2
+			  UNION
+			  SELECT area_id FROM reactions WHERE provider = $2
+			) AS areas_with_provider
+		  )
+	`
+	result, err := a.db.Exec(query, userID, provider)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(rowsAffected), nil
+}
+
 func NewAreaRepository(db *sql.DB) domain.AreaRepository {
 	return &areaRepository{db: db}
 }
