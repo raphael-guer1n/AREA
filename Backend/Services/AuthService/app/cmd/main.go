@@ -40,7 +40,7 @@ func main() {
 	go refreshWorker.Start(context.Background())
 
 	// Build handlers
-	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager, authSvc)
+	oauth2Handler := httphandler.NewOAuth2Handler(oauth2StorageSvc, oauth2Manager, authSvc, cfg)
 	authHandler := httphandler.NewAuthHandler(authSvc)
 
 	// Build router
