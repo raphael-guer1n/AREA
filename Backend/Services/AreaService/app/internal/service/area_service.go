@@ -184,3 +184,7 @@ func (s *AreaService) GetArea(areaID int) (domain.Area, error) {
 func (s *AreaService) ToggleArea(areaID int, isActive bool) error {
 	return s.areaRepo.ToggleArea(areaID, isActive)
 }
+
+func (s *AreaService) DeleteArea(areaID int) error {
+	return s.areaRepo.DeleteArea(areaID)
+}
