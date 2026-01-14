@@ -452,6 +452,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /deactivateAreasByProvider:
+    post:
+      summary: Deactivate all areas using a specific provider for a user
+      description: Internal endpoint that deactivates all active areas for a user that use a specific OAuth provider in their actions or reactions. This is typically called when a user disconnects from an OAuth provider.
+      operationId: deactivateAreasByProvider
+      tags:
+        - AREA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: The ID of the user whose areas should be deactivated
+                  example: 123
+                provider:
+                  type: string
+                  description: The OAuth provider name (e.g., google, discord, github)
+                  example: google
+              required:
+                - user_id
+                - provider
+      responses:
+        '200':
+          description: Areas deactivated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      deactivated_count:
+                        type: integer
+                        description: Number of areas that were deactivated
+                        example: 3
+        '400':
+          description: Bad request - Invalid input or missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
