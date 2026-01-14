@@ -215,3 +215,12 @@ func (r *userProfileRepository) MarkNeedsReconnect(profileID int, reason string)
 	)
 	return err
 }
+
+func (r *userProfileRepository) DeleteByUserIdAndService(userId int, service string) error {
+	_, err := r.db.Exec(
+		`DELETE FROM user_service_profiles WHERE user_id = $1 AND service = $2`,
+		userId,
+		service,
+	)
+	return err
+}

@@ -80,6 +80,13 @@
       "internal_only": true
     },
     {
+      "path": "/oauth2/disconnect",
+      "methods": ["POST"],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
       "path": "/loginwith",
       "methods": ["GET"],
       "auth_required": false,
