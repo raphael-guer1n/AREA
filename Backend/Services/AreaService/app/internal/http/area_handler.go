@@ -756,28 +756,41 @@ func CheckAreaValidity(area domain.Area, config domain.AreaConfig) error {
 }
 
 func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFields []domain.InputField, userId int) error {
-	serviceProfile, err := h.getUserServiceProfile(userId, areaReaction.Provider)
-	if err != nil {
-		return err
+	serviceProfile := domain.UserService{}
+	var err error
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		serviceProfile, err = h.getUserServiceProfile(userId, areaReaction.Provider)
+		if err != nil {
+			return err
+		}
 	}
 	reactionConfig, err := h.getReactionDetails(areaReaction)
 	if err != nil {
 		return err
 	}
+
 	fieldValues := make(map[string]string)
 	for _, field := range areaReaction.Input {
 		for _, outputField := range outputFields {
 			field.Value = strings.ReplaceAll(field.Value, "{{"+outputField.Name+"}}", outputField.Value)
 		}
-		for _, serviceField := range serviceProfile.Fields {
-			field.Value = strings.ReplaceAll(field.Value, "{{"+serviceField.FieldKey+"}}", serviceField.StringValue)
+		if strings.TrimSpace(areaReaction.Provider) != "" {
+			for _, serviceField := range serviceProfile.Fields {
+				field.Value = strings.ReplaceAll(field.Value, "{{"+serviceField.FieldKey+"}}", serviceField.StringValue)
+			}
 		}
 		fieldValues[field.Name] = field.Value
 	}
-	for _, serviceField := range serviceProfile.Fields {
-		fieldValues[serviceField.FieldKey] = serviceField.StringValue
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		for _, serviceField := range serviceProfile.Fields {
+			fieldValues[serviceField.FieldKey] = serviceField.StringValue
+		}
 	}
-	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
+	userToken := ""
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		userToken = serviceProfile.Profile.AccessToken
+	}
+	return h.areaService.LaunchReactions(userToken, fieldValues, reactionConfig)
 }
 
 type actionRequest struct {
