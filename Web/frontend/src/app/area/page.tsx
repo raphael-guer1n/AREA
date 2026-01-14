@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/api/services";
 
 type FieldDefinition = ServiceFieldConfig;
+type FieldValue = string | string[];
 type ActionDefinition = {
   id: string;
   title: string;
@@ -146,9 +147,32 @@ function matchesAreaSearch(area: CreatedArea, normalizedTerm: string) {
   return haystack.includes(normalizedTerm);
 }
 
-function initializeFieldValues(fields: FieldDefinition[]): Record<string, string> {
-  return fields.reduce<Record<string, string>>((acc, field) => {
+function initializeFieldValues(fields: FieldDefinition[]): Record<string, FieldValue> {
+  return fields.reduce<Record<string, FieldValue>>((acc, field) => {
     const defaultValue = field.default ?? "";
+    if (field.selection?.length && field.multiple) {
+      if (typeof defaultValue === "string") {
+        const trimmed = defaultValue.trim();
+        if (!trimmed) {
+          acc[field.name] = [];
+        } else if (trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            acc[field.name] = Array.isArray(parsed) ? parsed.map(String) : [trimmed];
+          } catch {
+            acc[field.name] = trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+          }
+        } else {
+          acc[field.name] = trimmed.split(",").map((item) => item.trim()).filter(Boolean);
+        }
+      } else if (typeof defaultValue === "number") {
+        acc[field.name] = [String(defaultValue)];
+      } else {
+        acc[field.name] = [];
+      }
+      return acc;
+    }
+
     acc[field.name] = typeof defaultValue === "number" ? String(defaultValue) : String(defaultValue);
     return acc;
   }, {});
@@ -156,11 +180,14 @@ function initializeFieldValues(fields: FieldDefinition[]): Record<string, string
 
 function areRequiredFieldsFilled(
   fields: FieldDefinition[],
-  values: Record<string, string>,
+  values: Record<string, FieldValue>,
 ): boolean {
   return fields.every((field) => {
     if (!field.required) return true;
     const value = values[field.name];
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
     return value !== undefined && String(value).trim().length > 0;
   });
 }
@@ -175,9 +202,12 @@ function toIsoString(value: string): string {
 
 function formatInputValue(
   field: FieldDefinition,
-  rawValue: string | undefined,
+  rawValue: FieldValue | undefined,
 ): string {
   const value = rawValue ?? "";
+  if (Array.isArray(value)) {
+    return value.length ? JSON.stringify(value) : "";
+  }
   if (!value) return "";
   if (field.type === "date") {
     return toIsoString(value);
@@ -185,9 +215,16 @@ function formatInputValue(
   return String(value);
 }
 
+function formatFieldDisplayValue(value: FieldValue | undefined): string {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+  return value ? String(value) : "";
+}
+
 function buildInputFields(
   fields: FieldDefinition[],
-  values: Record<string, string>,
+  values: Record<string, FieldValue>,
 ): Array<{ name: string; value: string }> {
   return fields.map((field) => ({
     name: field.name,
@@ -314,8 +351,8 @@ function AreaPageContent() {
   const [reactionService, setReactionService] = useState<AreaService | null>(null);
   const [selectedAction, setSelectedAction] = useState<ActionDefinition | null>(null);
   const [selectedReaction, setSelectedReaction] = useState<ReactionDefinition | null>(null);
-  const [actionFieldValues, setActionFieldValues] = useState<Record<string, string>>({});
-  const [reactionFieldValues, setReactionFieldValues] = useState<Record<string, string>>({});
+  const [actionFieldValues, setActionFieldValues] = useState<Record<string, FieldValue>>({});
+  const [reactionFieldValues, setReactionFieldValues] = useState<Record<string, FieldValue>>({});
   const [areaName, setAreaName] = useState("");
   const [wizardStep, setWizardStep] = useState<"action" | "reaction" | "details">("action");
   const [selectedAreaDetail, setSelectedAreaDetail] = useState<CreatedArea | null>(null);
@@ -323,6 +360,7 @@ function AreaPageContent() {
   const [areaActionError, setAreaActionError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [updatingAreaId, setUpdatingAreaId] = useState<string | null>(null);
+  const selectRefs = useRef<Record<string, HTMLDetailsElement | null>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const normalizedSearch = normalizeSearchValue(searchTerm);
   const displayAreas = useMemo(() => {
@@ -340,14 +378,111 @@ function AreaPageContent() {
 
   const renderFieldInputs = (
     fields: FieldDefinition[],
-    values: Record<string, string>,
-    onChange: (name: string, value: string) => void,
+    values: Record<string, FieldValue>,
+    onChange: (name: string, value: FieldValue) => void,
   ) => (
     <div className="grid gap-3 sm:grid-cols-2">
       {fields.map((field) => {
-        const value = values[field.name] ?? "";
+        const rawValue = values[field.name];
+        const value = Array.isArray(rawValue) ? rawValue.join(", ") : rawValue ?? "";
         const baseClasses =
           "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-3 py-2 text-[var(--foreground)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25";
+
+        const selectionValues = Array.isArray(rawValue)
+          ? rawValue
+          : rawValue
+            ? [String(rawValue)]
+            : [];
+        const selectionLabels = selectionValues
+          .map((current) => field.selection?.find((option) => option.value === current)?.label ?? current)
+          .filter(Boolean);
+        const selectionPlaceholder = selectionLabels.length
+          ? selectionLabels.join(", ")
+          : "Sélectionner...";
+
+        if (field.selection?.length) {
+          return (
+            <label key={field.name} className="space-y-1 text-sm">
+              <span className="text-[var(--muted)]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <details
+                ref={(node) => {
+                  selectRefs.current[field.name] = node;
+                }}
+                className="group relative"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-4 py-2.5 text-[var(--foreground)] shadow-[0_1px_0_rgba(0,0,0,0.04)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue-primary-3)]/25">
+                  <span className={selectionLabels.length ? "text-[var(--foreground)]" : "text-[var(--muted)]"}>
+                    {selectionPlaceholder}
+                  </span>
+                  <span className="text-[var(--muted)] transition group-open:rotate-180">
+                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden>
+                      <path
+                        d="m5 7.5 5 5 5-5"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </summary>
+                <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-[var(--surface-border)] bg-[var(--background)] shadow-[0_12px_30px_rgba(15,25,35,0.12)]">
+                  <div className="max-h-56 overflow-y-auto p-1.5">
+                    {field.selection.map((option) => {
+                      const isSelected = selectionValues.includes(option.value);
+                      return (
+                        <button
+                          key={`${field.name}-${option.value}`}
+                          type="button"
+                          onClick={() => {
+                            if (field.multiple) {
+                              const nextValues = isSelected
+                                ? selectionValues.filter((item) => item !== option.value)
+                                : [...selectionValues, option.value];
+                              onChange(field.name, nextValues);
+                            } else {
+                              onChange(field.name, option.value);
+                              selectRefs.current[field.name]?.removeAttribute("open");
+                            }
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition",
+                            isSelected
+                              ? "bg-[var(--blue-primary-3)]/10 text-[var(--foreground)]"
+                              : "text-[var(--foreground)] hover:bg-[var(--surface)]",
+                          )}
+                        >
+                          <span>{option.label}</span>
+                          {isSelected ? (
+                            <span className="text-[var(--blue-primary-3)]">
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden>
+                                <path
+                                  d="m5 10 3 3 7-7"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {field.multiple ? (
+                    <div className="border-t border-[var(--surface-border)] px-3 py-2 text-xs text-[var(--muted)]">
+                      Cliquez pour ajouter ou retirer des options.
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            </label>
+          );
+        }
 
         if (field.type === "number") {
           return (
@@ -1025,7 +1160,7 @@ function AreaPageContent() {
                             <p key={`action-${field.name}`} className="text-xs text-[var(--muted)]">
                               {field.label}:{" "}
                               <span className="text-[var(--foreground)]">
-                                {actionFieldValues[field.name]?.toString() || "—"}
+                                {formatFieldDisplayValue(actionFieldValues[field.name]) || "—"}
                               </span>
                             </p>
                           ))}
@@ -1040,7 +1175,7 @@ function AreaPageContent() {
                             <p key={`reaction-${field.name}`} className="text-xs text-[var(--muted)]">
                               {field.label}:{" "}
                               <span className="text-[var(--foreground)]">
-                                {reactionFieldValues[field.name]?.toString() || "—"}
+                                {formatFieldDisplayValue(reactionFieldValues[field.name]) || "—"}
                               </span>
                             </p>
                           ))}

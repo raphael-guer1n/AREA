@@ -56,6 +56,8 @@ export type ServiceFieldConfig = {
   label: string;
   required?: boolean;
   default?: string | number;
+  selection?: Array<{ value: string; label: string }>;
+  multiple?: boolean;
 };
 
 export type ServiceActionConfig = {

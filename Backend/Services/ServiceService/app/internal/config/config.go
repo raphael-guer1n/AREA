@@ -279,11 +279,18 @@ func LoadProviderConfigs(dir string) (map[string]ProviderConfig, error) {
 }
 
 type FieldConfig struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Label         string `json:"label"`
-	Required      bool   `json:"required"`
-	DefaultValuer string `json:"default"`
+    Name          string                 `json:"name"`
+    Type          string                 `json:"type"`
+    Label         string                 `json:"label"`
+    Required      bool                   `json:"required"`
+    DefaultValuer string                 `json:"default"`
+    Selection     []FieldSelectionOption `json:"selection,omitempty"`
+    Multiple      bool                   `json:"multiple,omitempty"`
+}
+
+type FieldSelectionOption struct {
+    Value string `json:"value"`
+    Label string `json:"label"`
 }
 
 type OutputField struct {
