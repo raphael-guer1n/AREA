@@ -28,6 +28,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/triggerArea", r.areaHandler.HandleActionTrigger)
 	r.mux.HandleFunc("/activateArea", r.areaHandler.HandleActivateArea)
 	r.mux.HandleFunc("/deactivateArea", r.areaHandler.HandleDeactivateArea)
+	r.mux.HandleFunc("/deleteArea", r.areaHandler.HandleDeleteArea)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {

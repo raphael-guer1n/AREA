@@ -353,7 +353,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	err = h.TriggerAction(area.Actions, area.Active)
+	err = h.TriggerAction(area.Actions, area.Active, req.Header.Get("Authorization"))
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -673,7 +673,17 @@ func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFi
 	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
 }
 
-func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool) error {
+type actionRequest struct {
+	Active   bool                `json:"active"`
+	ActionID int                 `json:"action_id"`
+	Type     string              `json:"type"`
+	Provider string              `json:"provider"`
+	Service  string              `json:"service"`
+	Title    string              `json:"title"`
+	Input    []domain.InputField `json:"input"`
+}
+
+func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool, authHeader string) error {
 	cronActions := make([]domain.AreaAction, 0)
 	otherActions := make([]domain.AreaAction, 0)
 	for _, action := range areaAction {
@@ -692,15 +702,30 @@ func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive boo
 			}
 		}
 	}
+
+	actionsByType := make(map[string][]actionRequest)
 	for _, action := range otherActions {
-		createUrl, exist := h.cfg.CreateActionsUrls[action.Type]
+		action.Active = isActive
+		actionsByType[action.Type] = append(actionsByType[action.Type], actionRequest{
+			Active:   action.Active,
+			ActionID: action.ID,
+			Type:     action.Type,
+			Provider: action.Provider,
+			Service:  action.Service,
+			Title:    action.Title,
+			Input:    action.Input,
+		})
+	}
+
+	for actionType, actions := range actionsByType {
+		createUrl, exist := h.cfg.CreateActionsUrls[actionType]
 		if !exist {
-			return fmt.Errorf("action type %s not supported", action.Type)
+			return fmt.Errorf("action type %s not supported", actionType)
 		}
 		var body struct {
-			Actions []domain.AreaAction `json:"actions"`
+			Actions []actionRequest `json:"actions"`
 		}
-		body.Actions = areaAction
+		body.Actions = actions
 		payload, err := json.Marshal(body)
 		if err != nil {
 			return err
@@ -709,8 +734,13 @@ func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive boo
 		if err != nil {
 			return err
 		}
-		if h.cfg.InternalSecret != "" {
+		if strings.TrimSpace(authHeader) != "" {
+			resp.Header.Set("Authorization", authHeader)
+		} else if h.cfg.InternalSecret != "" {
 			resp.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		if h.cfg.InternalSecret != "" {
+			resp.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
 		}
 		client := &http.Client{}
 		_, err = client.Do(resp)
@@ -761,4 +791,85 @@ func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
 		}
 	})
 	return nil
+}
+
+func (h *AreaHandler) HandleDeleteArea(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		AreaId int `json:"area_id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	userId, err := h.getUserId(req)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error getting user ID," + err.Error(),
+		})
+		return
+	}
+	area, err := h.areaService.GetArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	log.Printf("Deleting area of %d by user %d", area.UserID, userId)
+	if area.UserID != userId {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "You are not allowed to delete this area",
+		})
+		return
+	}
+	for _, action := range area.Actions {
+		delUrl, exist := h.cfg.DelActionsUrls[action.Type]
+		if !exist || delUrl == "nil" {
+			continue
+		}
+		deleteUrl := delUrl + "/" + strconv.Itoa(action.ID)
+		delReq, err := http.NewRequest(http.MethodDelete, deleteUrl, nil)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+		if h.cfg.InternalSecret != "" {
+			delReq.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		delReq.Header.Set("Authorization", req.Header.Get("Authorization"))
+		client := &http.Client{}
+		_, err = client.Do(delReq)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+	err = h.areaService.DeleteArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{})
 }

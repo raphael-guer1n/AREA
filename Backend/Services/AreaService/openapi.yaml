@@ -343,6 +343,61 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /deleteArea:
+    post:
+      summary: Delete an area
+      description: Deletes an area and all its associated actions and reactions. For webhook actions, sends delete requests to the webhook service. For cron actions, no external cleanup is needed.
+      operationId: deleteArea
+      tags:
+        - AREA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                area_id:
+                  type: integer
+                  description: The ID of the area to delete
+                  example: 1
+              required:
+                - area_id
+      responses:
+        '200':
+          description: Area deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+              example: {}
+        '400':
+          description: Bad request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - User not authorized to delete this area
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:

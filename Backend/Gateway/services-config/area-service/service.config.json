@@ -46,6 +46,15 @@
       "auth_required": false,
       "permissions": [],
       "internal_only": true
+    },
+    {
+      "path": "/deleteArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
     }
   ]
 }

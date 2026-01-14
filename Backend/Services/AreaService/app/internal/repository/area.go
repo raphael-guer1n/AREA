@@ -17,13 +17,13 @@ func (a areaRepository) ToggleArea(areaID int, isActive bool) error {
 }
 
 func (a areaRepository) GetArea(areaID int) (domain.Area, error) {
-	row, err := a.db.Query("SELECT id, name, active FROM areas WHERE id = $1", areaID)
+	row, err := a.db.Query("SELECT id, name, active, user_id FROM areas WHERE id = $1", areaID)
 	if err != nil {
 		return domain.Area{}, err
 	}
 	var area domain.Area
 	row.Next()
-	err = row.Scan(&area.ID, &area.Name, &area.Active)
+	err = row.Scan(&area.ID, &area.Name, &area.Active, &area.UserID)
 	row.Close()
 	if err != nil {
 		return domain.Area{}, err
@@ -188,6 +188,11 @@ func (a areaRepository) GetUserAreas(userID int) ([]domain.Area, error) {
 		areas = append(areas, area)
 	}
 	return areas, nil
+}
+
+func (a areaRepository) DeleteArea(areaID int) error {
+	_, err := a.db.Exec("DELETE FROM areas WHERE id = $1", areaID)
+	return err
 }
 
 func NewAreaRepository(db *sql.DB) domain.AreaRepository {
