@@ -7,7 +7,7 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Subprojects participating in global commands (relative to Backend/)
-PROJECTS := Gateway Services/AuthService Services/ServiceService Services/WebhookService Services/AreaService Services/PollingService
+PROJECTS := Gateway Services/AuthService Services/ServiceService Services/WebhookService Services/AreaService Services/PollingService Services/MailService
 
 # Colors
 RESET  := \033[0m
