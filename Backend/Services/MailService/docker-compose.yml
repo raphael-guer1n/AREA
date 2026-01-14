@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: area_mail_api
+    ports:
+      - "${SERVER_PORT:-8088}:${SERVER_PORT:-8088}"
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-8088}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-}
+      SMTP_SECURITY: ${SMTP_SECURITY:-ssl}
+    networks:
+      - area_network
+    restart: unless-stopped
+
+networks:
+  area_network:
+    external: true
