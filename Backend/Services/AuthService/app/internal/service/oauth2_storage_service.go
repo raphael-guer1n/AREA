@@ -308,3 +308,7 @@ func (s *OAuth2StorageService) GetProviderProfileByServiceByUser(userId int, ser
 func (s *OAuth2StorageService) GetProviderFieldsByProfileId(profileId int) ([]domain.UserServiceField, error) {
 	return s.fieldRepo.GetFieldsByProfileId(profileId)
 }
+
+func (s *OAuth2StorageService) DeleteProviderConnection(userId int, serviceName string) error {
+	return s.profileRepo.DeleteByUserIdAndService(userId, serviceName)
+}
