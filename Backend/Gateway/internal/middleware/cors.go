@@ -9,17 +9,28 @@ import (
 
 type CORSMiddleware struct {
 	allowedOrigins map[string]struct{}
+	allowAll       bool
 }
 
 func NewCORSMiddleware(cfg *config.GatewayConfig) *CORSMiddleware {
 	origins := make(map[string]struct{})
+	allowAll := false
 
 	for _, o := range cfg.AllowedOrigins {
-		origins[strings.TrimSpace(o)] = struct{}{}
+		trimmed := strings.TrimSpace(o)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == "*" {
+			allowAll = true
+			continue
+		}
+		origins[trimmed] = struct{}{}
 	}
 
 	return &CORSMiddleware{
 		allowedOrigins: origins,
+		allowAll:       allowAll,
 	}
 }
 
@@ -28,7 +39,11 @@ func (c *CORSMiddleware) Handler(next http.Handler) http.Handler {
 
 		origin := r.Header.Get("Origin")
 		if origin != "" {
-			if _, ok := c.allowedOrigins[origin]; ok {
+			if c.allowAll {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Vary", "Origin")
+			} else if _, ok := c.allowedOrigins[origin]; ok {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")

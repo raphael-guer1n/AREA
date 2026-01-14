@@ -1,0 +1,49 @@
+{
+  "provider": "",
+  "name": "coinbase",
+  "label": "Coinbase",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "btc_exchange_rates",
+      "label": "BTC Exchange Rates",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "base_currency",
+          "type": "text",
+          "label": "Base currency (e.g. BTC, ETH, SOL, EUR)",
+          "required": true,
+          "default": "BTC"
+        },
+        {
+          "name": "currency",
+          "type": "text",
+          "label": "Target currency (USD, EUR, GBP)",
+          "required": true,
+          "default": "USD"
+        },
+        {
+          "name": "min_change_percent",
+          "type": "number",
+          "label": "Min % change to trigger (0 = any)",
+          "required": false,
+          "default": "1"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "base",
+          "type": "text",
+          "label": "Base"
+        },
+        {
+          "name": "rate",
+          "type": "text",
+          "label": "Rate"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}

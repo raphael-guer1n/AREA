@@ -353,7 +353,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	err = h.TriggerAction(area.Actions, area.Active)
+	err = h.TriggerAction(area.Actions, area.Active, req.Header.Get("Authorization"))
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
 			"success": false,
@@ -673,7 +673,17 @@ func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFi
 	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
 }
 
-func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool) error {
+type actionRequest struct {
+	Active   bool                `json:"active"`
+	ActionID int                 `json:"action_id"`
+	Type     string              `json:"type"`
+	Provider string              `json:"provider"`
+	Service  string              `json:"service"`
+	Title    string              `json:"title"`
+	Input    []domain.InputField `json:"input"`
+}
+
+func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool, authHeader string) error {
 	cronActions := make([]domain.AreaAction, 0)
 	otherActions := make([]domain.AreaAction, 0)
 	for _, action := range areaAction {
@@ -692,15 +702,30 @@ func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive boo
 			}
 		}
 	}
+
+	actionsByType := make(map[string][]actionRequest)
 	for _, action := range otherActions {
-		createUrl, exist := h.cfg.CreateActionsUrls[action.Type]
+		action.Active = isActive
+		actionsByType[action.Type] = append(actionsByType[action.Type], actionRequest{
+			Active:   action.Active,
+			ActionID: action.ID,
+			Type:     action.Type,
+			Provider: action.Provider,
+			Service:  action.Service,
+			Title:    action.Title,
+			Input:    action.Input,
+		})
+	}
+
+	for actionType, actions := range actionsByType {
+		createUrl, exist := h.cfg.CreateActionsUrls[actionType]
 		if !exist {
-			return fmt.Errorf("action type %s not supported", action.Type)
+			return fmt.Errorf("action type %s not supported", actionType)
 		}
 		var body struct {
-			Actions []domain.AreaAction `json:"actions"`
+			Actions []actionRequest `json:"actions"`
 		}
-		body.Actions = areaAction
+		body.Actions = actions
 		payload, err := json.Marshal(body)
 		if err != nil {
 			return err
@@ -709,8 +734,13 @@ func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive boo
 		if err != nil {
 			return err
 		}
-		if h.cfg.InternalSecret != "" {
+		if strings.TrimSpace(authHeader) != "" {
+			resp.Header.Set("Authorization", authHeader)
+		} else if h.cfg.InternalSecret != "" {
 			resp.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		if h.cfg.InternalSecret != "" {
+			resp.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
 		}
 		client := &http.Client{}
 		_, err = client.Do(resp)

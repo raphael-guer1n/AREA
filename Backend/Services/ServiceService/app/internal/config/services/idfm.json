@@ -1,0 +1,49 @@
+{
+  "provider": "",
+  "name": "idfm",
+  "label": "IDFM Traffic",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "metro_disruption",
+      "label": "Metro Disruption",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "line_id",
+          "type": "text",
+          "label": "Metro line",
+          "required": true,
+          "default": "C01371",
+          "selection": [
+            { "value": "C01371", "label": "1" },
+            { "value": "C01372", "label": "2" },
+            { "value": "C01373", "label": "3" },
+            { "value": "C01386", "label": "3 bis" },
+            { "value": "C01374", "label": "4" },
+            { "value": "C01375", "label": "5" },
+            { "value": "C01376", "label": "6" },
+            { "value": "C01377", "label": "7" },
+            { "value": "C01387", "label": "7 bis" },
+            { "value": "C01378", "label": "8" },
+            { "value": "C01379", "label": "9" },
+            { "value": "C01380", "label": "10" },
+            { "value": "C01381", "label": "11" },
+            { "value": "C01382", "label": "12" },
+            { "value": "C01383", "label": "13" },
+            { "value": "C01384", "label": "14" }
+          ]
+        }
+      ],
+      "output_fields": [
+        { "name": "line_id", "type": "text", "label": "Line ID" },
+        { "name": "line_name", "type": "text", "label": "Line name" },
+        { "name": "severity_name", "type": "text", "label": "Severity" },
+        { "name": "severity_effect", "type": "text", "label": "Severity effect" },
+        { "name": "message", "type": "text", "label": "Message" },
+        { "name": "updated_at", "type": "text", "label": "Updated at" }
+      ]
+    }
+  ],
+  "reactions": []
+}
