@@ -125,8 +125,36 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-              example: {}
+                oneOf:
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Area saved but set to inactive due to missing provider connections
+                      missing_providers:
+                        type: array
+                        items:
+                          type: string
+                        example: ["google", "discord"]
+              examples:
+                active:
+                  summary: Area saved and active
+                  value:
+                    success: true
+                inactive:
+                  summary: Area saved but inactive due to missing provider connections
+                  value:
+                    success: true
+                    message: Area saved but set to inactive due to missing provider connections
+                    missing_providers: ["google"]
         '400':
           description: Bad request - Invalid input or validation failed
           content:
@@ -248,20 +276,46 @@ paths:
               $ref: '#/components/schemas/ToggleAreaRequest'
       responses:
         '200':
-          description: Area activated successfully
+          description: Area activated successfully or cannot be activated
           content:
             application/json:
               schema:
                 oneOf:
                   - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
                   - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: false
+                      message:
+                        type: string
+                        example: Cannot activate area due to missing provider connections
+                      missing_providers:
+                        type: array
+                        items:
+                          type: string
+                        example: ["google", "discord"]
               examples:
                 success:
-                  value: {}
+                  summary: Area activated successfully
+                  value:
+                    success: true
                 already_active:
+                  summary: Area already active
                   value:
                     success: false
                     error: "Area already active"
+                missing_providers:
+                  summary: Cannot activate due to missing provider connections
+                  value:
+                    success: false
+                    message: Cannot activate area due to missing provider connections
+                    missing_providers: ["google"]
         '400':
           description: Bad request - Invalid input
           content:
