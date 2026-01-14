@@ -188,3 +188,7 @@ func (s *AreaService) ToggleArea(areaID int, isActive bool) error {
 func (s *AreaService) DeleteArea(areaID int) error {
 	return s.areaRepo.DeleteArea(areaID)
 }
+
+func (s *AreaService) DeactivateAreasByProvider(userID int, provider string) (int, error) {
+	return s.areaRepo.DeactivateAreasByProvider(userID, provider)
+}
