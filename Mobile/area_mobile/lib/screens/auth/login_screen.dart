@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _serverIpController = TextEditingController(); // ✅ Re-added controller
+  final _serverIpController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _serverIpController.dispose(); // ✅ Properly disposed
+    _serverIpController.dispose();
     super.dispose();
   }
 
