@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/auth"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/config"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/oauth2"
 	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
@@ -18,13 +20,15 @@ type OAuth2Handler struct {
 	oauth2StorageSvc *service.OAuth2StorageService
 	oauth2Manager    *oauth2.Manager
 	authSvc          *service.AuthService
+	cfg              config.Config
 }
 
-func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService, oauth2Manager *oauth2.Manager, authSvc *service.AuthService) *OAuth2Handler {
+func NewOAuth2Handler(oauth2StorageSvc *service.OAuth2StorageService, oauth2Manager *oauth2.Manager, authSvc *service.AuthService, cfg config.Config) *OAuth2Handler {
 	return &OAuth2Handler{
 		oauth2StorageSvc: oauth2StorageSvc,
 		oauth2Manager:    oauth2Manager,
 		authSvc:          authSvc,
+		cfg:              cfg,
 	}
 }
 
@@ -568,4 +572,109 @@ func (h *OAuth2Handler) handleGetProviderProfileByServiceByUserId(w http.Respons
 		},
 	})
 	return
+}
+
+func (h *OAuth2Handler) handleDisconnectProvider(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+
+	userID, err := getUserIDFromAuth(req, h.authSvc)
+	if err != nil {
+		respondJSON(w, http.StatusUnauthorized, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	var body struct {
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body",
+		})
+		return
+	}
+
+	if body.Provider == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "provider is required",
+		})
+		return
+	}
+
+	err = h.oauth2StorageSvc.DeleteProviderConnection(userID, body.Provider)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	areaServiceURL := strings.TrimRight(h.cfg.AreaServiceURL, "/") + "/deactivateAreasByProvider"
+	deactivatePayload := map[string]any{
+		"user_id":  userID,
+		"provider": body.Provider,
+	}
+	payloadBytes, err := json.Marshal(deactivatePayload)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to create deactivation request",
+		})
+		return
+	}
+
+	areaReq, err := http.NewRequest(http.MethodPost, areaServiceURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to create area service request",
+		})
+		return
+	}
+	areaReq.Header.Set("Content-Type", "application/json")
+	if h.cfg.InternalSecret != "" {
+		areaReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
+
+	areaResp, err := http.DefaultClient.Do(areaReq)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "failed to deactivate areas: " + err.Error(),
+		})
+		return
+	}
+	defer areaResp.Body.Close()
+
+	var areaRespData struct {
+		Success bool `json:"success"`
+		Data    struct {
+			DeactivatedCount int `json:"deactivated_count"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(areaResp.Body).Decode(&areaRespData); err == nil && areaRespData.Success {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": "provider disconnected successfully",
+			"data": map[string]any{
+				"deactivated_areas": areaRespData.Data.DeactivatedCount,
+			},
+		})
+	} else {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": "provider disconnected successfully",
+		})
+	}
 }
