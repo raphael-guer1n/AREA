@@ -28,7 +28,7 @@ func main() {
 	actionHandler := httphandler.NewActionHandler(subscriptionSvc, authSvc, cfg)
 	webhookHandler := httphandler.NewWebhookHandler(subscriptionSvc, providerConfigSvc, areaTriggerSvc)
 
-	router := httphandler.NewRouter(actionHandler, webhookHandler)
+	router := httphandler.NewRouter(actionHandler, webhookHandler, cfg.LogAllRequests)
 
 	addr := ":" + cfg.HTTPPort
 	log.Printf("Starting server on %s", addr)
