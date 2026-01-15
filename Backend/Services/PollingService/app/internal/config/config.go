@@ -18,6 +18,7 @@ type Config struct {
 	AuthServiceURL     string
 	AreaServiceURL     string
 	PollingTickSeconds int
+	LogProviderRequests bool
 }
 
 func Load() Config {
@@ -33,6 +34,7 @@ func Load() Config {
 		AuthServiceURL:     getEnv("AUTH_SERVICE_URL", "http://gateway:8080/area_auth_api"),
 		AreaServiceURL:     getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
 		PollingTickSeconds: getEnvInt("POLLING_TICK_SECONDS", 60),
+		LogProviderRequests: getEnvBool("LOG_PROVIDER_REQUESTS", false),
 	}
 }
 
@@ -46,6 +48,15 @@ func getEnv(key, def string) string {
 func getEnvInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if parsed, err := strconv.Atoi(v); err == nil {
+			return parsed
+		}
+	}
+	return def
+}
+
+func getEnvBool(key string, def bool) bool {
+	if v := os.Getenv(key); v != "" {
+		if parsed, err := strconv.ParseBool(v); err == nil {
 			return parsed
 		}
 	}
