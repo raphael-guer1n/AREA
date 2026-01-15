@@ -27,6 +27,8 @@ func (r *Router) routes() {
 	// Polling action management (intended for internal use via AreaService)
 	r.mux.HandleFunc("/actions", r.actionHandler.HandleActions)
 	r.mux.HandleFunc("/actions/", r.actionHandler.HandleAction)
+	r.mux.HandleFunc("/activate/", r.actionHandler.HandleActivateAction)
+	r.mux.HandleFunc("/deactivate/", r.actionHandler.HandleDeactivateAction)
 }
 
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {

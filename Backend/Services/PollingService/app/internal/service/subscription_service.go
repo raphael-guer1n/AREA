@@ -207,6 +207,45 @@ func (s *SubscriptionService) DeleteSubscription(actionID int) error {
 	return nil
 }
 
+func (s *SubscriptionService) ActivateSubscription(userID, actionID int) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, true)
+}
+
+func (s *SubscriptionService) DeactivateSubscription(userID, actionID int) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, false)
+}
+
+func (s *SubscriptionService) setSubscriptionActive(userID, actionID int, active bool) (*domain.Subscription, error) {
+	subscription, err := s.repo.FindByActionID(actionID)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	if subscription.UserID != userID {
+		return nil, ErrUnauthorizedAction
+	}
+
+	updatedSub := *subscription
+	updatedSub.Active = active
+	if active {
+		now := time.Now().UTC()
+		updatedSub.NextRunAt = &now
+	} else {
+		updatedSub.NextRunAt = nil
+	}
+
+	saved, err := s.repo.UpdateByActionID(&updatedSub)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	return saved, nil
+}
+
 func isUniqueViolation(err error) bool {
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) {
