@@ -1,0 +1,123 @@
+{
+  "provider": "openai",
+  "name": "openai",
+  "label": "OpenAI",
+  "icon_url": "",
+  "actions": [
+  ],
+  "reactions": [
+    {
+      "title": "generate_text",
+      "label": "OpenAI - Generate Text",
+      "url": "https://api.openai.com/v1/chat/completions",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        {
+          "name": "prompt",
+          "type": "textarea",
+          "label": "Instruction",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "model",
+          "type": "text",
+          "label": "Modèle",
+          "required": true,
+          "default": "gpt-4o-mini"
+        }
+      ],
+      "body_struct": [
+        {
+          "path": "model",
+          "type": "text",
+          "value": "{{model}}"
+        },
+        {
+          "path": "messages",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [
+                {
+                  "path": "role",
+                  "type": "text",
+                  "value": "user"
+                },
+                {
+                  "path": "content",
+                  "type": "text",
+                  "value": "{{prompt}}\n\nTexte:\n{{text}}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "summarize_text",
+      "label": "OpenAI - Summarize Text",
+      "url": "https://api.openai.com/v1/chat/completions",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        {
+          "name": "model",
+          "type": "text",
+          "label": "Modèle",
+          "required": true,
+          "default": "gpt-4o-mini"
+        }
+      ],
+      "body_struct": [
+        {
+          "path": "model",
+          "type": "text",
+          "value": "{{model}}"
+        },
+        {
+          "path": "messages",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [
+                {
+                  "path": "role",
+                  "type": "text",
+                  "value": "system"
+                },
+                {
+                  "path": "content",
+                  "type": "text",
+                  "value": "Summarize the following text in a clear and concise way."
+                }
+              ]
+            },
+            {
+              "path": "",
+              "type": "object",
+              "value": [
+                {
+                  "path": "role",
+                  "type": "text",
+                  "value": "user"
+                },
+                {
+                  "path": "content",
+                  "type": "text",
+                  "value": "{{text}}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
