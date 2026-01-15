@@ -24,6 +24,113 @@
           "label": "Delay (seconds)"
         }
       ]
+    },
+    {
+      "title": "daily_action",
+      "label": "Daily Action",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "hour",
+          "type": "number",
+          "label": "Hour (0-23)",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "minute",
+          "type": "number",
+          "label": "Minute (0-59)",
+          "required": true,
+          "default": "0"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "triggered_at",
+          "type": "string",
+          "label": "Triggered At"
+        }
+      ]
+    },
+    {
+      "title": "weekly_action",
+      "label": "Weekly Action",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "day_of_week",
+          "type": "select",
+          "label": "Day of Week",
+          "required": true,
+          "default": "0",
+          "options": [
+            { "value": "0", "label": "Sunday" },
+            { "value": "1", "label": "Monday" },
+            { "value": "2", "label": "Tuesday" },
+            { "value": "3", "label": "Wednesday" },
+            { "value": "4", "label": "Thursday" },
+            { "value": "5", "label": "Friday" },
+            { "value": "6", "label": "Saturday" }
+          ]
+        },
+        {
+          "name": "hour",
+          "type": "number",
+          "label": "Hour (0-23)",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "minute",
+          "type": "number",
+          "label": "Minute (0-59)",
+          "required": true,
+          "default": "0"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "triggered_at",
+          "type": "string",
+          "label": "Triggered At"
+        }
+      ]
+    },
+    {
+      "title": "monthly_action",
+      "label": "Monthly Action",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "day_of_month",
+          "type": "number",
+          "label": "Day of Month (1-31)",
+          "required": true,
+          "default": "1"
+        },
+        {
+          "name": "hour",
+          "type": "number",
+          "label": "Hour (0-23)",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "minute",
+          "type": "number",
+          "label": "Minute (0-59)",
+          "required": true,
+          "default": "0"
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "triggered_at",
+          "type": "string",
+          "label": "Triggered At"
+        }
+      ]
     }
   ],
   "reactions": []
