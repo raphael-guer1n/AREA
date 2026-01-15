@@ -125,23 +125,10 @@ func (s *CronService) DeleteAction(actionID int) error {
 }
 
 func (s *CronService) scheduleAction(action *domain.Action) error {
-	var delaySeconds int
-	for _, input := range action.Input {
-		if input.Name == "delay" {
-			val, err := strconv.Atoi(input.Value)
-			if err != nil {
-				return fmt.Errorf("invalid delay value: %w", err)
-			}
-			delaySeconds = val
-			break
-		}
+	cronExpr, err := s.buildCronExpression(action)
+	if err != nil {
+		return fmt.Errorf("failed to build cron expression: %w", err)
 	}
-
-	if delaySeconds <= 0 {
-		return fmt.Errorf("delay must be greater than 0")
-	}
-
-	cronExpr := fmt.Sprintf("@every %ds", delaySeconds)
 
 	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		s.triggerAction(action)
@@ -155,9 +142,108 @@ func (s *CronService) scheduleAction(action *domain.Action) error {
 	s.jobs[action.ActionID] = entryID
 	s.jobsMutex.Unlock()
 
-	log.Printf("Scheduled action %d with delay %d seconds", action.ActionID, delaySeconds)
+	log.Printf("Scheduled action %d with expression: %s", action.ActionID, cronExpr)
 
 	return nil
+}
+
+func (s *CronService) buildCronExpression(action *domain.Action) (string, error) {
+	inputMap := make(map[string]string)
+	for _, input := range action.Input {
+		inputMap[input.Name] = input.Value
+	}
+
+	switch action.Title {
+	case "delay_action", "timer_delay":
+		delayStr, ok := inputMap["delay"]
+		if !ok {
+			return "", fmt.Errorf("delay field is required")
+		}
+		delay, err := strconv.Atoi(delayStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid delay value: %w", err)
+		}
+		if delay <= 0 {
+			return "", fmt.Errorf("delay must be greater than 0")
+		}
+		return fmt.Sprintf("@every %ds", delay), nil
+
+	case "daily_action":
+		hourStr, ok := inputMap["hour"]
+		if !ok {
+			return "", fmt.Errorf("hour field is required")
+		}
+		minuteStr, ok := inputMap["minute"]
+		if !ok {
+			return "", fmt.Errorf("minute field is required")
+		}
+		hour, err := strconv.Atoi(hourStr)
+		if err != nil || hour < 0 || hour > 23 {
+			return "", fmt.Errorf("invalid hour value (must be 0-23)")
+		}
+		minute, err := strconv.Atoi(minuteStr)
+		if err != nil || minute < 0 || minute > 59 {
+			return "", fmt.Errorf("invalid minute value (must be 0-59)")
+		}
+		return fmt.Sprintf("%d %d * * *", minute, hour), nil
+
+	case "weekly_action":
+		dayStr, ok := inputMap["day_of_week"]
+		if !ok {
+			return "", fmt.Errorf("day_of_week field is required")
+		}
+		hourStr, ok := inputMap["hour"]
+		if !ok {
+			return "", fmt.Errorf("hour field is required")
+		}
+		minuteStr, ok := inputMap["minute"]
+		if !ok {
+			return "", fmt.Errorf("minute field is required")
+		}
+		day, err := strconv.Atoi(dayStr)
+		if err != nil || day < 0 || day > 6 {
+			return "", fmt.Errorf("invalid day_of_week value (must be 0-6)")
+		}
+		hour, err := strconv.Atoi(hourStr)
+		if err != nil || hour < 0 || hour > 23 {
+			return "", fmt.Errorf("invalid hour value (must be 0-23)")
+		}
+		minute, err := strconv.Atoi(minuteStr)
+		if err != nil || minute < 0 || minute > 59 {
+			return "", fmt.Errorf("invalid minute value (must be 0-59)")
+		}
+		return fmt.Sprintf("%d %d * * %d", minute, hour, day), nil
+
+	case "monthly_action":
+		dayStr, ok := inputMap["day_of_month"]
+		if !ok {
+			return "", fmt.Errorf("day_of_month field is required")
+		}
+		hourStr, ok := inputMap["hour"]
+		if !ok {
+			return "", fmt.Errorf("hour field is required")
+		}
+		minuteStr, ok := inputMap["minute"]
+		if !ok {
+			return "", fmt.Errorf("minute field is required")
+		}
+		day, err := strconv.Atoi(dayStr)
+		if err != nil || day < 1 || day > 31 {
+			return "", fmt.Errorf("invalid day_of_month value (must be 1-31)")
+		}
+		hour, err := strconv.Atoi(hourStr)
+		if err != nil || hour < 0 || hour > 23 {
+			return "", fmt.Errorf("invalid hour value (must be 0-23)")
+		}
+		minute, err := strconv.Atoi(minuteStr)
+		if err != nil || minute < 0 || minute > 59 {
+			return "", fmt.Errorf("invalid minute value (must be 0-59)")
+		}
+		return fmt.Sprintf("%d %d %d * *", minute, hour, day), nil
+
+	default:
+		return "", fmt.Errorf("unsupported action title: %s", action.Title)
+	}
 }
 
 func (s *CronService) unscheduleAction(actionID int) {
@@ -174,15 +260,7 @@ func (s *CronService) unscheduleAction(actionID int) {
 func (s *CronService) triggerAction(action *domain.Action) {
 	log.Printf("Triggering action %d", action.ActionID)
 
-	outputFields := []domain.OutputField{}
-	for _, input := range action.Input {
-		if input.Name == "delay" {
-			outputFields = append(outputFields, domain.OutputField{
-				Name:  "delay",
-				Value: input.Value,
-			})
-		}
-	}
+	outputFields := s.buildOutputFields(action)
 
 	triggerReq := domain.TriggerAreaRequest{
 		ActionID:     action.ActionID,
@@ -192,6 +270,30 @@ func (s *CronService) triggerAction(action *domain.Action) {
 	if err := s.callAreaService(triggerReq); err != nil {
 		log.Printf("Failed to trigger area service for action %d: %v", action.ActionID, err)
 	}
+}
+
+func (s *CronService) buildOutputFields(action *domain.Action) []domain.OutputField {
+	var outputFields []domain.OutputField
+
+	switch action.Title {
+	case "delay_action", "timer_delay":
+		for _, input := range action.Input {
+			if input.Name == "delay" {
+				outputFields = append(outputFields, domain.OutputField{
+					Name:  "delay",
+					Value: input.Value,
+				})
+			}
+		}
+
+	case "daily_action", "weekly_action", "monthly_action":
+		outputFields = append(outputFields, domain.OutputField{
+			Name:  "triggered_at",
+			Value: time.Now().Format(time.RFC3339),
+		})
+	}
+
+	return outputFields
 }
 
 func (s *CronService) callAreaService(req domain.TriggerAreaRequest) error {
