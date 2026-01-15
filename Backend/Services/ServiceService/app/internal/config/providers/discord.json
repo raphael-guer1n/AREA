@@ -1,5 +1,6 @@
 {
   "name": "discord",
+  "logo_url": "https://cdn.simpleicons.org/discord/5865F2",
   "oauth2": {
     "client_id": "DISCORD_CLIENT_ID",
     "client_secret": "DISCORD_CLIENT_SECRET",

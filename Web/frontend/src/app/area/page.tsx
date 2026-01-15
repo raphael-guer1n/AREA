@@ -45,6 +45,7 @@ type AreaService = {
   name: string;
   provider: string;
   badge: string;
+  logoUrl?: string;
   gradient: AreaGradient;
   actions: ActionDefinition[];
   reactions: ReactionDefinition[];
@@ -74,8 +75,12 @@ type CreatedArea = {
   endTime: string;
   delay: number;
   serviceName: string;
+  actionServiceId: string;
   actionService: string;
+  primaryReactionServiceId: string;
+  reactionServiceIds: string[];
   reactionService: string;
+  reactionCount: number;
   actionName: string;
   reactionName: string;
   gradient: AreaGradient;
@@ -139,6 +144,7 @@ function mapServiceConfig(
     name,
     provider: config.provider ?? "",
     badge: buildBadge(name || serviceId),
+    logoUrl: config.logo_url || config.icon_url || "",
     gradient,
     actions,
     reactions,
@@ -272,6 +278,19 @@ function resolveServiceName(
   );
 }
 
+function getServiceVisual(
+  services: AreaService[],
+  serviceId?: string,
+  fallbackName?: string,
+): { badge: string; logoUrl?: string } {
+  const service = resolveServiceById(services, serviceId);
+  const badgeSource = service?.name ?? serviceId ?? fallbackName ?? "?";
+  return {
+    logoUrl: service?.logoUrl,
+    badge: service?.badge ?? buildBadge(badgeSource),
+  };
+}
+
 function resolveActionLabel(
   action: BackendAction | undefined,
   services: AreaService[],
@@ -320,9 +339,15 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
   const reactionInputs = inputFieldsToRecord(reaction?.input);
   const actionServiceName = resolveServiceName(services, action?.service);
   const reactionServiceName = resolveServiceName(services, reaction?.service);
+  const actionServiceId = action?.service ?? "";
+  const reactionServiceIds = (area.reactions ?? [])
+    .map((item) => item.service)
+    .filter((serviceId): serviceId is string => Boolean(serviceId));
+  const primaryReactionServiceId = reaction?.service ?? reactionServiceIds[0] ?? "";
   const delayValue = Number.parseInt(actionInputs.delay ?? "0", 10);
   const delay = Number.isFinite(delayValue) ? delayValue : 0;
   const summary = (reactionInputs.summary ?? "").trim() || area.name;
+  const reactionCount = area.reactions?.length ?? 0;
 
   return {
     id: String(area.id),
@@ -332,8 +357,12 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
     endTime: reactionInputs.end_time ?? "",
     delay,
     serviceName: actionServiceName || reactionServiceName || area.name,
+    actionServiceId,
     actionService: actionServiceName,
+    primaryReactionServiceId,
+    reactionServiceIds,
     reactionService: reactionServiceName,
+    reactionCount,
     actionName: resolveActionLabel(action, services),
     reactionName: resolveReactionLabel(reaction, services),
     gradient: resolveGradient(services, action?.service ?? reaction?.service ?? area.name),
@@ -623,25 +652,33 @@ function AreaPageContent() {
         setServicesError("Certains services ne sont pas disponibles pour le moment.");
       }
 
-      let statusByService: Record<string, boolean> = {};
+      let statusByService: Record<string, { is_logged: boolean; logo_url?: string }> = {};
       if (token && user?.id) {
         const statuses = await fetchUserServiceStatuses(token, user.id);
-        statusByService = statuses.reduce<Record<string, boolean>>((acc, current) => {
-          acc[current.provider] = Boolean(current.is_logged);
+        statusByService = statuses.reduce<
+          Record<string, { is_logged: boolean; logo_url?: string }>
+        >((acc, current) => {
+          acc[current.provider] = {
+            is_logged: Boolean(current.is_logged),
+            logo_url: current.logo_url,
+          };
           return acc;
         }, {});
       }
 
       const mappedServices = availableServices.map((service) => {
         const providerKey = service.provider;
+        const providerStatus = providerKey ? statusByService[providerKey] : undefined;
         const isInternalService = !providerKey;
         const isConnected = isInternalService
           ? true
-          : Boolean(statusByService[providerKey]);
+          : Boolean(providerStatus?.is_logged);
+        const logoUrl = service.logoUrl || providerStatus?.logo_url;
 
         return {
           ...service,
           connected: isConnected,
+          logoUrl,
         };
       });
 
@@ -1118,19 +1155,31 @@ function AreaPageContent() {
                                 key={service.id}
                                 type="button"
                                 onClick={() => {
-                                  clearCreateError();
-                                  setActionService(service);
-                                  setSelectedAction(null);
-                                  setActionFieldValues({});
-                                }}
-                                className={cn(
-                                  "flex h-14 items-center justify-center rounded-xl border px-4 text-sm font-semibold transition",
+                                clearCreateError();
+                                setActionService(service);
+                                setSelectedAction(null);
+                                setActionFieldValues({});
+                              }}
+                              className={cn(
+                                  "flex h-14 items-center justify-start gap-3 rounded-xl border px-4 text-sm font-semibold transition",
                                   actionService?.id === service.id
                                     ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
                                     : "border-[var(--surface-border)] bg-[var(--background)] hover:-translate-y-0.5 hover:border-[var(--blue-primary-2)]",
                                 )}
                               >
-                                {service.name}
+                                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-xs font-semibold uppercase text-[var(--foreground)]">
+                                  {service.logoUrl ? (
+                                    <img
+                                      src={service.logoUrl}
+                                      alt=""
+                                      className="h-6 w-6 object-contain"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    service.badge
+                                  )}
+                                </span>
+                                <span className="truncate">{service.name}</span>
                               </button>
                             ))}
                           </div>
@@ -1313,13 +1362,25 @@ function AreaPageContent() {
                                             type="button"
                                             onClick={() => updateReactionService(reaction.id, service)}
                                             className={cn(
-                                              "flex h-12 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition sm:text-sm",
+                                              "flex h-12 items-center justify-start gap-3 rounded-lg border px-3 text-xs font-semibold transition sm:text-sm",
                                               reaction.service?.id === service.id
                                                 ? "border-[var(--blue-primary-3)] bg-[var(--blue-primary-3)]/10 text-[var(--foreground)] shadow-[0_0_0_2px_rgba(28,61,99,0.12)]"
                                                 : "border-[var(--surface-border)] bg-[var(--background)] hover:border-[var(--blue-primary-2)]",
                                             )}
                                           >
-                                            {service.name}
+                                            <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface)] text-[11px] font-semibold uppercase text-[var(--foreground)]">
+                                              {service.logoUrl ? (
+                                                <img
+                                                  src={service.logoUrl}
+                                                  alt=""
+                                                  className="h-5 w-5 object-contain"
+                                                  loading="lazy"
+                                                />
+                                              ) : (
+                                                service.badge
+                                              )}
+                                            </span>
+                                            <span className="truncate">{service.name}</span>
                                           </button>
                                         ))}
                                       </div>
@@ -1670,10 +1731,31 @@ function AreaPageContent() {
               {filteredAreas.length ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredAreas.map((area) => {
-                    const badge = (area.actionService || area.serviceName || "?").slice(0, 2).toUpperCase();
-                    const reactionBadge = (area.reactionService || "?").slice(0, 2).toUpperCase();
-                    const actionIcon = <span>{badge}</span>;
-                    const reactionIcon = <span>{reactionBadge}</span>;
+                    const actionVisual = getServiceVisual(
+                      services,
+                      area.actionServiceId || area.serviceName,
+                      area.actionService || area.serviceName,
+                    );
+                    const primaryReactionServiceId =
+                      area.primaryReactionServiceId || area.reactionServiceIds[0] || area.reactionService;
+                    const reactionVisual = getServiceVisual(
+                      services,
+                      primaryReactionServiceId,
+                      area.reactionService || area.actionService || area.serviceName,
+                    );
+                    const actionIcon = actionVisual.logoUrl ? (
+                      <img src={actionVisual.logoUrl} alt="" className="h-6 w-6 object-contain" loading="lazy" />
+                    ) : (
+                      <span>{actionVisual.badge}</span>
+                    );
+                    const reactionIcon =
+                      area.reactionCount > 1 ? (
+                        <span className="text-lg font-bold leading-none">+</span>
+                      ) : reactionVisual.logoUrl ? (
+                        <img src={reactionVisual.logoUrl} alt="" className="h-6 w-6 object-contain" loading="lazy" />
+                      ) : (
+                        <span>{reactionVisual.badge}</span>
+                      );
                     return (
                       <AreaTileCard
                         key={area.id}

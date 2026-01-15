@@ -1,5 +1,6 @@
 {
   "name": "notion",
+  "logo_url": "https://cdn.simpleicons.org/notion/000000",
   "oauth2": {
     "client_id": "NOTION_CLIENT_ID",
     "client_secret": "NOTION_CLIENT_SECRET",

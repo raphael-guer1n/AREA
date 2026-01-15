@@ -3,6 +3,7 @@
   "name": "dropbox",
   "label": "Dropbox",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/dropbox/0061FF",
   "actions": [
     {
       "title": "dropbox_new_file",

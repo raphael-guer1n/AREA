@@ -65,6 +65,7 @@ type MappingConfig struct {
 
 type ProviderConfig struct {
 	Name     string          `json:"name"`
+	LogoURL  string          `json:"logo_url"`
 	OAuth2   OAuth2Config    `json:"oauth2"`
 	Mappings []MappingConfig `json:"mappings"`
 }
@@ -279,18 +280,18 @@ func LoadProviderConfigs(dir string) (map[string]ProviderConfig, error) {
 }
 
 type FieldConfig struct {
-    Name          string                 `json:"name"`
-    Type          string                 `json:"type"`
-    Label         string                 `json:"label"`
-    Required      bool                   `json:"required"`
-    DefaultValuer string                 `json:"default"`
-    Selection     []FieldSelectionOption `json:"selection,omitempty"`
-    Multiple      bool                   `json:"multiple,omitempty"`
+	Name          string                 `json:"name"`
+	Type          string                 `json:"type"`
+	Label         string                 `json:"label"`
+	Required      bool                   `json:"required"`
+	DefaultValuer string                 `json:"default"`
+	Selection     []FieldSelectionOption `json:"selection,omitempty"`
+	Multiple      bool                   `json:"multiple,omitempty"`
 }
 
 type FieldSelectionOption struct {
-    Value string `json:"value"`
-    Label string `json:"label"`
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 type OutputField struct {
@@ -321,6 +322,7 @@ type ServiceConfig struct {
 	Provider  string           `json:"provider"`
 	Name      string           `json:"name"`
 	IconURL   string           `json:"icon_url"`
+	LogoURL   string           `json:"logo_url"`
 	Label     string           `json:"label"`
 	Actions   []ActionConfig   `json:"actions"`
 	Reactions []ReactionConfig `json:"reactions"`

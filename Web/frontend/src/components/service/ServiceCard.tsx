@@ -8,6 +8,7 @@ type ServiceCardProps = {
   name: string;
   url: string;
   badge: string;
+  logoUrl?: string;
   category?: string;
   gradientFrom?: string;
   gradientTo?: string;
@@ -44,6 +45,7 @@ export function ServiceCard({
   name,
   url,
   badge,
+  logoUrl,
   category,
   gradientFrom = "#002642",
   gradientTo = "#e59500",
@@ -125,7 +127,7 @@ export function ServiceCard({
           }}
         >
           <div className="flex items-start justify-between">
-            <Badge>{badge}</Badge>
+            <Badge logoUrl={logoUrl}>{badge}</Badge>
             <div className="flex items-center gap-2">
               {chipLabel ? (
                 <div className="rounded-full border border-white/25 bg-white/18 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.15)]">
@@ -301,10 +303,14 @@ function ServiceConfirmModal({ open, mode, onCancel, onConfirm }: ServiceConfirm
   );
 }
 
-function Badge({ children }: { children: ReactNode }) {
+function Badge({ children, logoUrl }: { children: ReactNode; logoUrl?: string }) {
   return (
     <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-white/18 text-base font-semibold uppercase text-white shadow-[0_8px_18px_rgba(0,0,0,0.12)] backdrop-blur-[2px]">
-      {children}
+      {logoUrl ? (
+        <img src={logoUrl} alt="" className="h-6 w-6 object-contain" loading="lazy" />
+      ) : (
+        children
+      )}
     </span>
   );
 }

@@ -3,6 +3,7 @@
   "name": "idfm",
   "label": "IDFM Traffic",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/trainline/0B9F4A",
   "actions": [
     {
       "title": "metro_disruption",

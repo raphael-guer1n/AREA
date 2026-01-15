@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
-import { fetchServices, fetchUserServiceStatuses } from "@/lib/api/services";
+import { fetchServices, fetchUserServiceStatuses, type ProviderSummary } from "@/lib/api/services";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { normalizeSearchValue } from "@/lib/helpers";
@@ -45,18 +45,21 @@ function buildBadge(name: string) {
   return letters.toUpperCase();
 }
 
-function mapBackendService(serviceId: string, index: number): MockService {
+function mapBackendService(provider: ProviderSummary, index: number): MockService {
+  const serviceId = provider.name;
   const template = serviceTemplatesById.get(serviceId);
   const formattedName = formatServiceNameFromId(serviceId);
   const name = template?.name ?? (formattedName || serviceId);
   const badge = template?.badge ?? buildBadge(name || serviceId);
   const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
+  const logoUrl = provider.logo_url ?? template?.logoUrl;
 
   return {
     id: serviceId,
     name,
     url: template?.url ?? "#",
     badge,
+    logoUrl,
     category: template?.category,
     gradient,
     actions: template?.actions ?? [],
@@ -85,22 +88,37 @@ export function ServicesClient() {
     setError(null);
 
     try {
-      const serviceIds = await fetchServices();
-      const uniqueServiceIds = Array.from(new Set(serviceIds.filter(Boolean)));
+      const providers = await fetchServices();
+      const seenProviders = new Set<string>();
+      const uniqueProviders = providers.filter((provider) => {
+        if (!provider?.name || seenProviders.has(provider.name)) return false;
+        seenProviders.add(provider.name);
+        return true;
+      });
 
-      let statusByService: Record<string, boolean> = {};
+      let statusByService: Record<string, { is_logged: boolean; logo_url?: string }> = {};
       if (token && user?.id) {
         const statuses = await fetchUserServiceStatuses(token, user.id);
-        statusByService = statuses.reduce<Record<string, boolean>>((acc, current) => {
-          acc[current.provider] = Boolean(current.is_logged);
+        statusByService = statuses.reduce<
+          Record<string, { is_logged: boolean; logo_url?: string }>
+        >((acc, current) => {
+          acc[current.provider] = {
+            is_logged: Boolean(current.is_logged),
+            logo_url: current.logo_url,
+          };
           return acc;
         }, {});
       }
 
-      const mappedServices = uniqueServiceIds.map((serviceId, index) => ({
-        ...mapBackendService(serviceId, index),
-        connected: Boolean(statusByService[serviceId]),
-      }));
+      const mappedServices = uniqueProviders.map((provider, index) => {
+        const status = statusByService[provider.name];
+        const base = mapBackendService(provider, index);
+        return {
+          ...base,
+          logoUrl: provider.logo_url ?? status?.logo_url ?? base.logoUrl,
+          connected: Boolean(status?.is_logged),
+        };
+      });
       setServices(mappedServices);
     } catch (err) {
       const message =
@@ -261,13 +279,14 @@ export function ServicesClient() {
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {connectableServices.map((service) => (
                         <ServiceCard
-                          key={service.id}
-                          name={service.name}
-                          url={service.url}
-                          badge={service.badge}
-                          category={service.category}
-                          gradientFrom={service.gradient.from}
-                          gradientTo={service.gradient.to}
+                        key={service.id}
+                        name={service.name}
+                        url={service.url}
+                        badge={service.badge}
+                        logoUrl={service.logoUrl}
+                        category={service.category}
+                        gradientFrom={service.gradient.from}
+                        gradientTo={service.gradient.to}
                           actions={service.actions.map((action) => action.label ?? action.id)}
                           reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
                           connected={service.connected}
@@ -399,6 +418,7 @@ export function ServicesClient() {
                     name={service.name}
                     url={service.url}
                     badge={service.badge}
+                    logoUrl={service.logoUrl}
                     category={service.category}
                     gradientFrom={service.gradient.from}
                     gradientTo={service.gradient.to}

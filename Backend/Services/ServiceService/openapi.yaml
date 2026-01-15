@@ -67,6 +67,18 @@ paths:
                         items:
                           type: string
                         example: ["google", "discord", "github"]
+                      providers:
+                        type: array
+                        description: Optional provider metadata including logos.
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              example: google
+                            logo_url:
+                              type: string
+                              example: https://cdn.simpleicons.org/google/4285F4
         '405':
           description: Method not allowed
           content:
@@ -394,6 +406,9 @@ components:
         name:
           type: string
           example: google
+        logo_url:
+          type: string
+          example: https://cdn.simpleicons.org/google/4285F4
         oauth2:
           $ref: '#/components/schemas/OAuth2Config'
         mappings:
@@ -532,6 +547,9 @@ components:
         icon_url:
           type: string
           example: ""
+        logo_url:
+          type: string
+          example: https://cdn.simpleicons.org/googlecalendar/4285F4
         label:
           type: string
           example: Google Calendar

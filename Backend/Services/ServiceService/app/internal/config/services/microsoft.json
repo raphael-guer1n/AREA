@@ -3,6 +3,7 @@
   "name": "microsoft",
   "label": "Microsoft",
   "icon_url": "",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/6424/6424314.svg?token=exp=1768496281~hmac=43570b99302f4b5b7ea069fcedb9b40c",
   "actions": [
     {
       "title": "outlook_new_email",

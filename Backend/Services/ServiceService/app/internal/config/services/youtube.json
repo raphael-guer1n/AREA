@@ -3,6 +3,7 @@
   "name": "youtube",
   "label": "YouTube",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/youtube/FF0000",
   "actions": [
     {
       "title": "new_video",

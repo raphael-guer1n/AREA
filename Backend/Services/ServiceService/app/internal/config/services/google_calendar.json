@@ -3,6 +3,7 @@
   "name": "google_calendar",
   "label": "Google Calendar",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/googlecalendar/4285F4",
   "actions": [],
   "reactions": [
     {
