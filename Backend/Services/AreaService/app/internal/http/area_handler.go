@@ -606,25 +606,94 @@ func (h *AreaHandler) HandleDeactivateArea(w http.ResponseWriter, req *http.Requ
 }
 
 func (h *AreaHandler) ActivateAction(req *http.Request, areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
+	if areaAction.Type == "cron" {
 		err := h.TriggerCronAction(areaAction)
 		if err != nil {
 			return err
 		}
 		return nil
-	default:
-		return fmt.Errorf("action type %s not supported", areaAction.Type)
 	}
+
+	activateURL, exists := h.cfg.ActivateActionsUrls[areaAction.Type]
+	if !exists {
+		return fmt.Errorf("action type %s not supported or not configured", areaAction.Type)
+	}
+
+	if activateURL == "nil" || activateURL == "" {
+		return nil
+	}
+
+	activateURL = strings.TrimRight(activateURL, "/") + fmt.Sprintf("/%d", areaAction.ID)
+
+	activateReq, err := http.NewRequest(http.MethodPost, activateURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create activate request: %w", err)
+	}
+
+	if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+		activateReq.Header.Set("Authorization", authHeader)
+	}
+	activateReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(activateReq)
+	if err != nil {
+		return fmt.Errorf("failed to activate %s action: %w", areaAction.Type, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]any
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		if errMsg, ok := errResp["error"].(string); ok {
+			return fmt.Errorf("failed to activate %s action: %s", areaAction.Type, errMsg)
+		}
+		return fmt.Errorf("failed to activate %s action: status %d", areaAction.Type, resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (h *AreaHandler) DeactivateAction(req *http.Request, areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
-		return nil
-	default:
-		return fmt.Errorf("action type %s not supported", areaAction.Type)
+	deactivateURL, exists := h.cfg.DeactivateActionsUrls[areaAction.Type]
+	if !exists {
+		return fmt.Errorf("action type %s not supported or not configured", areaAction.Type)
 	}
+
+	if deactivateURL == "nil" || deactivateURL == "" {
+		return nil
+	}
+
+	deactivateURL = strings.TrimRight(deactivateURL, "/") + fmt.Sprintf("/%d", areaAction.ID)
+
+	deactivateReq, err := http.NewRequest(http.MethodPost, deactivateURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create deactivate request: %w", err)
+	}
+
+	if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+		deactivateReq.Header.Set("Authorization", authHeader)
+	}
+
+	deactivateReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(deactivateReq)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate %s action: %w", areaAction.Type, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]any
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		if errMsg, ok := errResp["error"].(string); ok {
+			return fmt.Errorf("failed to deactivate %s action: %s", areaAction.Type, errMsg)
+		}
+		return fmt.Errorf("failed to deactivate %s action: status %d", areaAction.Type, resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (h *AreaHandler) GetAreas(w http.ResponseWriter, req *http.Request) {
