@@ -22,6 +22,20 @@
       "auth_required": true,
       "permissions": [],
       "internal_only": false
+    },
+    {
+      "path": "/activate/{actionId}",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
+    },
+    {
+      "path": "/deactivate/{actionId}",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
     }
   ]
 }

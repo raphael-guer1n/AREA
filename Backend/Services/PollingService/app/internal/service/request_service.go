@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,14 +18,16 @@ import (
 type RequestService struct {
 	oauth2TokenSvc *OAuth2TokenService
 	client         *http.Client
+	logRequests    bool
 }
 
-func NewRequestService(oauth2TokenSvc *OAuth2TokenService) *RequestService {
+func NewRequestService(oauth2TokenSvc *OAuth2TokenService, logRequests bool) *RequestService {
 	return &RequestService{
 		oauth2TokenSvc: oauth2TokenSvc,
 		client: &http.Client{
 			Timeout: 8 * time.Second,
 		},
+		logRequests: logRequests,
 	}
 }
 
@@ -128,13 +131,20 @@ func (s *RequestService) ExecuteRequest(request config.PollingProviderRequestCon
 		}
 	}
 
+	start := time.Now()
 	resp, err := s.client.Do(req)
 	if err != nil {
+		if s.logRequests {
+			log.Printf("polling: provider request failed provider=%s method=%s url=%s err=%v", provider, request.Method, urlStr, err)
+		}
 		return nil, fmt.Errorf("provider request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, _ := io.ReadAll(resp.Body)
+	if s.logRequests {
+		log.Printf("polling: provider request provider=%s method=%s url=%s status=%d duration=%s", provider, request.Method, urlStr, resp.StatusCode, time.Since(start))
+	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		return nil, fmt.Errorf("provider request failed: status %d: %s", resp.StatusCode, string(responseBody))
 	}

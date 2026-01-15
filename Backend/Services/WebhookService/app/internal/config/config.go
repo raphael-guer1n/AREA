@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -17,6 +18,7 @@ type Config struct {
 	AuthServiceURL    string
 	AreaServiceURL    string
 	PublicBaseURL     string
+	LogAllRequests    bool
 }
 
 func Load() Config {
@@ -32,12 +34,25 @@ func Load() Config {
 		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/area_auth_api"),
 		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
 		PublicBaseURL:     getEnv("PUBLIC_BASE_URL", "http://gateway:8080/area_webhook_api"),
+		LogAllRequests:    getEnvBool("LOG_ALL_REQUESTS", false),
 	}
 }
 
 func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func getEnvBool(key string, def bool) bool {
+	if v := os.Getenv(key); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
 	}
 	return def
 }
