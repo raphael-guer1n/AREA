@@ -3,6 +3,7 @@
   "name": "timer",
   "label": "Timer",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/clockify/03A9F4",
   "actions": [
     {
       "title": "delay_action",

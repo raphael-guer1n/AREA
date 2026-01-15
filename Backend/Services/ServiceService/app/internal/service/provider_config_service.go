@@ -1,8 +1,15 @@
 package service
 
 import (
+	"sort"
+
 	"github.com/raphael-guer1n/AREA/ServiceService/internal/config"
 )
+
+type ProviderSummary struct {
+	Name    string `json:"name"`
+	LogoURL string `json:"logo_url"`
+}
 
 type ProviderConfigService struct {
 	providers map[string]config.ProviderConfig
@@ -28,6 +35,21 @@ func (s *ProviderConfigService) GetAllProvidersNames() []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+// GetAllProviderSummaries returns provider metadata including logo URLs.
+func (s *ProviderConfigService) GetAllProviderSummaries() []ProviderSummary {
+	summaries := make([]ProviderSummary, 0, len(s.providers))
+	for name, provider := range s.providers {
+		summaries = append(summaries, ProviderSummary{
+			Name:    name,
+			LogoURL: provider.LogoURL,
+		})
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Name < summaries[j].Name
+	})
+	return summaries
 }
 
 // GetOAuth2Config returns the OAuth2 configuration for a specific service

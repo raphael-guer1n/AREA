@@ -3,6 +3,7 @@
   "name": "smtp_email",
   "label": "Email",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/protonmail/6D4AFF",
   "actions": [],
   "reactions": [
     {

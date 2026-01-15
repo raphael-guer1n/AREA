@@ -3,6 +3,7 @@
   "name": "coinbase",
   "label": "Coinbase",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/coinbase/0052FF",
   "actions": [
     {
       "title": "btc_exchange_rates",

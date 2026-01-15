@@ -34,6 +34,7 @@ type FieldConfig struct {
 
 type ProviderConfig struct {
 	Name     string        `json:"name"`
+	LogoURL  string        `json:"logo_url"`
 	OAuth2   OAuth2Config  `json:"oauth2"`
 	Mappings []FieldConfig `json:"mappings"`
 }

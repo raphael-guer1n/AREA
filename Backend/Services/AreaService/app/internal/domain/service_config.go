@@ -36,6 +36,7 @@ type ServiceConfig struct {
 	Provider  string           `json:"provider"`
 	Name      string           `json:"name"`
 	IconURL   string           `json:"icon_url"`
+	LogoURL   string           `json:"logo_url"`
 	Label     string           `json:"label"`
 	Actions   []ActionConfig   `json:"actions"`
 	Reactions []ReactionConfig `json:"reactions"`

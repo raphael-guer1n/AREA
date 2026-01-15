@@ -421,10 +421,6 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if len(missingProviders) > 0 {
-		body.Active = false
-	}
-
 	area, err := h.areaService.SaveArea(body)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -444,7 +440,7 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 	if len(missingProviders) > 0 {
 		respondJSON(w, http.StatusOK, map[string]any{
 			"success":           true,
-			"message":           "Area saved but set to inactive due to missing provider connections",
+			"message":           "Area saved but some provider connections are missing; actions may not run until you connect them.",
 			"missing_providers": missingProviders,
 		})
 		return

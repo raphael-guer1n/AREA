@@ -1,5 +1,6 @@
 {
   "name": "dropbox",
+  "logo_url": "https://cdn.simpleicons.org/dropbox/0061FF",
   "oauth2": {
     "client_id": "DROPBOX_CLIENT_ID",
     "client_secret": "DROPBOX_CLIENT_SECRET",

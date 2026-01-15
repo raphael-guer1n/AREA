@@ -3,6 +3,7 @@
   "name": "rss",
   "label": "RSS",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/rss/FF6600",
   "actions": [
     {
       "title": "rss_feed",
