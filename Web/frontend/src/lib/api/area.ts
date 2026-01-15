@@ -158,11 +158,11 @@ export async function fetchAreas(token: string): Promise<BackendArea[]> {
 
   const body = (await response.json().catch(() => null)) as GetAreasResponse | null;
 
-  if (!response.ok || !body?.success || !Array.isArray(body.data)) {
+  if (!response.ok || !body?.success) {
     throw new Error(body?.error ?? "Impossible de récupérer les areas.");
   }
 
-  return body.data;
+  return Array.isArray(body.data) ? body.data : [];
 }
 
 type ToggleAreaPayload = {

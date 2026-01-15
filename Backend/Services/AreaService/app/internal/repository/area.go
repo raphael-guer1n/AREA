@@ -126,7 +126,7 @@ func (a areaRepository) GetAreaReactions(areaID int) ([]domain.AreaReaction, err
 	if err != nil {
 		return nil, err
 	}
-	var reactions []domain.AreaReaction
+	reactions := make([]domain.AreaReaction, 0)
 	for rows.Next() {
 		var reaction domain.AreaReaction
 		var inputJSON []byte
@@ -146,7 +146,7 @@ func (a areaRepository) GetAreaActions(areaID int) ([]domain.AreaAction, error) 
 	if err != nil {
 		return nil, err
 	}
-	var actions []domain.AreaAction
+	actions := make([]domain.AreaAction, 0)
 
 	for rows.Next() {
 		var action domain.AreaAction
@@ -164,7 +164,7 @@ func (a areaRepository) GetAreaActions(areaID int) ([]domain.AreaAction, error) 
 
 func (a areaRepository) GetUserAreas(userID int) ([]domain.Area, error) {
 	rows, err := a.db.Query("SELECT id, name, active FROM areas WHERE user_id = $1", userID)
-	var areas []domain.Area
+	areas := make([]domain.Area, 0)
 
 	if err != nil {
 		return nil, err

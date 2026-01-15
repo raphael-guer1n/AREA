@@ -97,12 +97,10 @@ export function ServicesClient() {
         }, {});
       }
 
-      const mappedServices = uniqueServiceIds.map((serviceId, index) =>
-        ({
-          ...mapBackendService(serviceId, index),
-          connected: Boolean(statusByService[serviceId]),
-        }),
-      );
+      const mappedServices = uniqueServiceIds.map((serviceId, index) => ({
+        ...mapBackendService(serviceId, index),
+        connected: Boolean(statusByService[serviceId]),
+      }));
       setServices(mappedServices);
     } catch (err) {
       const message =

@@ -1672,6 +1672,8 @@ function AreaPageContent() {
                   {filteredAreas.map((area) => {
                     const badge = (area.actionService || area.serviceName || "?").slice(0, 2).toUpperCase();
                     const reactionBadge = (area.reactionService || "?").slice(0, 2).toUpperCase();
+                    const actionIcon = <span>{badge}</span>;
+                    const reactionIcon = <span>{reactionBadge}</span>;
                     return (
                       <AreaTileCard
                         key={area.id}
@@ -1679,8 +1681,8 @@ function AreaPageContent() {
                         name={area.summary || area.name}
                         actionLabel={area.actionName}
                         reactionLabel={area.reactionName}
-                        actionIcon={<span>{badge}</span>}
-                        reactionIcon={<span>{reactionBadge}</span>}
+                        actionIcon={actionIcon}
+                        reactionIcon={reactionIcon}
                         gradientFrom={area.gradient.from}
                         gradientTo={area.gradient.to}
                         isActive={area.active}
