@@ -152,18 +152,36 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 
 func (w *PollingWorker) finishWithSuccess(sub *domain.Subscription, providerConfig *config.PollingProviderConfig, lastItemID string) error {
 	now := time.Now().UTC()
-	next := now.Add(time.Duration(providerConfig.IntervalSeconds) * time.Second)
+	next := computeNextRunAt(sub, providerConfig.IntervalSeconds, now)
 	return w.repo.UpdatePollingState(sub.ActionID, lastItemID, next, "", now)
 }
 
 func (w *PollingWorker) finishWithError(sub *domain.Subscription, providerConfig *config.PollingProviderConfig, err error) error {
 	now := time.Now().UTC()
-	next := now.Add(time.Duration(providerConfig.IntervalSeconds) * time.Second)
+	next := computeNextRunAt(sub, providerConfig.IntervalSeconds, now)
 	updateErr := w.repo.UpdatePollingState(sub.ActionID, sub.LastItemID, next, err.Error(), now)
 	if updateErr != nil {
 		log.Printf("polling: failed to update error state action_id=%d err=%v", sub.ActionID, updateErr)
 	}
 	return err
+}
+
+func computeNextRunAt(sub *domain.Subscription, intervalSeconds int, now time.Time) time.Time {
+	interval := time.Duration(intervalSeconds) * time.Second
+	if interval <= 0 {
+		interval = time.Minute
+	}
+
+	base := now
+	if sub != nil && sub.NextRunAt != nil && !sub.NextRunAt.IsZero() {
+		base = sub.NextRunAt.UTC()
+	}
+
+	next := base.Add(interval)
+	for next.Before(now) {
+		next = next.Add(interval)
+	}
+	return next
 }
 
 func parsePayload(body []byte, format string) (any, error) {

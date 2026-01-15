@@ -18,7 +18,7 @@ func main() {
 	repo := repository.NewSubscriptionRepository(conn)
 	providerConfigSvc := service.NewProviderConfigService(cfg.ServiceServiceURL, cfg.InternalSecret)
 	oauth2TokenSvc := service.NewOAuth2TokenService(cfg.AuthServiceURL, cfg.InternalSecret)
-	requestSvc := service.NewRequestService(oauth2TokenSvc)
+	requestSvc := service.NewRequestService(oauth2TokenSvc, cfg.LogProviderRequests)
 	subscriptionSvc := service.NewSubscriptionService(repo, providerConfigSvc, requestSvc)
 	authSvc := service.NewAuthService(cfg.AuthServiceURL)
 	areaTriggerSvc := service.NewAreaTriggerService(cfg.AreaServiceURL, cfg.InternalSecret)
