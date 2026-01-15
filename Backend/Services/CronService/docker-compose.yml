@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: area_${SERVICE_NAME:-service}_api
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      DB_HOST: db
+      DB_PORT: ${DB_INTERNAL_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-cron_service_db}
+      SERVER_PORT: ${SERVER_PORT:-8086}
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
+      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      LOG_ALL_REQUESTS: ${LOG_ALL_REQUESTS:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    container_name: area_${SERVICE_NAME:-service}_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-microservice_db}
+    ports:
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  area_network:
+    external: true
+
+volumes:
+  postgres_data:
