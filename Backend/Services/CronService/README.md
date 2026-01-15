@@ -51,9 +51,11 @@ LOG_ALL_REQUESTS=false
    - `/deactivate/{actionId}` - Stops the timer for an active action
    - `/actions/{actionId}` (DELETE) - Removes the action and stops its timer
 
-## Action Format
+## Action Types
 
-Example request to create a timer action:
+### 1. Delay Action (timer_delay / delay_action)
+
+Triggers every N seconds.
 
 ```json
 {
@@ -64,7 +66,7 @@ Example request to create a timer action:
       "type": "cron",
       "provider": "",
       "service": "timer",
-      "title": "timer_delay",
+      "title": "delay_action",
       "input": [
         {
           "name": "delay",
@@ -77,6 +79,107 @@ Example request to create a timer action:
 ```
 
 The `delay` value is in seconds. For example, `"10"` means the action will trigger every 10 seconds.
+
+### 2. Daily Action
+
+Triggers every day at a specific time (hour and minute).
+
+```json
+{
+  "actions": [
+    {
+      "active": true,
+      "action_id": 2,
+      "type": "cron",
+      "provider": "",
+      "service": "timer",
+      "title": "daily_action",
+      "input": [
+        {
+          "name": "hour",
+          "value": "9"
+        },
+        {
+          "name": "minute",
+          "value": "30"
+        }
+      ]
+    }
+  ]
+}
+```
+
+This example triggers every day at 9:30 AM.
+
+### 3. Weekly Action
+
+Triggers once a week on a specific day and time.
+
+```json
+{
+  "actions": [
+    {
+      "active": true,
+      "action_id": 3,
+      "type": "cron",
+      "provider": "",
+      "service": "timer",
+      "title": "weekly_action",
+      "input": [
+        {
+          "name": "day_of_week",
+          "value": "1"
+        },
+        {
+          "name": "hour",
+          "value": "14"
+        },
+        {
+          "name": "minute",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Day of week: 0=Sunday, 1=Monday, ..., 6=Saturday. This example triggers every Monday at 2:00 PM.
+
+### 4. Monthly Action
+
+Triggers once a month on a specific day and time.
+
+```json
+{
+  "actions": [
+    {
+      "active": true,
+      "action_id": 4,
+      "type": "cron",
+      "provider": "",
+      "service": "timer",
+      "title": "monthly_action",
+      "input": [
+        {
+          "name": "day_of_month",
+          "value": "1"
+        },
+        {
+          "name": "hour",
+          "value": "0"
+        },
+        {
+          "name": "minute",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}
+```
+
+This example triggers on the 1st of every month at midnight.
 
 ## Trigger Format
 
