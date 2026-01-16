@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../models/area_definitions.dart';
+import 'package:provider/provider.dart';
+
+import '../../models/area_backend_models.dart';
+import '../../providers/area_provider.dart';
 import '../../theme/colors.dart';
 import 'area_create_screen.dart';
 import 'area_detail_screen.dart';
@@ -13,9 +16,15 @@ class AreaScreen extends StatefulWidget {
 
 class _AreaScreenState extends State<AreaScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final List<CreatedArea> _areas = [];
-  final Map<String, bool> _areaStatus = {};
   String _searchTerm = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AreaProvider>().loadAreas();
+    });
+  }
 
   @override
   void dispose() {
@@ -24,184 +33,52 @@ class _AreaScreenState extends State<AreaScreen> {
   }
 
   Future<void> _openCreateArea() async {
-    final created = await Navigator.of(context).push<CreatedArea>(
+    final created = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const CreateAreaScreen()),
     );
-    if (created != null) {
-      setState(() {
-        _areas.insert(0, created);
-        _areaStatus[created.id] = true;
-      });
+
+    if (created == true && mounted) {
+      await context.read<AreaProvider>().loadAreas();
     }
   }
 
-  void _openAreaDetail(CreatedArea area) {
+  void _openAreaDetail(AreaDto area) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AreaDetailScreen(area: area)),
     );
   }
 
-  void _openAreaPreview(CreatedArea area) {
-    final colors = context.appColors;
-    final theme = Theme.of(context);
-    final isActive = _areaStatus[area.id] ?? true;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(18),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: colors.grey.withOpacity(0.2),
-                blurRadius: 18,
-                offset: const Offset(0, -6),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        colors: [area.gradient.from, area.gradient.to],
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _badgeFrom(area.actionService),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          area.summary.isNotEmpty
-                              ? area.summary
-                              : area.name,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        Text(
-                          '${area.actionName} → ${area.reactionName}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colors.darkGrey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      Navigator.of(context).pop();
-                      if (value == 'toggle') {
-                        _toggleArea(area);
-                      } else if (value == 'delete') {
-                        _deleteArea(area);
-                      } else if (value == 'detail') {
-                        _openAreaDetail(area);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'toggle',
-                        child: Text(isActive ? 'Désactiver' : 'Activer'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'detail',
-                        child: Text('Voir le détail'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Supprimer'),
-                      ),
-                    ],
-                    icon: const Icon(Icons.more_horiz),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                area.summary.isNotEmpty ? area.summary : area.name,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Déclencheur: ${area.actionName}\nRéaction: ${area.reactionName}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.darkGrey,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _toggleArea(CreatedArea area) {
-    setState(() {
-      final current = _areaStatus[area.id] ?? true;
-      _areaStatus[area.id] = !current;
-    });
-  }
-
-  void _deleteArea(CreatedArea area) {
-    setState(() {
-      _areas.removeWhere((a) => a.id == area.id);
-      _areaStatus.remove(area.id);
-    });
-  }
-
-  List<CreatedArea> get _filteredAreas {
+  List<AreaDto> _filteredAreas(List<AreaDto> areas) {
     final term = _searchTerm.trim().toLowerCase();
-    if (term.isEmpty) return _areas;
-    return _areas.where((area) {
+    if (term.isEmpty) return areas;
+
+    return areas.where((area) {
+      final action = area.actions.isNotEmpty ? area.actions.first : null;
+      final reaction = area.reactions.isNotEmpty ? area.reactions.first : null;
+
       final haystack = [
         area.name,
-        area.summary,
-        area.actionService,
-        area.reactionService,
-        area.actionName,
-        area.reactionName,
+        action?.service ?? '',
+        action?.title ?? '',
+        reaction?.service ?? '',
+        reaction?.title ?? '',
       ].join(' ').toLowerCase();
+
       return haystack.contains(term);
     }).toList();
-  }
-
-  String _badgeFrom(String value) {
-    if (value.isEmpty) return '--';
-    final trimmed = value.trim();
-    if (trimmed.length <= 2) return trimmed.toUpperCase();
-    return trimmed.substring(0, 2).toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
-    const horizontalPadding = 20.0;
-    final activeCount = _areas.length;
-    final totalCount = _areas.length;
-    final filteredAreas = _filteredAreas;
+
+    final provider = context.watch<AreaProvider>();
+    final areas = provider.areas;
+    final filtered = _filteredAreas(areas);
+
+    final activeCount = areas.where((a) => a.active).length;
+    final totalCount = areas.length;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
@@ -210,19 +87,11 @@ class _AreaScreenState extends State<AreaScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                horizontalPadding,
-                18,
-                horizontalPadding,
-                12,
-              ),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'AREA',
-                    style: theme.textTheme.displayLarge,
-                  ),
+                  Text('AREA', style: theme.textTheme.displayLarge),
                   const SizedBox(height: 8),
                   Text(
                     'Créez vos automatisations en quelques étapes.',
@@ -249,7 +118,8 @@ class _AreaScreenState extends State<AreaScreen> {
                                 const SizedBox(height: 6),
                                 Text(
                                   activeCount.toString(),
-                                  style: theme.textTheme.headlineMedium?.copyWith(
+                                  style: theme.textTheme.headlineMedium
+                                      ?.copyWith(
                                     color: colors.midBlue,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -276,7 +146,8 @@ class _AreaScreenState extends State<AreaScreen> {
                                 const SizedBox(height: 6),
                                 Text(
                                   totalCount.toString(),
-                                  style: theme.textTheme.headlineMedium?.copyWith(
+                                  style: theme.textTheme.headlineMedium
+                                      ?.copyWith(
                                     color: colors.midBlue,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -302,15 +173,10 @@ class _AreaScreenState extends State<AreaScreen> {
               ),
             ),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: horizontalPadding),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: TextField(
                 controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchTerm = value;
-                  });
-                },
+                onChanged: (value) => setState(() => _searchTerm = value),
                 decoration: InputDecoration(
                   hintText: 'Rechercher une area...',
                   prefixIcon: const Icon(Icons.search),
@@ -319,9 +185,7 @@ class _AreaScreenState extends State<AreaScreen> {
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _searchController.clear();
-                            setState(() {
-                              _searchTerm = '';
-                            });
+                            setState(() => _searchTerm = '');
                           },
                         )
                       : null,
@@ -330,45 +194,59 @@ class _AreaScreenState extends State<AreaScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: _areas.isEmpty
-                  ? _EmptyAreaState(onCreate: _openCreateArea)
-                  : filteredAreas.isEmpty
-                      ? _NoResultsState(
-                          onReset: () {
-                            _searchController.clear();
-                            setState(() {
-                              _searchTerm = '';
-                            });
-                          },
+              child: provider.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : provider.error != null
+                      ? _ErrorState(
+                          error: provider.error!,
+                          onRetry: () => context.read<AreaProvider>().loadAreas(),
                         )
-                      : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(
-                            horizontalPadding,
-                            0,
-                            horizontalPadding,
-                            20,
-                          ),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.1,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: filteredAreas.length,
+                      : RefreshIndicator(
+                          onRefresh: () => context.read<AreaProvider>().loadAreas(),
+                          child: filtered.isEmpty
+                              ? _EmptyState(onCreate: _openCreateArea)
+                              : GridView.builder(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    20,
+                                  ),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 1.1,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                                  itemCount: filtered.length,
                                   itemBuilder: (context, index) {
-                                    final area = filteredAreas[index];
+                                    final area = filtered[index];
                                     return _AreaCard(
                                       area: area,
-                                      isActive:
-                                          _areaStatus[area.id] ?? true,
-                                      onPreview: () => _openAreaPreview(area),
                                       onOpenDetail: () => _openAreaDetail(area),
-                                      onToggle: () => _toggleArea(area),
-                                      onDelete: () => _deleteArea(area),
+                                      onToggle: () async {
+                                        await context
+                                            .read<AreaProvider>()
+                                            .toggleArea(area);
+
+                                        final err = context
+                                            .read<AreaProvider>()
+                                            .error;
+                                        if (err != null && context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(err),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
                                     );
                                   },
                                 ),
+                        ),
             ),
           ],
         ),
@@ -378,38 +256,37 @@ class _AreaScreenState extends State<AreaScreen> {
 }
 
 class _AreaCard extends StatelessWidget {
-  final CreatedArea area;
-  final bool isActive;
-  final VoidCallback onPreview;
+  final AreaDto area;
   final VoidCallback onOpenDetail;
   final VoidCallback onToggle;
-  final VoidCallback onDelete;
 
   const _AreaCard({
     required this.area,
-    required this.isActive,
-    required this.onPreview,
     required this.onOpenDetail,
     required this.onToggle,
-    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
-    final actionBadge = _badgeFrom(area.actionService);
-    final reactionBadge = _badgeFrom(area.reactionService);
-    final title = area.summary.isNotEmpty ? area.summary : area.name;
+
+    final action = area.actions.isNotEmpty ? area.actions.first : null;
+    final reaction = area.reactions.isNotEmpty ? area.reactions.first : null;
+
+    final title = area.name;
+    final subtitle = '${action?.title ?? '—'} → ${reaction?.title ?? '—'}';
+
+    final gradient = _gradientFor(area.id);
 
     return InkWell(
-      onTap: onPreview,
+      onTap: onOpenDetail,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [area.gradient.from, area.gradient.to],
+            colors: gradient,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -428,38 +305,14 @@ class _AreaCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _ServiceBadge(label: actionBadge),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
-                const SizedBox(width: 8),
-                _ServiceBadge(label: reactionBadge),
+                _statusDot(area.active),
                 const Spacer(),
-                _statusDot(isActive),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'toggle') {
-                      onToggle();
-                    } else if (value == 'delete') {
-                      onDelete();
-                    } else if (value == 'detail') {
-                      onOpenDetail();
-                    }
-                  },
-                  icon: const Icon(Icons.more_horiz, color: Colors.white),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(isActive ? 'Désactiver' : 'Activer'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'detail',
-                      child: Text('Voir le détail'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Supprimer'),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: onToggle,
+                  icon: Icon(
+                    area.active ? Icons.pause_circle : Icons.play_circle,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -475,7 +328,7 @@ class _AreaCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${area.actionName} → ${area.reactionName}',
+                  subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white70,
                   ),
@@ -488,11 +341,15 @@ class _AreaCard extends StatelessWidget {
     );
   }
 
-  String _badgeFrom(String value) {
-    if (value.isEmpty) return '--';
-    final trimmed = value.trim();
-    if (trimmed.length <= 2) return trimmed.toUpperCase();
-    return trimmed.substring(0, 2).toUpperCase();
+  List<Color> _gradientFor(int id) {
+    const palette = [
+      [Color(0xFF002642), Color(0xFF0B3C5D)],
+      [Color(0xFF840032), Color(0xFFA33A60)],
+      [Color(0xFFE59500), Color(0xFFF2B344)],
+      [Color(0xFF5B834D), Color(0xFF68915A)],
+      [Color(0xFF02040F), Color(0xFF1B2640)],
+    ];
+    return palette[id.abs() % palette.length];
   }
 
   Widget _statusDot(bool isActive) {
@@ -515,116 +372,81 @@ class _AreaCard extends StatelessWidget {
   }
 }
 
-class _ServiceBadge extends StatelessWidget {
-  final String label;
-
-  const _ServiceBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withOpacity(0.25)),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyAreaState extends StatelessWidget {
+class _EmptyState extends StatelessWidget {
   final VoidCallback onCreate;
 
-  const _EmptyAreaState({required this.onCreate});
+  const _EmptyState({required this.onCreate});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.auto_awesome,
-              size: 56,
-              color: colors.darkGrey,
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        const SizedBox(height: 60),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.auto_awesome, size: 56, color: colors.darkGrey),
+                const SizedBox(height: 16),
+                Text("Pas encore d'AREA", style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text(
+                  "Créez votre première automation pour la voir apparaître ici.",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.darkGrey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: onCreate,
+                  child: const Text('Créer une AREA'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Pas encore d\'AREA',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Créez votre première automation pour la voir apparaître ici.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onCreate,
-              child: const Text('Créer une AREA'),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _NoResultsState extends StatelessWidget {
-  final VoidCallback onReset;
+class _ErrorState extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
 
-  const _NoResultsState({required this.onReset});
+  const _ErrorState({
+    required this.error,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = context.appColors;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.search_off,
-              size: 56,
-              color: colors.darkGrey,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Aucune area trouvée',
-              style: theme.textTheme.titleMedium,
-            ),
+            Icon(Icons.error_outline, size: 56, color: colors.darkGrey),
+            const SizedBox(height: 12),
+            Text('Erreur', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(
-              'Essayez un autre mot-clé ou réinitialisez la recherche.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.darkGrey,
-              ),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: onReset,
-              child: const Text('Réinitialiser'),
+            Text(error, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
             ),
           ],
         ),
