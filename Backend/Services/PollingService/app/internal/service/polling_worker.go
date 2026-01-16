@@ -124,7 +124,7 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 	var newItems []any
 	var newLastID string
 	if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
-		newItems, newLastID = selectNewItemsBySeenIDs(filtered, itemIDPath, sub.LastItemID)
+		newItems, newLastID = selectICalChanges(filtered, sub.LastItemID)
 	} else {
 		newItems, newLastID, err = selectNewItemsWithConfig(filtered, sub.LastItemID, itemIDPath, providerConfig.ChangeDetection, ctx)
 		if err != nil {
@@ -516,67 +516,6 @@ func selectNewItemsWithConfig(items []any, lastItemID string, itemIDPath string,
 	}
 
 	return []any{item}, formatFloat(current), nil
-}
-
-func selectNewItemsBySeenIDs(items []any, itemIDPath string, lastItemID string) ([]any, string) {
-	if len(items) == 0 {
-		return nil, lastItemID
-	}
-
-	const maxSeenIDs = 500
-
-	existing := parseSeenIDs(lastItemID)
-	seenNow := make(map[string]struct{}, len(items))
-	newItems := make([]any, 0, len(items))
-	orderedIDs := make([]string, 0, len(items))
-
-	for _, item := range items {
-		id, err := resolveItemID(item, itemIDPath)
-		if err != nil || id == "" {
-			continue
-		}
-		if _, ok := seenNow[id]; ok {
-			continue
-		}
-		seenNow[id] = struct{}{}
-		if _, ok := existing[id]; !ok {
-			newItems = append(newItems, item)
-		}
-		if len(orderedIDs) < maxSeenIDs {
-			orderedIDs = append(orderedIDs, id)
-		}
-	}
-
-	if len(orderedIDs) == 0 {
-		return newItems, lastItemID
-	}
-	payload, err := json.Marshal(orderedIDs)
-	if err != nil {
-		return newItems, lastItemID
-	}
-	return newItems, string(payload)
-}
-
-func parseSeenIDs(raw string) map[string]struct{} {
-	seen := make(map[string]struct{})
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return seen
-	}
-	if strings.HasPrefix(raw, "[") {
-		var list []string
-		if err := json.Unmarshal([]byte(raw), &list); err == nil {
-			for _, id := range list {
-				id = strings.TrimSpace(id)
-				if id != "" {
-					seen[id] = struct{}{}
-				}
-			}
-			return seen
-		}
-	}
-	seen[raw] = struct{}{}
-	return seen
 }
 
 func resolveItemID(item any, itemIDPath string) (string, error) {
