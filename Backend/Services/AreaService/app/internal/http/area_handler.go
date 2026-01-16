@@ -1034,10 +1034,12 @@ func (h *AreaHandler) HandleDeleteArea(w http.ResponseWriter, req *http.Request)
 			})
 			return
 		}
-		if h.cfg.InternalSecret != "" {
-			delReq.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+			delReq.Header.Set("Authorization", authHeader)
 		}
-		delReq.Header.Set("Authorization", req.Header.Get("Authorization"))
+		if h.cfg.InternalSecret != "" {
+			delReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+		}
 		client := &http.Client{}
 		_, err = client.Do(delReq)
 		if err != nil {
