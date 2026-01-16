@@ -210,6 +210,7 @@ type PollingProviderConfig struct {
 	Name            string                        `json:"name"`
 	PayloadFormat   string                        `json:"payload_format,omitempty"`
 	IntervalSeconds int                           `json:"interval_seconds"`
+	SkipFirst       bool                          `json:"skip_first,omitempty"`
 	Request         PollingProviderRequestConfig  `json:"request"`
 	ItemsPath       string                        `json:"items_path,omitempty"`
 	ItemIDPath      string                        `json:"item_id_path,omitempty"`
@@ -476,7 +477,7 @@ func LoadPollingProviderConfigs(dir string) (map[string]PollingProviderConfig, e
 
 		if cfg.PayloadFormat != "" {
 			switch strings.ToLower(cfg.PayloadFormat) {
-			case "json", "xml":
+			case "json", "xml", "ical":
 			default:
 				return nil, fmt.Errorf("polling provider %s: unsupported payload_format %q", cfg.Name, cfg.PayloadFormat)
 			}
