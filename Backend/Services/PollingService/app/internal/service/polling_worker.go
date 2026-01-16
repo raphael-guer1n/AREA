@@ -126,6 +126,15 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 		return w.finishWithError(sub, providerConfig, err)
 	}
 
+	if providerConfig.SkipFirst && sub.LastItemID == "" && (sub.LastPolledAt == nil || sub.LastPolledAt.IsZero()) {
+		if newLastID == "" && len(filtered) > 0 {
+			if id, err := resolveItemID(filtered[0], itemIDPath); err == nil {
+				newLastID = id
+			}
+		}
+		return w.finishWithSuccess(sub, providerConfig, newLastID)
+	}
+
 	if len(newItems) > 0 && w.areaTriggerSvc != nil {
 		for i := len(newItems) - 1; i >= 0; i-- {
 			item := newItems[i]
@@ -201,6 +210,12 @@ func parsePayload(body []byte, format string) (any, error) {
 			return nil, fmt.Errorf("invalid xml payload")
 		}
 		return payload, nil
+	case "ical":
+		items, err := utils.ParseICalToItems(body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ical payload")
+		}
+		return map[string]any{"items": items}, nil
 	default:
 		return nil, fmt.Errorf("unsupported payload format")
 	}

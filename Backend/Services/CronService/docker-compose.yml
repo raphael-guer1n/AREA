@@ -9,20 +9,15 @@ services:
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
-      DB_HOST: area_${SERVICE_NAME:-service}_db
-      DB_PORT: 5432
+      DB_HOST: db
+      DB_PORT: ${DB_INTERNAL_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      DB_NAME: ${DB_NAME:-microservice_db}
-      SERVER_PORT: ${SERVER_PORT:-8080}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://gateway:8080/area_auth_api}
-      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
-      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      DB_NAME: ${DB_NAME:-cron_service_db}
+      SERVER_PORT: ${SERVER_PORT:-8086}
       INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
-      CREATE_ACTIONS_URLS: ${CREATE_ACTIONS_URLS}
-      ACTIVATE_ACTIONS_URLS: ${ACTIVATE_ACTIONS_URLS}
-      DEL_ACTIONS_URLS: ${DEL_ACTIONS_URLS}
-      DEACTIVATE_ACTIONS_URLS: ${DEACTIVATE_ACTIONS_URLS}
+      AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
+      LOG_ALL_REQUESTS: ${LOG_ALL_REQUESTS:-false}
     depends_on:
       db:
         condition: service_healthy
