@@ -104,6 +104,7 @@ type PollingProviderConfig struct {
 	Name            string                        `json:"name"`
 	PayloadFormat   string                        `json:"payload_format,omitempty"`
 	IntervalSeconds int                           `json:"interval_seconds"`
+	SkipFirst       bool                          `json:"skip_first,omitempty"`
 	Request         PollingProviderRequestConfig  `json:"request"`
 	ItemsPath       string                        `json:"items_path,omitempty"`
 	ItemIDPath      string                        `json:"item_id_path,omitempty"`

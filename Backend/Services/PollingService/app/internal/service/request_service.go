@@ -45,6 +45,10 @@ func (s *RequestService) ExecuteRequest(request config.PollingProviderRequestCon
 	if err != nil {
 		return nil, err
 	}
+	switch strings.ToLower(parsedURL.Scheme) {
+	case "webcal", "webcals":
+		parsedURL.Scheme = "https"
+	}
 	query := parsedURL.Query()
 	for key, value := range request.QueryParams {
 		if strings.TrimSpace(key) == "" {
