@@ -287,10 +287,17 @@ func (s *OAuth2StorageService) GetUserServicesStatus(userId int) ([]map[string]i
 	for _, serviceName := range apiResp.Data.Services {
 		needsReconnect := reconnectMap[serviceName]
 		isLogged := loggedServicesMap[serviceName] && !needsReconnect
+		logoURL := ""
+
+		if providerCfg, err := s.getProviderConfig(serviceName); err == nil && providerCfg != nil {
+			logoURL = providerCfg.LogoURL
+		}
+
 		result = append(result, map[string]interface{}{
 			"provider":          serviceName,
 			"is_logged":         isLogged,
 			"need_reconnecting": needsReconnect,
+			"logo_url":          logoURL,
 		})
 	}
 
@@ -307,4 +314,8 @@ func (s *OAuth2StorageService) GetProviderProfileByServiceByUser(userId int, ser
 
 func (s *OAuth2StorageService) GetProviderFieldsByProfileId(profileId int) ([]domain.UserServiceField, error) {
 	return s.fieldRepo.GetFieldsByProfileId(profileId)
+}
+
+func (s *OAuth2StorageService) DeleteProviderConnection(userId int, serviceName string) error {
+	return s.profileRepo.DeleteByUserIdAndService(userId, serviceName)
 }

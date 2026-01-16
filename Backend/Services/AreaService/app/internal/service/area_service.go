@@ -12,11 +12,15 @@ import (
 )
 
 type AreaService struct {
-	areaRepo domain.AreaRepository
+	areaRepo       domain.AreaRepository
+	internalSecret string
 }
 
-func NewAreaService(repository domain.AreaRepository) *AreaService {
-	return &AreaService{areaRepo: repository}
+func NewAreaService(repository domain.AreaRepository, internalSecret string) *AreaService {
+	return &AreaService{
+		areaRepo:       repository,
+		internalSecret: internalSecret,
+	}
 }
 
 func (s *AreaService) CreateCalendarEvent(authToken string, event domain.Event) (domain.Event, error) {
@@ -68,6 +72,42 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 				if err := json.Unmarshal(bf.Value, &subFields); err == nil {
 					result[bf.Path], err = buildPayload(subFields)
 				}
+			} else if bf.Type == "array" {
+				var arrayItems []any
+				if err := json.Unmarshal(bf.Value, &arrayItems); err != nil {
+					return nil, fmt.Errorf("failed to unmarshal array value: %w", err)
+				}
+
+				processedArray := make([]any, 0, len(arrayItems))
+				for _, item := range arrayItems {
+					switch v := item.(type) {
+					case string:
+						finalVal := v
+						for key, value := range fieldValues {
+							placeholder := "{{" + key + "}}"
+							finalVal = strings.ReplaceAll(finalVal, placeholder, value)
+						}
+						processedArray = append(processedArray, finalVal)
+					case map[string]any:
+						processedObj := make(map[string]any)
+						for k, objVal := range v {
+							if strVal, ok := objVal.(string); ok {
+								finalVal := strVal
+								for key, value := range fieldValues {
+									placeholder := "{{" + key + "}}"
+									finalVal = strings.ReplaceAll(finalVal, placeholder, value)
+								}
+								processedObj[k] = finalVal
+							} else {
+								processedObj[k] = objVal
+							}
+						}
+						processedArray = append(processedArray, processedObj)
+					default:
+						processedArray = append(processedArray, item)
+					}
+				}
+				result[bf.Path] = processedArray
 			} else {
 				valStr := string(bf.Value)
 				valStr = string(bytes.Trim(bf.Value, `"`))
@@ -95,16 +135,27 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		url = strings.ReplaceAll(url, "{{"+key+"}}", value)
 	}
 	log.Println(url)
+
+	method := reaction.Method
+	if method == "" {
+		method = http.MethodPost
+	}
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event payload: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	req, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+userToken)
+	if strings.TrimSpace(userToken) != "" {
+		req.Header.Set("Authorization", "Bearer "+userToken)
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	fmt.Println(payload)
@@ -141,4 +192,12 @@ func (s *AreaService) GetArea(areaID int) (domain.Area, error) {
 
 func (s *AreaService) ToggleArea(areaID int, isActive bool) error {
 	return s.areaRepo.ToggleArea(areaID, isActive)
+}
+
+func (s *AreaService) DeleteArea(areaID int) error {
+	return s.areaRepo.DeleteArea(areaID)
+}
+
+func (s *AreaService) DeactivateAreasByProvider(userID int, provider string) (int, error) {
+	return s.areaRepo.DeactivateAreasByProvider(userID, provider)
 }

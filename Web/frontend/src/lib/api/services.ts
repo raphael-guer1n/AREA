@@ -44,9 +44,14 @@ export const SERVICE_SERVICE_BASE_URL = normalizeServiceBase(
     process.env.NEXT_PUBLIC_SERVICES_API_BASE_URL,
 );
 
+export type ProviderSummary = {
+  name: string;
+  logo_url?: string;
+};
+
 export type ServiceListResponse = {
   success?: boolean;
-  data?: { services?: string[] };
+  data?: { services?: string[]; providers?: ProviderSummary[] };
   error?: string;
 };
 
@@ -56,6 +61,8 @@ export type ServiceFieldConfig = {
   label: string;
   required?: boolean;
   default?: string | number;
+  selection?: Array<{ value: string; label: string }>;
+  multiple?: boolean;
 };
 
 export type ServiceActionConfig = {
@@ -79,6 +86,7 @@ export type ServiceConfig = {
   name: string;
   label?: string;
   icon_url?: string;
+  logo_url?: string;
   actions: ServiceActionConfig[];
   reactions: ServiceReactionConfig[];
 };
@@ -92,9 +100,10 @@ type ServiceConfigResponse = {
 export type UserServiceStatus = {
   provider: string;
   is_logged: boolean;
+  logo_url?: string;
+  need_reconnecting?: boolean;
 };
-
-async function fetchServiceList(path: string, fallbackError: string): Promise<string[]> {
+async function fetchServiceList(path: string, fallbackError: string): Promise<ServiceListResponse> {
   const response = await fetch(`${SERVICE_SERVICE_BASE_URL}${path}`, {
     method: "GET",
     cache: "no-store",
@@ -102,19 +111,29 @@ async function fetchServiceList(path: string, fallbackError: string): Promise<st
 
   const body = (await response.json().catch(() => null)) as ServiceListResponse | null;
 
-  if (!body?.success || !Array.isArray(body.data?.services)) {
+  if (!body?.success || !body.data?.services) {
     throw new Error(body?.error ?? fallbackError);
   }
 
-  return body.data.services;
+  return body;
 }
 
-export async function fetchServices(): Promise<string[]> {
-  return fetchServiceList("/providers/services", "Impossible de récupérer les services.");
+export async function fetchServices(): Promise<ProviderSummary[]> {
+  const body = await fetchServiceList("/providers/services", "Impossible de récupérer les services.");
+  const summaries = body.data?.providers;
+  if (Array.isArray(summaries) && summaries.length) {
+    return summaries.map((provider) => ({
+      name: provider.name,
+      logo_url: provider.logo_url,
+    }));
+  }
+
+  return (body.data?.services ?? []).map((name) => ({ name }));
 }
 
 export async function fetchServiceNames(): Promise<string[]> {
-  return fetchServiceList("/services/services", "Impossible de récupérer la liste des services.");
+  const body = await fetchServiceList("/services/services", "Impossible de récupérer la liste des services.");
+  return body.data?.services ?? [];
 }
 
 export async function fetchServiceConfig(serviceName: string): Promise<ServiceConfig> {

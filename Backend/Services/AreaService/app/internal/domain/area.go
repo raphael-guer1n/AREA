@@ -6,6 +6,7 @@ type InputField struct {
 }
 
 type AreaAction struct {
+	Active   bool         `json:"active"`
 	ID       int          `json:"id"`
 	Provider string       `json:"provider"`
 	Service  string       `json:"service"`
@@ -41,4 +42,6 @@ type AreaRepository interface {
 	GetAreaFromAction(actionId int) (Area, error)
 	GetArea(areaID int) (Area, error)
 	ToggleArea(areaID int, isActive bool) error
+	DeleteArea(areaID int) error
+	DeactivateAreasByProvider(userID int, provider string) (int, error)
 }

@@ -34,6 +34,7 @@ type FieldConfig struct {
 
 type ProviderConfig struct {
 	Name     string        `json:"name"`
+	LogoURL  string        `json:"logo_url"`
 	OAuth2   OAuth2Config  `json:"oauth2"`
 	Mappings []FieldConfig `json:"mappings"`
 }
@@ -46,6 +47,7 @@ type Config struct {
 	DBPass                       string
 	DBName                       string
 	ServiceServiceURL            string
+	AreaServiceURL               string
 	InternalSecret               string
 	OAuth2RefreshIntervalSeconds int
 	OAuth2RefreshLeewayMinutes   int
@@ -60,6 +62,7 @@ func Load() Config {
 		DBPass:                       getEnv("DB_PASSWORD", "postgres"),
 		DBName:                       getEnv("DB_NAME", "myservice_db"),
 		ServiceServiceURL:            getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/area_service_api"),
+		AreaServiceURL:               getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
 		InternalSecret:               getEnv("INTERNAL_SECRET", ""),
 		OAuth2RefreshIntervalSeconds: getEnvInt("OAUTH2_REFRESH_INTERVAL_SECONDS", 60),
 		OAuth2RefreshLeewayMinutes:   getEnvInt("OAUTH2_REFRESH_LEEWAY_MINUTES", 5),

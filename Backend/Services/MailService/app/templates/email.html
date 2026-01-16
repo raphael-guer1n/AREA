@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.Subject}}</title>
+  </head>
+  <body style="margin:0; padding:0; background:#f5f7fa; color:#0d0d0d;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7fa; padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px; width:100%; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; font-family:'Josefin Sans', Arial, sans-serif;">
+            <tr>
+              <td style="background:#112a46; padding:24px 32px; color:#ffffff;">
+                <div style="font-size:20px; font-weight:600; letter-spacing:0.3px;">AREA</div>
+                <div style="font-size:13px; opacity:0.7; margin-top:4px;">Automation notification</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 32px;">
+                <div style="font-size:18px; font-weight:600; margin-bottom:12px;">{{.Subject}}</div>
+                <div style="font-size:15px; line-height:1.6; color:#4a4a4a;">{{.Body}}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px; background:#f5f7fa; color:#6f7f92; font-size:12px;">
+                Sent by AREA
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

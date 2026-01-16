@@ -3,6 +3,7 @@
   "name": "github",
   "label": "GitHub",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/github/181717",
   "actions": [
     {
       "title": "repo_webhook",

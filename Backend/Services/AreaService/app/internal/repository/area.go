@@ -17,13 +17,13 @@ func (a areaRepository) ToggleArea(areaID int, isActive bool) error {
 }
 
 func (a areaRepository) GetArea(areaID int) (domain.Area, error) {
-	row, err := a.db.Query("SELECT id, name, active FROM areas WHERE id = $1", areaID)
+	row, err := a.db.Query("SELECT id, name, active, user_id FROM areas WHERE id = $1", areaID)
 	if err != nil {
 		return domain.Area{}, err
 	}
 	var area domain.Area
 	row.Next()
-	err = row.Scan(&area.ID, &area.Name, &area.Active)
+	err = row.Scan(&area.ID, &area.Name, &area.Active, &area.UserID)
 	row.Close()
 	if err != nil {
 		return domain.Area{}, err
@@ -126,7 +126,7 @@ func (a areaRepository) GetAreaReactions(areaID int) ([]domain.AreaReaction, err
 	if err != nil {
 		return nil, err
 	}
-	var reactions []domain.AreaReaction
+	reactions := make([]domain.AreaReaction, 0)
 	for rows.Next() {
 		var reaction domain.AreaReaction
 		var inputJSON []byte
@@ -146,7 +146,7 @@ func (a areaRepository) GetAreaActions(areaID int) ([]domain.AreaAction, error) 
 	if err != nil {
 		return nil, err
 	}
-	var actions []domain.AreaAction
+	actions := make([]domain.AreaAction, 0)
 
 	for rows.Next() {
 		var action domain.AreaAction
@@ -164,7 +164,7 @@ func (a areaRepository) GetAreaActions(areaID int) ([]domain.AreaAction, error) 
 
 func (a areaRepository) GetUserAreas(userID int) ([]domain.Area, error) {
 	rows, err := a.db.Query("SELECT id, name, active FROM areas WHERE user_id = $1", userID)
-	var areas []domain.Area
+	areas := make([]domain.Area, 0)
 
 	if err != nil {
 		return nil, err
@@ -188,6 +188,37 @@ func (a areaRepository) GetUserAreas(userID int) ([]domain.Area, error) {
 		areas = append(areas, area)
 	}
 	return areas, nil
+}
+
+func (a areaRepository) DeleteArea(areaID int) error {
+	_, err := a.db.Exec("DELETE FROM areas WHERE id = $1", areaID)
+	return err
+}
+
+func (a areaRepository) DeactivateAreasByProvider(userID int, provider string) (int, error) {
+	query := `
+		UPDATE areas
+		SET active = false
+		WHERE user_id = $1
+		  AND active = true
+		  AND id IN (
+			SELECT DISTINCT area_id
+			FROM (
+			  SELECT area_id FROM actions WHERE provider = $2
+			  UNION
+			  SELECT area_id FROM reactions WHERE provider = $2
+			) AS areas_with_provider
+		  )
+	`
+	result, err := a.db.Exec(query, userID, provider)
+	if err != nil {
+		return 0, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(rowsAffected), nil
 }
 
 func NewAreaRepository(db *sql.DB) domain.AreaRepository {

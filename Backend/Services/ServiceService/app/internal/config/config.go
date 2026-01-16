@@ -65,6 +65,7 @@ type MappingConfig struct {
 
 type ProviderConfig struct {
 	Name     string          `json:"name"`
+	LogoURL  string          `json:"logo_url"`
 	OAuth2   OAuth2Config    `json:"oauth2"`
 	Mappings []MappingConfig `json:"mappings"`
 }
@@ -175,6 +176,56 @@ type WebhookProviderGenerateConfig struct {
 	OnlyIfMissing bool   `json:"only_if_missing,omitempty"`
 }
 
+type PollingProviderAuthConfig struct {
+	Type     string `json:"type"`
+	Header   string `json:"header"`
+	Prefix   string `json:"prefix"`
+	Provider string `json:"provider,omitempty"`
+}
+
+type PollingProviderRequestConfig struct {
+	Method       string                     `json:"method"`
+	URLTemplate  string                     `json:"url_template"`
+	QueryParams  map[string]string          `json:"query_params,omitempty"`
+	Headers      map[string]string          `json:"headers,omitempty"`
+	Auth         *PollingProviderAuthConfig `json:"auth,omitempty"`
+	BodyTemplate json.RawMessage            `json:"body_template,omitempty"`
+	BodyEncoding string                     `json:"body_encoding,omitempty"`
+}
+
+type PollingFilterRule struct {
+	JSONPath        string `json:"json_path"`
+	Operator        string `json:"operator,omitempty"`
+	Value           any    `json:"value,omitempty"`
+	Values          []any  `json:"values,omitempty"`
+	CaseInsensitive bool   `json:"case_insensitive,omitempty"`
+}
+
+type PollingFilterConfig struct {
+	Mode  string              `json:"mode,omitempty"`
+	Rules []PollingFilterRule `json:"rules,omitempty"`
+}
+
+type PollingProviderConfig struct {
+	Name            string                        `json:"name"`
+	PayloadFormat   string                        `json:"payload_format,omitempty"`
+	IntervalSeconds int                           `json:"interval_seconds"`
+	SkipFirst       bool                          `json:"skip_first,omitempty"`
+	Request         PollingProviderRequestConfig  `json:"request"`
+	ItemsPath       string                        `json:"items_path,omitempty"`
+	ItemIDPath      string                        `json:"item_id_path,omitempty"`
+	ChangeDetection *PollingChangeDetectionConfig `json:"change_detection,omitempty"`
+	Filters         *PollingFilterConfig          `json:"filters,omitempty"`
+	Mappings        []MappingConfig               `json:"mappings,omitempty"`
+	Prepare         []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+}
+
+type PollingChangeDetectionConfig struct {
+	ValueJSONPath string `json:"value_json_path,omitempty"`
+	MinDelta      any    `json:"min_delta,omitempty"`
+	MinPercent    any    `json:"min_percent,omitempty"`
+}
+
 // LoadProviderConfigs loads all *.json provider configs from the given directory.
 // Returns a map keyed by the provider name (e.g. "google", "discord").
 func LoadProviderConfigs(dir string) (map[string]ProviderConfig, error) {
@@ -230,11 +281,18 @@ func LoadProviderConfigs(dir string) (map[string]ProviderConfig, error) {
 }
 
 type FieldConfig struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Label         string `json:"label"`
-	Required      bool   `json:"required"`
-	DefaultValuer string `json:"default"`
+	Name          string                 `json:"name"`
+	Type          string                 `json:"type"`
+	Label         string                 `json:"label"`
+	Required      bool                   `json:"required"`
+	DefaultValuer string                 `json:"default"`
+	Selection     []FieldSelectionOption `json:"selection,omitempty"`
+	Multiple      bool                   `json:"multiple,omitempty"`
+}
+
+type FieldSelectionOption struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 type OutputField struct {
@@ -265,6 +323,7 @@ type ServiceConfig struct {
 	Provider  string           `json:"provider"`
 	Name      string           `json:"name"`
 	IconURL   string           `json:"icon_url"`
+	LogoURL   string           `json:"logo_url"`
 	Label     string           `json:"label"`
 	Actions   []ActionConfig   `json:"actions"`
 	Reactions []ReactionConfig `json:"reactions"`
@@ -367,6 +426,91 @@ func LoadWebhookProviderConfigs(dir string) (map[string]WebhookProviderConfig, e
 			case "string", "number", "boolean", "json":
 			default:
 				return nil, fmt.Errorf("webhook provider %s: field %s has invalid type %q", cfg.Name, f.FieldKey, f.Type)
+			}
+		}
+
+		providers[cfg.Name] = cfg
+	}
+
+	return providers, nil
+}
+
+// LoadPollingProviderConfigs loads all *.json polling provider configs from the given directory.
+// Returns a map keyed by the provider name (e.g. "rss").
+func LoadPollingProviderConfigs(dir string) (map[string]PollingProviderConfig, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read polling providers dir: %w", err)
+	}
+
+	providers := make(map[string]PollingProviderConfig)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+
+		path := filepath.Join(dir, entry.Name())
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read polling provider file %s: %w", path, err)
+		}
+
+		var cfg PollingProviderConfig
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("unmarshal polling provider file %s: %w", path, err)
+		}
+
+		if cfg.Name == "" {
+			return nil, fmt.Errorf("polling provider file %s: missing name", path)
+		}
+		if cfg.IntervalSeconds <= 0 {
+			return nil, fmt.Errorf("polling provider %s: interval_seconds must be > 0", cfg.Name)
+		}
+		if strings.TrimSpace(cfg.Request.Method) == "" || strings.TrimSpace(cfg.Request.URLTemplate) == "" {
+			return nil, fmt.Errorf("polling provider %s: request.method and request.url_template are required", cfg.Name)
+		}
+
+		if cfg.PayloadFormat != "" {
+			switch strings.ToLower(cfg.PayloadFormat) {
+			case "json", "xml", "ical":
+			default:
+				return nil, fmt.Errorf("polling provider %s: unsupported payload_format %q", cfg.Name, cfg.PayloadFormat)
+			}
+		}
+
+		if err := validateWebhookProviderPrepare(cfg.Name, cfg.Prepare); err != nil {
+			return nil, err
+		}
+
+		for _, f := range cfg.Mappings {
+			if f.FieldKey == "" {
+				return nil, fmt.Errorf("polling provider %s: mapping missing field_key", cfg.Name)
+			}
+			if f.JSONPath == "" {
+				return nil, fmt.Errorf("polling provider %s: mapping %s missing json_path", cfg.Name, f.FieldKey)
+			}
+			switch f.Type {
+			case "string", "number", "boolean", "json":
+			default:
+				return nil, fmt.Errorf("polling provider %s: field %s has invalid type %q", cfg.Name, f.FieldKey, f.Type)
+			}
+		}
+
+		if cfg.Filters != nil {
+			for idx, rule := range cfg.Filters.Rules {
+				if strings.TrimSpace(rule.JSONPath) == "" {
+					return nil, fmt.Errorf("polling provider %s: filters.rules[%d] json_path is required", cfg.Name, idx)
+				}
+				switch strings.ToLower(strings.TrimSpace(rule.Operator)) {
+				case "", "equals", "contains", "in", "regex", "exists", "gt", "gte", "lt", "lte":
+				default:
+					return nil, fmt.Errorf("polling provider %s: filters.rules[%d] unsupported operator %q", cfg.Name, idx, rule.Operator)
+				}
 			}
 		}
 

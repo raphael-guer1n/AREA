@@ -46,6 +46,42 @@
       "auth_required": false,
       "permissions": [],
       "internal_only": true
+    },
+    {
+      "path": "/deleteArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/activateArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/deactivateArea",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": true,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
+      "path": "/deactivateAreasByProvider",
+      "methods": [
+        "POST"
+      ],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
     }
   ]
 }

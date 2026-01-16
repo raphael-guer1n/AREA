@@ -479,6 +479,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /oauth2/disconnect:
+    post:
+      summary: Disconnect an OAuth2 provider
+      description: Disconnects the authenticated user from a specific OAuth2 provider, removes the stored tokens, and deactivates all areas using this provider.
+      operationId: disconnectProvider
+      tags:
+        - OAuth2
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  description: The OAuth2 provider name to disconnect (e.g., google, github, discord)
+                  example: google
+              required:
+                - provider
+      responses:
+        '200':
+          description: Provider disconnected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: provider disconnected successfully
+                  data:
+                    type: object
+                    properties:
+                      deactivated_areas:
+                        type: integer
+                        description: Number of areas that were deactivated
+                        example: 3
+        '400':
+          description: Bad request - Missing or invalid provider parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing, invalid, or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /loginwith:
     get:
       summary: Start OAuth2 login-with flow

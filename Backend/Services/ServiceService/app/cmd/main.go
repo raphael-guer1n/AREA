@@ -23,11 +23,17 @@ func main() {
 		log.Fatalf("Failed to load webhook provider configs: %v", err)
 	}
 
+	pollingProviderConfigSvc, err := service.NewPollingProviderConfigService("internal/config/polling")
+	if err != nil {
+		log.Fatalf("Failed to load polling provider configs: %v", err)
+	}
+
 	// HTTP handlers
 	providerHandler := httphandler.NewProviderHandler(providerConfigSvc)
 	webhookProviderHandler := httphandler.NewWebhookProviderHandler(webhookProviderConfigSvc)
+	pollingProviderHandler := httphandler.NewPollingProviderHandler(pollingProviderConfigSvc)
 
-	router := httphandler.NewRouter(providerHandler, webhookProviderHandler)
+	router := httphandler.NewRouter(providerHandler, webhookProviderHandler, pollingProviderHandler)
 
 	addr := ":" + cfg.HTTPPort
 	log.Printf("Starting server on %s", addr)

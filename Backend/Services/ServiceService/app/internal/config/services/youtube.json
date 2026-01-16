@@ -3,6 +3,7 @@
   "name": "youtube",
   "label": "YouTube",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/youtube/FF0000",
   "actions": [
     {
       "title": "new_video",
@@ -74,5 +75,134 @@
       ]
     }
   ],
-  "reactions": []
+  "reactions": [
+    {
+      "title": "insert_playlist",
+      "label": "Create Playlist",
+      "url": "https://www.googleapis.com/youtube/v3/playlists?part=snippet,status",
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "label": "Playlist Title",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "label": "Description",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "privacyStatus",
+          "type": "text",
+          "label": "Privacy Status",
+          "required": false,
+          "default": "private"
+        },
+        {
+          "name": "defaultLanguage",
+          "type": "text",
+          "label": "Default Language",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "snippet",
+          "type": "object",
+          "value": [
+            {
+              "path": "title",
+              "type": "text",
+              "value": "{{title}}"
+            },
+            {
+              "path": "description",
+              "type": "text",
+              "value": "{{description}}"
+            },
+            {
+              "path": "defaultLanguage",
+              "type": "text",
+              "value": "{{defaultLanguage}}"
+            }
+          ]
+        },
+        {
+          "path": "status",
+          "type": "object",
+          "value": [
+            {
+              "path": "privacyStatus",
+              "type": "text",
+              "value": "{{privacyStatus}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "delete_playlist",
+      "label": "Delete Playlist",
+      "url": "https://www.googleapis.com/youtube/v3/playlists?id={{playlistId}}",
+      "fields": [
+        {
+          "name": "playlistId",
+          "type": "text",
+          "label": "Playlist ID",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "method": "DELETE",
+      "bodyType": "json",
+      "body_struct": []
+    },
+    {
+      "title": "insert_subscription",
+      "label": "Subscribe to Channel",
+      "url": "https://www.googleapis.com/youtube/v3/subscriptions?part=snippet",
+      "fields": [
+        {
+          "name": "channelId",
+          "type": "text",
+          "label": "Channel ID",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "snippet",
+          "type": "object",
+          "value": [
+            {
+              "path": "resourceId",
+              "type": "object",
+              "value": [
+                {
+                  "path": "kind",
+                  "type": "text",
+                  "value": "youtube#channel"
+                },
+                {
+                  "path": "channelId",
+                  "type": "text",
+                  "value": "{{channelId}}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

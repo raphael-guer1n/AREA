@@ -26,11 +26,13 @@ func (h *ProviderHandler) HandleGetProviders(w http.ResponseWriter, req *http.Re
 	}
 
 	services := h.providerConfigSvc.GetAllProvidersNames()
+	providers := h.providerConfigSvc.GetAllProviderSummaries()
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"data": map[string]any{
-			"services": services,
+			"services":  services,
+			"providers": providers,
 		},
 	})
 }

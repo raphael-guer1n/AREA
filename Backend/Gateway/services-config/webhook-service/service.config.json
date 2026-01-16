@@ -12,16 +12,30 @@
     {
       "path": "/actions",
       "methods": ["POST", "PUT"],
-      "auth_required": true,
+      "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
     },
     {
       "path": "/actions/{actionId}",
       "methods": ["GET", "DELETE"],
-      "auth_required": true,
+      "auth_required": false,
       "permissions": [],
-      "internal_only": false
+      "internal_only": true
+    },
+    {
+      "path": "/activate/{actionId}",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
+    },
+    {
+      "path": "/deactivate/{actionId}",
+      "methods": ["POST"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
     },
     {
       "path": "/webhooks/{provider}/{hookId}",

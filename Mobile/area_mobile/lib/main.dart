@@ -8,6 +8,7 @@ import 'services/area_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/main_shell.dart';
+import 'screens/splash/splash_screen.dart';
 import 'theme/theme.dart';
 
 Future<void> main() async {
@@ -39,14 +40,9 @@ class MyApp extends StatelessWidget {
             darkTheme: themeProvider.darkTheme,
             themeMode: ThemeMode.system,
             debugShowCheckedModeBanner: false,
-            home: authProvider.isLoading
-                ? const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  )
-                : authProvider.isAuthenticated
-                    ? const MainShell()
-                    : const LoginScreen(),
+            home: const SplashScreen(),
             routes: {
+              '/splash': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/register': (context) => const RegisterScreen(),
               '/main': (context) => const MainShell(),

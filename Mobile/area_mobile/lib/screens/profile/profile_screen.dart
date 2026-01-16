@@ -390,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final isDark = theme.brightness == Brightness.dark;
     final surface = isDark ? colors.white.withOpacity(0.08) : Colors.white;
-    final canvas = isDark ? colors.white : colors.lightGrey;
+    final canvas = colors.white;
 
     return Scaffold(
       backgroundColor: canvas,

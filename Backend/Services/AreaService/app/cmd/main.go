@@ -17,7 +17,7 @@ func main() {
 
 	areaRepository := repository.NewAreaRepository(dbConn)
 
-	areaSvc := service.NewAreaService(areaRepository)
+	areaSvc := service.NewAreaService(areaRepository, cfg.InternalSecret)
 	areaHandler := httphandler.NewAreaHandler(areaSvc, cfg)
 	router := httphandler.NewRouter(areaHandler)
 

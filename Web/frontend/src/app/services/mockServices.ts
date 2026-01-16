@@ -30,6 +30,7 @@ export type MockService = {
   name: string;
   url: string;
   badge: string;
+  logoUrl?: string;
   category?: string;
   gradient: { from: string; to: string };
   actions: ActionDefinition[];
@@ -53,6 +54,7 @@ export const mockServices: MockService[] = [
     name: "Timer",
     url: "#",
     badge: "Tm",
+    logoUrl: "https://cdn.simpleicons.org/clockify/03A9F4",
     category: "Interne",
     gradient: gradients[0],
     actions: [
@@ -88,6 +90,7 @@ export const mockServices: MockService[] = [
     name: "Google",
     url: "https://www.google.com",
     badge: "G",
+    logoUrl: "https://cdn.simpleicons.org/google/4285F4",
     category: "Productivité",
     gradient: gradients[1],
     actions: [],
@@ -144,6 +147,7 @@ export const mockServices: MockService[] = [
     name: "GitHub",
     url: "https://github.com",
     badge: "Gh",
+    logoUrl: "https://cdn.simpleicons.org/github/181717",
     category: "Développeurs",
     gradient: gradients[2],
     actions: [],

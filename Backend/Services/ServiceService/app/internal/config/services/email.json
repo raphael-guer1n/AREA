@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "name": "smtp_email",
+  "label": "Email",
+  "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/protonmail/6D4AFF",
+  "actions": [],
+  "reactions": [
+    {
+      "title": "send_email",
+      "label": "Send Email",
+      "url": "http://gateway:8080/area_mail_api/send",
+      "fields": [
+        {
+          "name": "to",
+          "type": "text",
+          "label": "Recipient",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "subject",
+          "type": "text",
+          "label": "Subject",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "label": "Body",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "to",
+          "type": "text",
+          "value": "{{to}}"
+        },
+        {
+          "path": "subject",
+          "type": "text",
+          "value": "{{subject}}"
+        },
+        {
+          "path": "body",
+          "type": "text",
+          "value": "{{body}}"
+        }
+      ]
+    }
+  ]
+}

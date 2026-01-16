@@ -1,5 +1,6 @@
 {
   "name": "microsoft",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/6424/6424314.svg?token=exp=1768496281~hmac=43570b99302f4b5b7ea069fcedb9b40c",
   "oauth2": {
     "client_id": "MICROSOFT_CLIENT_ID",
     "client_secret": "MICROSOFT_CLIENT_SECRET",

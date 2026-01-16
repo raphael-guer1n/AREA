@@ -1,7 +1,7 @@
 .PHONY: help backend-up backend-down frontend-up frontend-down docker-up docker-down
 
 BACKEND_DIR := Backend
-FRONTEND_COMPOSE := Web/frontend/docker-compose.yml
+FRONTEND_DIR := Web/frontend
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -13,12 +13,12 @@ backend-up: ## Start backend via Backend/Makefile
 	@$(MAKE) -C $(BACKEND_DIR) docker-up
 
 frontend-up: ## Start frontend Docker containers
-	docker compose -f $(FRONTEND_COMPOSE) up -d --build
+	@$(MAKE) -C $(FRONTEND_DIR) docker-up
 
 docker-up: backend-up frontend-up ## Start backend then frontend
 
 frontend-down: ## Stop frontend Docker containers
-	docker compose -f $(FRONTEND_COMPOSE) down
+	@$(MAKE) -C $(FRONTEND_DIR) docker-down
 
 backend-down: ## Stop backend via Backend/Makefile
 	@$(MAKE) -C $(BACKEND_DIR) docker-down

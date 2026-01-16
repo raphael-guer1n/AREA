@@ -297,6 +297,72 @@ func (h *AreaHandler) getUserId(r *http.Request) (int, error) {
 	return authResp.Data.User.ID, nil
 }
 
+func (h *AreaHandler) checkUserProviderConnections(userId int, area domain.Area) ([]string, error) {
+	providersNeeded := make(map[string]bool)
+
+	for _, action := range area.Actions {
+		if action.Provider != "" {
+			providersNeeded[action.Provider] = true
+		}
+	}
+
+	for _, reaction := range area.Reactions {
+		if reaction.Provider != "" {
+			providersNeeded[reaction.Provider] = true
+		}
+	}
+
+	if len(providersNeeded) == 0 {
+		return nil, nil
+	}
+
+	baseURL := strings.TrimRight(h.cfg.AuthServiceURL, "/") + fmt.Sprintf("/oauth2/providers/%d", userId)
+	req, err := http.NewRequest(http.MethodGet, baseURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	if h.cfg.InternalSecret != "" {
+		req.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Providers []struct {
+				Provider         string `json:"provider"`
+				IsLogged         bool   `json:"is_logged"`
+				NeedReconnecting bool   `json:"need_reconnecting"`
+			} `json:"providers"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, err
+	}
+
+	var missingProviders []string
+	for provider := range providersNeeded {
+		found := false
+		for _, p := range body.Data.Providers {
+			if p.Provider == provider && p.IsLogged && !p.NeedReconnecting {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missingProviders = append(missingProviders, provider)
+		}
+	}
+
+	return missingProviders, nil
+}
+
 func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
@@ -345,6 +411,16 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
+
+	missingProviders, err := h.checkUserProviderConnections(userId, body)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error checking provider connections: " + err.Error(),
+		})
+		return
+	}
+
 	area, err := h.areaService.SaveArea(body)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -353,17 +429,21 @@ func (h *AreaHandler) SaveArea(w http.ResponseWriter, req *http.Request) {
 		})
 		return
 	}
-	if area.Active == true {
-		for _, action := range area.Actions {
-			err := h.TriggerAction(action)
-			if err != nil {
-				respondJSON(w, http.StatusInternalServerError, map[string]any{
-					"success": false,
-					"error":   err.Error(),
-				})
-				return
-			}
-		}
+	err = h.TriggerAction(area.Actions, area.Active, req.Header.Get("Authorization"))
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	if len(missingProviders) > 0 {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success":           true,
+			"message":           "Area saved but some provider connections are missing; actions may not run until you connect them.",
+			"missing_providers": missingProviders,
+		})
+		return
 	}
 	respondJSON(w, http.StatusOK, map[string]any{})
 }
@@ -416,6 +496,25 @@ func (h *AreaHandler) HandleActivateArea(w http.ResponseWriter, req *http.Reques
 		})
 		return
 	}
+
+	missingProviders, err := h.checkUserProviderConnections(userId, area)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error checking provider connections: " + err.Error(),
+		})
+		return
+	}
+
+	if len(missingProviders) > 0 {
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success":           false,
+			"message":           "Cannot activate area due to missing provider connections",
+			"missing_providers": missingProviders,
+		})
+		return
+	}
+
 	err = h.areaService.ToggleArea(body.AreaId, true)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -503,21 +602,94 @@ func (h *AreaHandler) HandleDeactivateArea(w http.ResponseWriter, req *http.Requ
 }
 
 func (h *AreaHandler) ActivateAction(req *http.Request, areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
+	if areaAction.Type == "cron" {
+		err := h.TriggerCronAction(areaAction)
+		if err != nil {
+			return err
+		}
 		return nil
-	default:
-		return fmt.Errorf("action type %s not supported", areaAction.Type)
 	}
+
+	activateURL, exists := h.cfg.ActivateActionsUrls[areaAction.Type]
+	if !exists {
+		return fmt.Errorf("action type %s not supported or not configured", areaAction.Type)
+	}
+
+	if activateURL == "nil" || activateURL == "" {
+		return nil
+	}
+
+	activateURL = strings.TrimRight(activateURL, "/") + fmt.Sprintf("/%d", areaAction.ID)
+
+	activateReq, err := http.NewRequest(http.MethodPost, activateURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create activate request: %w", err)
+	}
+
+	if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+		activateReq.Header.Set("Authorization", authHeader)
+	}
+	activateReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(activateReq)
+	if err != nil {
+		return fmt.Errorf("failed to activate %s action: %w", areaAction.Type, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]any
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		if errMsg, ok := errResp["error"].(string); ok {
+			return fmt.Errorf("failed to activate %s action: %s", areaAction.Type, errMsg)
+		}
+		return fmt.Errorf("failed to activate %s action: status %d", areaAction.Type, resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (h *AreaHandler) DeactivateAction(req *http.Request, areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
-		return nil
-	default:
-		return fmt.Errorf("action type %s not supported", areaAction.Type)
+	deactivateURL, exists := h.cfg.DeactivateActionsUrls[areaAction.Type]
+	if !exists {
+		return fmt.Errorf("action type %s not supported or not configured", areaAction.Type)
 	}
+
+	if deactivateURL == "nil" || deactivateURL == "" {
+		return nil
+	}
+
+	deactivateURL = strings.TrimRight(deactivateURL, "/") + fmt.Sprintf("/%d", areaAction.ID)
+
+	deactivateReq, err := http.NewRequest(http.MethodPost, deactivateURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create deactivate request: %w", err)
+	}
+
+	if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+		deactivateReq.Header.Set("Authorization", authHeader)
+	}
+
+	deactivateReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(deactivateReq)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate %s action: %w", areaAction.Type, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]any
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		if errMsg, ok := errResp["error"].(string); ok {
+			return fmt.Errorf("failed to deactivate %s action: %s", areaAction.Type, errMsg)
+		}
+		return fmt.Errorf("failed to deactivate %s action: status %d", areaAction.Type, resp.StatusCode)
+	}
+
+	return nil
 }
 
 func (h *AreaHandler) GetAreas(w http.ResponseWriter, req *http.Request) {
@@ -649,37 +821,119 @@ func CheckAreaValidity(area domain.Area, config domain.AreaConfig) error {
 }
 
 func (h *AreaHandler) TriggerReaction(areaReaction domain.AreaReaction, outputFields []domain.InputField, userId int) error {
-	serviceProfile, err := h.getUserServiceProfile(userId, areaReaction.Provider)
-	if err != nil {
-		return err
+	serviceProfile := domain.UserService{}
+	var err error
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		serviceProfile, err = h.getUserServiceProfile(userId, areaReaction.Provider)
+		if err != nil {
+			return err
+		}
 	}
 	reactionConfig, err := h.getReactionDetails(areaReaction)
 	if err != nil {
 		return err
 	}
+
 	fieldValues := make(map[string]string)
 	for _, field := range areaReaction.Input {
 		for _, outputField := range outputFields {
 			field.Value = strings.ReplaceAll(field.Value, "{{"+outputField.Name+"}}", outputField.Value)
 		}
-		for _, serviceField := range serviceProfile.Fields {
-			field.Value = strings.ReplaceAll(field.Value, "{{"+serviceField.FieldKey+"}}", serviceField.StringValue)
+		if strings.TrimSpace(areaReaction.Provider) != "" {
+			for _, serviceField := range serviceProfile.Fields {
+				field.Value = strings.ReplaceAll(field.Value, "{{"+serviceField.FieldKey+"}}", serviceField.StringValue)
+			}
 		}
 		fieldValues[field.Name] = field.Value
 	}
-	for _, serviceField := range serviceProfile.Fields {
-		fieldValues[serviceField.FieldKey] = serviceField.StringValue
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		for _, serviceField := range serviceProfile.Fields {
+			fieldValues[serviceField.FieldKey] = serviceField.StringValue
+		}
 	}
-	return h.areaService.LaunchReactions(serviceProfile.Profile.AccessToken, fieldValues, reactionConfig)
+	userToken := ""
+	if strings.TrimSpace(areaReaction.Provider) != "" {
+		userToken = serviceProfile.Profile.AccessToken
+	}
+	return h.areaService.LaunchReactions(userToken, fieldValues, reactionConfig)
 }
 
-func (h *AreaHandler) TriggerAction(areaAction domain.AreaAction) error {
-	switch areaAction.Type {
-	case "cron":
-		return h.TriggerCronAction(areaAction)
-	default:
-		return fmt.Errorf("only cron actions are supported")
+type actionRequest struct {
+	Active   bool                `json:"active"`
+	ActionID int                 `json:"action_id"`
+	Type     string              `json:"type"`
+	Provider string              `json:"provider"`
+	Service  string              `json:"service"`
+	Title    string              `json:"title"`
+	Input    []domain.InputField `json:"input"`
+}
+
+func (h *AreaHandler) TriggerAction(areaAction []domain.AreaAction, isActive bool, authHeader string) error {
+	cronActions := make([]domain.AreaAction, 0)
+	otherActions := make([]domain.AreaAction, 0)
+	for _, action := range areaAction {
+		action.Active = isActive
+		if action.Type == "cron" {
+			cronActions = append(cronActions, action)
+		} else {
+			otherActions = append(otherActions, action)
+		}
 	}
+	if isActive {
+		for _, action := range cronActions {
+			err := h.TriggerCronAction(action)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	actionsByType := make(map[string][]actionRequest)
+	for _, action := range otherActions {
+		action.Active = isActive
+		actionsByType[action.Type] = append(actionsByType[action.Type], actionRequest{
+			Active:   action.Active,
+			ActionID: action.ID,
+			Type:     action.Type,
+			Provider: action.Provider,
+			Service:  action.Service,
+			Title:    action.Title,
+			Input:    action.Input,
+		})
+	}
+
+	for actionType, actions := range actionsByType {
+		createUrl, exist := h.cfg.CreateActionsUrls[actionType]
+		if !exist {
+			return fmt.Errorf("action type %s not supported", actionType)
+		}
+		var body struct {
+			Actions []actionRequest `json:"actions"`
+		}
+		body.Actions = actions
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		resp, err := http.NewRequest(http.MethodPost, createUrl, bytes.NewBuffer(payload))
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(authHeader) != "" {
+			resp.Header.Set("Authorization", authHeader)
+		} else if h.cfg.InternalSecret != "" {
+			resp.Header.Set("Authorization", "Bearer "+h.cfg.InternalSecret)
+		}
+		if h.cfg.InternalSecret != "" {
+			resp.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+		}
+		client := &http.Client{}
+		_, err = client.Do(resp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
@@ -722,4 +976,136 @@ func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
 		}
 	})
 	return nil
+}
+
+func (h *AreaHandler) HandleDeleteArea(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		AreaId int `json:"area_id"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	userId, err := h.getUserId(req)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   "Error getting user ID," + err.Error(),
+		})
+		return
+	}
+	area, err := h.areaService.GetArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	log.Printf("Deleting area of %d by user %d", area.UserID, userId)
+	if area.UserID != userId {
+		respondJSON(w, http.StatusForbidden, map[string]any{
+			"success": false,
+			"error":   "You are not allowed to delete this area",
+		})
+		return
+	}
+	for _, action := range area.Actions {
+		delUrl, exist := h.cfg.DelActionsUrls[action.Type]
+		if !exist || delUrl == "nil" {
+			continue
+		}
+		deleteUrl := delUrl + "/" + strconv.Itoa(action.ID)
+		delReq, err := http.NewRequest(http.MethodDelete, deleteUrl, nil)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+		if authHeader := req.Header.Get("Authorization"); authHeader != "" {
+			delReq.Header.Set("Authorization", authHeader)
+		}
+		if h.cfg.InternalSecret != "" {
+			delReq.Header.Set("X-Internal-Secret", h.cfg.InternalSecret)
+		}
+		client := &http.Client{}
+		_, err = client.Do(delReq)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	}
+	err = h.areaService.DeleteArea(body.AreaId)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{})
+}
+
+func (h *AreaHandler) HandleDeactivateAreasByProvider(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "method not allowed",
+		})
+		return
+	}
+	var body struct {
+		UserId   int    `json:"user_id"`
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "invalid request body " + err.Error(),
+		})
+		return
+	}
+	if body.UserId == 0 {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "user_id is required",
+		})
+		return
+	}
+	if body.Provider == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   "provider is required",
+		})
+		return
+	}
+	deactivatedCount, err := h.areaService.DeactivateAreasByProvider(body.UserId, body.Provider)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"data": map[string]any{
+			"deactivated_count": deactivatedCount,
+		},
+	})
 }

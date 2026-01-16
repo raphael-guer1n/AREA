@@ -3,6 +3,7 @@
   "name": "google_calendar",
   "label": "Google Calendar",
   "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/googlecalendar/4285F4",
   "actions": [],
   "reactions": [
     {
@@ -82,6 +83,136 @@
           ]
         }
       ]
+    },
+    {
+      "title": "clear_calendar",
+      "label": "Clear Calendar",
+      "url": "https://www.googleapis.com/calendar/v3/calendars/{{calendarId}}/clear",
+      "fields": [
+        {
+          "name": "calendarId",
+          "type": "text",
+          "label": "Calendar",
+          "required": true,
+          "default": "primary"
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": []
+    },
+    {
+      "title": "create_calendar_list",
+      "label": "Create Calendar List",
+      "url": "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+      "fields": [
+        {
+          "name": "calendarId",
+          "type": "text",
+          "label": "Calendar",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "hidden",
+          "type": "boolean",
+          "label": "Hidden",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "summary",
+          "type": "text",
+          "label": "Summary",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "selected",
+          "type": "boolean",
+          "label": "Selected",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "id",
+          "type": "text",
+          "value": "{{calendarId}}"
+        },
+        {
+          "path": "hidden",
+          "type": "boolean",
+          "value": "{{hidden}}"
+        },
+        {
+          "path": "summaryOverride",
+          "type": "text",
+          "value": "{{summary}}"
+        },
+        {
+          "path": "selected",
+          "type": "boolean",
+          "value": "{{selected}}"
+        }
+      ]
+    },
+    {
+      "title": "Create Calendar",
+      "label": "Create Calendar",
+      "url": "https://www.googleapis.com/calendar/v3/calendars",
+      "fields": [
+        {
+          "name": "summary",
+          "type": "text",
+          "label": "Calendar Title",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "method": "POST",
+      "bodyType": "json",
+      "body_struct": [
+        {
+          "path": "summary",
+          "type": "text",
+          "value": "{{summary}}"
+        }
+      ]
+    },
+    {
+      "title": "delete_event",
+      "label": "Delete Event",
+      "url": "https://www.googleapis.com/calendar/v3/calendars/{{calendarId}}/events/{{eventId}}",
+      "fields": [
+        {
+          "name": "calendarId",
+          "type": "text",
+          "label": "Calendar ID",
+          "required": true,
+          "default": "primary"
+        },
+        {
+          "name": "eventId",
+          "type": "text",
+          "label": "Event ID",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "sendUpdates",
+          "type": "text",
+          "label": "Send Updates",
+          "required": false,
+          "default": "none"
+        }
+      ],
+      "method": "DELETE",
+      "bodyType": "json",
+      "body_struct": []
     }
   ]
 }

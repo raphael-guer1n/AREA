@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "name": "rss",
+  "label": "RSS",
+  "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/rss/FF6600",
+  "actions": [
+    {
+      "title": "rss_feed",
+      "label": "RSS Feed",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "feed_url",
+          "type": "text",
+          "label": "Feed URL",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "title", "type": "text", "label": "Title" },
+        { "name": "link", "type": "text", "label": "Link" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "pub_date", "type": "text", "label": "Published" }
+      ]
+    }
+  ],
+  "reactions": []
+}

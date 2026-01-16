@@ -158,11 +158,11 @@ export async function fetchAreas(token: string): Promise<BackendArea[]> {
 
   const body = (await response.json().catch(() => null)) as GetAreasResponse | null;
 
-  if (!response.ok || !body?.success || !Array.isArray(body.data)) {
+  if (!response.ok || !body?.success) {
     throw new Error(body?.error ?? "Impossible de récupérer les areas.");
   }
 
-  return body.data;
+  return Array.isArray(body.data) ? body.data : [];
 }
 
 type ToggleAreaPayload = {
@@ -194,6 +194,27 @@ async function toggleArea(
       `Impossible de ${endpoint === "activateArea" ? "activer" : "désactiver"} l'area (statut ${
         response.status
       }).`;
+    throw new Error(errorMessage);
+  }
+}
+
+type DeleteAreaPayload = {
+  area_id: number;
+};
+
+export async function deleteArea(token: string, areaId: number): Promise<void> {
+  const response = await fetch(`${AREA_SERVICE_BASE_URL}/deleteArea`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ area_id: areaId } satisfies DeleteAreaPayload),
+  });
+
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  if (!response.ok || body?.error) {
+    const errorMessage = body?.error ?? `Impossible de supprimer l'area (statut ${response.status}).`;
     throw new Error(errorMessage);
   }
 }

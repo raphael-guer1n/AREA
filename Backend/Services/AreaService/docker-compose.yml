@@ -19,6 +19,10 @@ services:
       SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://gateway:8080/area_service_api}
       AREA_SERVICE_URL: ${AREA_SERVICE_URL:-http://gateway:8080/area_area_api}
       INTERNAL_SECRET: ${INTERNAL_SECRET:-secret}
+      CREATE_ACTIONS_URLS: ${CREATE_ACTIONS_URLS}
+      ACTIVATE_ACTIONS_URLS: ${ACTIVATE_ACTIONS_URLS}
+      DEL_ACTIONS_URLS: ${DEL_ACTIONS_URLS}
+      DEACTIVATE_ACTIONS_URLS: ${DEACTIVATE_ACTIONS_URLS}
     depends_on:
       db:
         condition: service_healthy
