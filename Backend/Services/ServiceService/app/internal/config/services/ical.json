@@ -1,0 +1,38 @@
+{
+  "provider": "",
+  "name": "ical",
+  "label": "iCal/ICS",
+  "icon_url": "",
+  "actions": [
+    {
+      "title": "ical_feed",
+      "label": "iCal/ICS Feed",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "feed_url",
+          "type": "text",
+          "label": "Feed URL",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "uid", "type": "text", "label": "UID" },
+        { "name": "recurrence_id", "type": "text", "label": "Recurrence ID" },
+        { "name": "title", "type": "text", "label": "Title" },
+        { "name": "start", "type": "text", "label": "Start" },
+        { "name": "end", "type": "text", "label": "End" },
+        { "name": "location", "type": "text", "label": "Location" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "status", "type": "text", "label": "Status" },
+        { "name": "url", "type": "text", "label": "URL" },
+        { "name": "organizer", "type": "text", "label": "Organizer" },
+        { "name": "updated_at", "type": "text", "label": "Updated At" },
+        { "name": "all_day", "type": "text", "label": "All Day" },
+        { "name": "timezone", "type": "text", "label": "Timezone" }
+      ]
+    }
+  ],
+  "reactions": []
+}
