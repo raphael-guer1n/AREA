@@ -28,12 +28,32 @@ class ServiceFieldConfigDto {
   }
 }
 
+class OutputFieldDto {
+  final String name;
+  final String type;
+  final String label;
+
+  OutputFieldDto({
+    required this.name,
+    required this.type,
+    required this.label,
+  });
+
+  factory OutputFieldDto.fromJson(Map<String, dynamic> json) {
+    return OutputFieldDto(
+      name: json['name'] as String? ?? '',
+      type: json['type'] as String? ?? 'string',
+      label: json['label'] as String? ?? '',
+    );
+  }
+}
+
 class ActionConfigDto {
   final String title;
   final String label;
   final String type;
   final List<ServiceFieldConfigDto> fields;
-  final List<Map<String, dynamic>> outputFields;
+  final List<OutputFieldDto> outputFields;
 
   ActionConfigDto({
     required this.title,
@@ -49,12 +69,14 @@ class ActionConfigDto {
       label: json['label'] as String? ?? '',
       type: json['type'] as String? ?? '',
       fields: ((json['fields'] as List?) ?? [])
-          .map((e) => ServiceFieldConfigDto.fromJson(
-                Map<String, dynamic>.from(e),
-              ))
+          .map(
+            (e) => ServiceFieldConfigDto.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
           .toList(),
       outputFields: ((json['output_fields'] as List?) ?? [])
-          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map((e) => OutputFieldDto.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
@@ -76,9 +98,11 @@ class ReactionConfigDto {
       title: json['title'] as String? ?? '',
       label: json['label'] as String? ?? '',
       fields: ((json['fields'] as List?) ?? [])
-          .map((e) => ServiceFieldConfigDto.fromJson(
-                Map<String, dynamic>.from(e),
-              ))
+          .map(
+            (e) => ServiceFieldConfigDto.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
           .toList(),
     );
   }

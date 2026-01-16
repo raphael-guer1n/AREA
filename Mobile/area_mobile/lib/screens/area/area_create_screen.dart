@@ -140,9 +140,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   }
 
   bool get _canCreate {
-    return _areaName.trim().isNotEmpty &&
-        _canProceedAction &&
-        _canProceedReaction;
+    return _areaName.trim().isNotEmpty && _canProceedAction && _canProceedReaction;
   }
 
   void _next() {
@@ -205,6 +203,50 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     );
 
     onChanged(fieldName, dt.toUtc().toIso8601String());
+  }
+
+  Future<void> _copyPlaceholder(String fieldName) async {
+    final text = '{{${fieldName.trim()}}}';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copié: $text'),
+        backgroundColor: context.appColors.deepBlue,
+      ),
+    );
+  }
+
+  Widget _outputFieldsPanel({
+    required ThemeData theme,
+    required AppColorPalette colors,
+    required List<OutputFieldDto> outputFields,
+  }) {
+    if (outputFields.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Variables disponibles (output)', theme, colors),
+        Text(
+          'Touchez une variable pour copier son placeholder (ex: {{delay}}).',
+          style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: outputFields.map((f) {
+            final display = f.label.isNotEmpty ? f.label : f.name;
+            return ActionChip(
+              label: Text(display),
+              onPressed: () => _copyPlaceholder(f.name),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
   }
 
   Future<void> _createArea() async {
@@ -307,11 +349,13 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_wizardStep == AreaWizardStep.action
-            ? '1/3 · Action'
-            : _wizardStep == AreaWizardStep.reaction
-                ? '2/3 · Réaction'
-                : '3/3 · Détails'),
+        title: Text(
+          _wizardStep == AreaWizardStep.action
+              ? '1/3 · Action'
+              : _wizardStep == AreaWizardStep.reaction
+                  ? '2/3 · Réaction'
+                  : '3/3 · Détails',
+        ),
       ),
       body: SafeArea(
         child: _isLoading
@@ -408,7 +452,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
         _Section(
           title: 'Action (Déclencheur)',
           subtitle:
-              "Choisissez un service, puis un déclencheur. Les services non connectés sont désactivés.",
+              'Choisissez un service, puis un déclencheur. Les services non connectés sont désactivés.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -425,8 +469,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                   setState(() {
                     _actionService = s;
                     _selectedAction = first;
-                    _actionFieldValues =
-                        first != null ? _initValues(first.fields) : {};
+                    _actionFieldValues = first != null ? _initValues(first.fields) : {};
                   });
                 },
               ),
@@ -435,8 +478,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
               if (_actionService == null)
                 Text(
                   'Choisissez un service.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: colors.darkGrey),
+                  style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
                 )
               else
                 Column(
@@ -470,6 +512,12 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                   },
                   onDatePick: _pickDateTime,
                 ),
+                const SizedBox(height: 8),
+                _outputFieldsPanel(
+                  theme: theme,
+                  colors: colors,
+                  outputFields: _selectedAction!.outputFields,
+                ),
               ],
             ],
           ),
@@ -486,7 +534,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     return _Section(
       title: 'Réaction',
       subtitle:
-          "Choisissez un service, puis une action. Les services non connectés sont désactivés.",
+          'Choisissez un service, puis une action. Les services non connectés sont désactivés.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -503,8 +551,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
               setState(() {
                 _reactionService = s;
                 _selectedReaction = first;
-                _reactionFieldValues =
-                    first != null ? _initValues(first.fields) : {};
+                _reactionFieldValues = first != null ? _initValues(first.fields) : {};
               });
             },
           ),
@@ -513,8 +560,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
           if (_reactionService == null)
             Text(
               'Choisissez un service.',
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+              style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
             )
           else
             Column(
@@ -548,6 +594,13 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
               },
               onDatePick: _pickDateTime,
             ),
+            const SizedBox(height: 8),
+            if (_selectedAction != null)
+              _outputFieldsPanel(
+                theme: theme,
+                colors: colors,
+                outputFields: _selectedAction!.outputFields,
+              ),
           ],
         ],
       ),
@@ -756,8 +809,7 @@ class _FieldList extends StatelessWidget {
                     Text(
                       value.isEmpty ? 'Sélectionner une date' : value,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            value.isEmpty ? colors.darkGrey : colors.almostBlack,
+                        color: value.isEmpty ? colors.darkGrey : colors.almostBlack,
                       ),
                     ),
                     const Icon(Icons.calendar_today, size: 18),
@@ -776,8 +828,7 @@ class _FieldList extends StatelessWidget {
             key: ValueKey('$keyPrefix-${field.name}'),
             initialValue: value,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-            inputFormatters:
-                isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
+            inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
             decoration: InputDecoration(labelText: label),
             onChanged: (v) => onChanged(field.name, v),
           ),
@@ -804,8 +855,7 @@ class _MobileService {
     required this.reactions,
   });
 
-  factory _MobileService.fromConfig(ServiceConfigDto cfg,
-      {required bool connected}) {
+  factory _MobileService.fromConfig(ServiceConfigDto cfg, {required bool connected}) {
     return _MobileService(
       id: cfg.name,
       name: cfg.label.isNotEmpty ? cfg.label : cfg.name,
@@ -818,6 +868,7 @@ class _MobileService {
               label: a.label,
               type: a.type,
               fields: a.fields.map(_fieldFromConfig).toList(),
+              outputFields: a.outputFields,
             ),
           )
           .toList(),
@@ -841,12 +892,14 @@ class _MobileAction {
   final String label;
   final String type;
   final List<AreaFieldDefinition> fields;
+  final List<OutputFieldDto> outputFields;
 
   _MobileAction({
     required this.title,
     required this.label,
     required this.type,
     required this.fields,
+    required this.outputFields,
   });
 }
 

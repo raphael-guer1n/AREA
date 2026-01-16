@@ -68,6 +68,69 @@ class _AreaScreenState extends State<AreaScreen> {
     }).toList();
   }
 
+  Future<void> _toggleArea(AreaDto area) async {
+    final provider = context.read<AreaProvider>();
+    await provider.toggleArea(area);
+
+    if (!mounted) return;
+
+    final err = provider.error;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _confirmAndDeleteArea(AreaDto area) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer l’AREA'),
+        content: Text(
+          'Voulez-vous vraiment supprimer "${area.name}" ?\n'
+          'Cette action est irréversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final provider = context.read<AreaProvider>();
+    await provider.deleteArea(area.id);
+
+    if (!mounted) return;
+
+    final err = provider.error;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('AREA supprimée'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -225,24 +288,8 @@ class _AreaScreenState extends State<AreaScreen> {
                                     return _AreaCard(
                                       area: area,
                                       onOpenDetail: () => _openAreaDetail(area),
-                                      onToggle: () async {
-                                        await context
-                                            .read<AreaProvider>()
-                                            .toggleArea(area);
-
-                                        final err = context
-                                            .read<AreaProvider>()
-                                            .error;
-                                        if (err != null && context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content: Text(err),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        }
-                                      },
+                                      onToggle: () => _toggleArea(area),
+                                      onDelete: () => _confirmAndDeleteArea(area),
                                     );
                                   },
                                 ),
@@ -259,11 +306,13 @@ class _AreaCard extends StatelessWidget {
   final AreaDto area;
   final VoidCallback onOpenDetail;
   final VoidCallback onToggle;
+  final VoidCallback onDelete;
 
   const _AreaCard({
     required this.area,
     required this.onOpenDetail,
     required this.onToggle,
+    required this.onDelete,
   });
 
   @override
@@ -307,12 +356,31 @@ class _AreaCard extends StatelessWidget {
               children: [
                 _statusDot(area.active),
                 const Spacer(),
-                IconButton(
-                  onPressed: onToggle,
-                  icon: Icon(
-                    area.active ? Icons.pause_circle : Icons.play_circle,
-                    color: Colors.white,
-                  ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'toggle') {
+                      onToggle();
+                    } else if (value == 'delete') {
+                      onDelete();
+                    } else if (value == 'detail') {
+                      onOpenDetail();
+                    }
+                  },
+                  icon: const Icon(Icons.more_horiz, color: Colors.white),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text(area.active ? 'Désactiver' : 'Activer'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'detail',
+                      child: Text('Voir le détail'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Supprimer'),
+                    ),
+                  ],
                 ),
               ],
             ),

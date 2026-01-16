@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../models/area_backend_models.dart';
 import '../services/area_service.dart';
 
@@ -14,6 +15,12 @@ class AreaProvider extends ChangeNotifier {
   bool get isLoading => _loading;
   String? get error => _error;
   List<AreaDto> get areas => _areas;
+
+  void clearError() {
+    if (_error == null) return;
+    _error = null;
+    notifyListeners();
+  }
 
   Future<void> loadAreas() async {
     _loading = true;
@@ -38,10 +45,7 @@ class AreaProvider extends ChangeNotifier {
 
     try {
       final res = await _areaService.saveArea(area);
-
-      // SaveArea returns {} on success, so we refresh the list afterward.
-      await loadAreas();
-
+      await loadAreas(); // saveArea returns {} so refresh list
       return res;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
@@ -57,9 +61,7 @@ class AreaProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      if (area.id <= 0) {
-        throw Exception('Invalid area id');
-      }
+      if (area.id <= 0) throw Exception('Invalid area id');
 
       if (area.active) {
         await _areaService.deactivateArea(area.id);
@@ -74,9 +76,19 @@ class AreaProvider extends ChangeNotifier {
     }
   }
 
-  void clearError() {
-    if (_error == null) return;
+  Future<void> deleteArea(int areaId) async {
+    _loading = true;
     _error = null;
     notifyListeners();
+
+    try {
+      await _areaService.deleteArea(areaId);
+      await loadAreas();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
   }
 }
