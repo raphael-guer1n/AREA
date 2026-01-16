@@ -121,12 +121,21 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 	}
 
 	filtered := filterItems(items, providerConfig.Filters)
-	newItems, newLastID, err := selectNewItemsWithConfig(filtered, sub.LastItemID, itemIDPath, providerConfig.ChangeDetection, ctx)
-	if err != nil {
-		return w.finishWithError(sub, providerConfig, err)
+	var newItems []any
+	var newLastID string
+	if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
+		newItems, newLastID = selectICalChanges(filtered, sub.LastItemID)
+	} else {
+		newItems, newLastID, err = selectNewItemsWithConfig(filtered, sub.LastItemID, itemIDPath, providerConfig.ChangeDetection, ctx)
+		if err != nil {
+			return w.finishWithError(sub, providerConfig, err)
+		}
 	}
 
 	if providerConfig.SkipFirst && sub.LastItemID == "" && (sub.LastPolledAt == nil || sub.LastPolledAt.IsZero()) {
+		if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
+			return w.finishWithSuccess(sub, providerConfig, newLastID)
+		}
 		if newLastID == "" && len(filtered) > 0 {
 			if id, err := resolveItemID(filtered[0], itemIDPath); err == nil {
 				newLastID = id
@@ -150,7 +159,7 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 		}
 	}
 
-	if newLastID == "" && len(filtered) > 0 {
+	if newLastID == "" && len(filtered) > 0 && !strings.EqualFold(providerConfig.PayloadFormat, "ical") {
 		if id, err := resolveItemID(filtered[0], itemIDPath); err == nil {
 			newLastID = id
 		}

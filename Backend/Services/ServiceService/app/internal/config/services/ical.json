@@ -20,6 +20,7 @@
       "output_fields": [
         { "name": "uid", "type": "text", "label": "UID" },
         { "name": "recurrence_id", "type": "text", "label": "Recurrence ID" },
+        { "name": "update_type", "type": "text", "label": "Update Type" },
         { "name": "title", "type": "text", "label": "Title" },
         { "name": "start", "type": "text", "label": "Start" },
         { "name": "end", "type": "text", "label": "End" },
