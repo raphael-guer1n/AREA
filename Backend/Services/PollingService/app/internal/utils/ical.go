@@ -314,7 +314,7 @@ func buildICalItem(ev icalEvent, method string, defaultTZ string) (icalItem, boo
 	lastMod := parseICalTimestamp(ev, "LAST-MODIFIED", defaultTZ)
 	dtStamp := parseICalTimestamp(ev, "DTSTAMP", defaultTZ)
 	created := parseICalTimestamp(ev, "CREATED", defaultTZ)
-	updatedAt := maxICalTime(lastMod, dtStamp, created, startTime)
+	updatedAt := maxICalTime(lastMod, dtStamp, created)
 
 	updatedAtStr := ""
 	if !updatedAt.IsZero() {
