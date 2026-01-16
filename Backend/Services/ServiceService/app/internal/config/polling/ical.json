@@ -1,7 +1,7 @@
 {
   "name": "ical",
   "payload_format": "ical",
-  "interval_seconds": 300,
+  "interval_seconds": 60,
   "skip_first": true,
   "request": {
     "method": "GET",
