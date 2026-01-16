@@ -1,0 +1,45 @@
+{
+  "provider": "microsoft",
+  "name": "microsoft_calendar",
+  "label": "Outlook Calendar",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/9768/9768517.svg?token=exp=1768583417~hmac=8ba9285f9eb3d1b482a977ee37363431",
+  "actions": [
+    {
+      "title": "calendar_event_soon",
+      "label": "Outlook Calendar - Event Starting Soon",
+      "type": "webhook",
+      "fields": [
+        { "name": "minutes_before", "type": "number", "label": "Minutes before", "required": true, "default": "15" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "Event ID" },
+        { "name": "subject", "type": "text", "label": "Title" },
+        { "name": "start_time", "type": "text", "label": "Start" },
+        { "name": "end_time", "type": "text", "label": "End" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "calendar_create_event",
+      "label": "Outlook Calendar - Create Event",
+      "url": "https://graph.microsoft.com/v1.0/me/events",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "subject", "type": "text", "label": "Title", "required": true, "default": "" },
+        { "name": "start_datetime", "type": "date", "label": "Start", "required": true, "default": "" },
+        { "name": "end_datetime", "type": "date", "label": "End", "required": true, "default": "" },
+        { "name": "time_zone", "type": "text", "label": "Time zone", "required": false, "default": "UTC" }
+      ],
+      "body_struct": [
+        { "path": "subject", "type": "text", "value": "{{subject}}" },
+        { "path": "start.dateTime", "type": "text", "value": "{{start_datetime}}" },
+        { "path": "start.timeZone", "type": "text", "value": "{{time_zone}}" },
+        { "path": "end.dateTime", "type": "text", "value": "{{end_datetime}}" },
+        { "path": "end.timeZone", "type": "text", "value": "{{time_zone}}" }
+      ]
+    }
+  ]
+}

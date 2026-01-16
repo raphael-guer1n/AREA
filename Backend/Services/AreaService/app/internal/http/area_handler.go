@@ -941,13 +941,13 @@ func (h *AreaHandler) TriggerCronAction(areaAction domain.AreaAction) error {
 		return fmt.Errorf("only cron actions are supported")
 	}
 	var delay int
+	outputFields := make([]domain.InputField, 0, len(areaAction.Input))
 	for _, input := range areaAction.Input {
 		if input.Name == "delay" {
 			delay, _ = strconv.Atoi(input.Value)
 		}
+		outputFields = append(outputFields, domain.InputField{Name: input.Name, Value: input.Value})
 	}
-	var outputFields []domain.InputField
-	outputFields = append(outputFields, domain.InputField{Name: "delay", Value: strconv.Itoa(delay)})
 	log.Printf("Triggering action %d in %d seconds", areaAction.ID, delay)
 	time.AfterFunc(time.Duration(delay)*time.Second, func() {
 		var body struct {

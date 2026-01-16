@@ -1,6 +1,6 @@
 {
   "name": "microsoft",
-  "logo_url": "https://cdn-icons.flaticon.com/svg/6424/6424314.svg?token=exp=1768496281~hmac=43570b99302f4b5b7ea069fcedb9b40c",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/6424/6424314.svg?token=exp=1768584532~hmac=fb17d5e9de071402c67be628d0107488",
   "oauth2": {
     "client_id": "MICROSOFT_CLIENT_ID",
     "client_secret": "MICROSOFT_CLIENT_SECRET",
@@ -12,43 +12,27 @@
       "email",
       "profile",
       "offline_access",
-      "User.Read"
+      "User.Read",
+      "Mail.Read",
+      "Mail.Send",
+      "Calendars.ReadWrite",
+      "Files.ReadWrite",
+      "Tasks.ReadWrite",
+      "ChannelMessage.Send"
     ],
     "user_info_url": "https://graph.microsoft.com/v1.0/me",
-    "refresh": {
-      "enabled": true
-    }
+    "refresh": { "enabled": true }
   },
   "mappings": [
-    {
-      "field_key": "provider_user_id",
-      "json_path": "id",
-      "type": "string"
-    },
-    {
-      "field_key": "display_name",
-      "json_path": "displayName",
-      "type": "string"
-    },
-    {
-      "field_key": "email",
-      "json_path": "mail",
-      "type": "string"
-    },
-    {
-      "field_key": "given_name",
-      "json_path": "givenName",
-      "type": "string"
-    },
-    {
-      "field_key": "family_name",
-      "json_path": "surname",
-      "type": "string"
-    },
-    {
-      "field_key": "avatar_url",
-      "json_path": "userPrincipalName",
-      "type": "string"
-    }
+    { "field_key": "provider_user_id", "json_path": "id", "type": "string" },
+    { "field_key": "display_name", "json_path": "displayName", "type": "string" },
+
+    { "field_key": "email", "json_path": "userPrincipalName", "type": "string" },
+    { "field_key": "email_raw", "json_path": "mail", "type": "string" },
+
+    { "field_key": "given_name", "json_path": "givenName", "type": "string" },
+    { "field_key": "family_name", "json_path": "surname", "type": "string" },
+
+    { "field_key": "avatar_url", "json_path": "userPrincipalName", "type": "string" }
   ]
 }

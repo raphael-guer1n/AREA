@@ -10,25 +10,11 @@
       "label": "Dropbox - New File Added",
       "type": "webhook",
       "fields": [
-        {
-          "name": "folder",
-          "type": "text",
-          "label": "Dossier surveillé",
-          "required": true,
-          "default": "/"
-        }
+        { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/" }
       ],
       "output_fields": [
-        {
-          "name": "file_name",
-          "type": "text",
-          "label": "Nom du fichier"
-        },
-        {
-          "name": "path",
-          "type": "text",
-          "label": "Chemin"
-        }
+        { "name": "file_name", "type": "text", "label": "File name" },
+        { "name": "path", "type": "text", "label": "Path" }
       ]
     },
     {
@@ -36,25 +22,12 @@
       "label": "Dropbox - File Updated",
       "type": "webhook",
       "fields": [
-        {
-          "name": "folder",
-          "type": "text",
-          "label": "Dossier surveillé",
-          "required": true,
-          "default": "/"
-        }
+        { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/" }
       ],
       "output_fields": [
-        {
-          "name": "file_name",
-          "type": "text",
-          "label": "Nom du fichier"
-        },
-        {
-          "name": "updated_at",
-          "type": "text",
-          "label": "Mis à jour le"
-        }
+        { "name": "file_name", "type": "text", "label": "File name" },
+        { "name": "path", "type": "text", "label": "Path" },
+        { "name": "updated_at", "type": "text", "label": "Updated at" }
       ]
     },
     {
@@ -62,20 +35,11 @@
       "label": "Dropbox - New Folder Created",
       "type": "webhook",
       "fields": [
-        {
-          "name": "parent_folder",
-          "type": "text",
-          "label": "Dossier parent",
-          "required": true,
-          "default": "/"
-        }
+        { "name": "parent_folder", "type": "text", "label": "Parent folder", "required": true, "default": "/" }
       ],
       "output_fields": [
-        {
-          "name": "folder_name",
-          "type": "text",
-          "label": "Nom du dossier"
-        }
+        { "name": "folder_name", "type": "text", "label": "Folder name" },
+        { "name": "path", "type": "text", "label": "Path" }
       ]
     }
   ],
@@ -87,18 +51,17 @@
       "method": "POST",
       "bodyType": "binary",
       "fields": [
-        {
-          "name": "path",
-          "type": "text",
-          "label": "Chemin du fichier (ex: /docs/file.txt)",
-          "required": true
-        },
-        {
-          "name": "content",
-          "type": "textarea",
-          "label": "Contenu du fichier",
-          "required": true
-        }
+        { "name": "path", "type": "text", "label": "Path (ex: /docs/file.txt)", "required": true, "default": "" },
+        { "name": "content", "type": "textarea", "label": "File content", "required": true, "default": "" },
+        { "name": "mode", "type": "text", "label": "Mode (add|overwrite)", "required": false, "default": "add" },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "true" }
+      ],
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Dropbox-API-Arg": "{\"path\":\"{{path}}\",\"mode\":\"{{mode}}\",\"autorename\":{{autorename}},\"mute\":false,\"strict_conflict\":false}"
+      },
+      "body_struct": [
+        { "path": "", "type": "text", "value": "{{content}}" }
       ]
     },
     {
@@ -108,12 +71,12 @@
       "method": "POST",
       "bodyType": "json",
       "fields": [
-        {
-          "name": "path",
-          "type": "text",
-          "label": "Chemin du dossier",
-          "required": true
-        }
+        { "name": "path", "type": "text", "label": "Folder path", "required": true, "default": "" },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "false" }
+      ],
+      "body_struct": [
+        { "path": "path", "type": "text", "value": "{{path}}" },
+        { "path": "autorename", "type": "boolean", "value": "{{autorename}}" }
       ]
     },
     {
@@ -123,18 +86,14 @@
       "method": "POST",
       "bodyType": "json",
       "fields": [
-        {
-          "name": "from_path",
-          "type": "text",
-          "label": "Chemin du fichier",
-          "required": true
-        },
-        {
-          "name": "to_path",
-          "type": "text",
-          "label": "Nouveau chemin",
-          "required": true
-        }
+        { "name": "from_path", "type": "text", "label": "From path", "required": true, "default": "" },
+        { "name": "to_path", "type": "text", "label": "To path", "required": true, "default": "" },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "false" }
+      ],
+      "body_struct": [
+        { "path": "from_path", "type": "text", "value": "{{from_path}}" },
+        { "path": "to_path", "type": "text", "value": "{{to_path}}" },
+        { "path": "autorename", "type": "boolean", "value": "{{autorename}}" }
       ]
     }
   ]

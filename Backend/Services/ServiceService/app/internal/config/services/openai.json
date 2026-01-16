@@ -1,10 +1,98 @@
 {
-  "provider": "openai",
+  "provider": "",
   "name": "openai",
   "label": "OpenAI",
   "icon_url": "",
   "logo_url": "https://cdn.simpleicons.org/openai/412991",
   "actions": [
+    {
+      "title": "prompt_scheduled",
+      "label": "Planifier une demande OpenAI",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "delay",
+          "type": "number",
+          "label": "Délai avant exécution (secondes)",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "prompt",
+          "type": "textarea",
+          "label": "Instruction",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "text",
+          "type": "textarea",
+          "label": "Texte à inclure (optionnel)",
+          "required": false,
+          "default": ""
+        },
+        {
+          "name": "model",
+          "type": "text",
+          "label": "Modèle",
+          "required": true,
+          "default": "gpt-4o-mini"
+        },
+        {
+          "name": "api_key",
+          "type": "password",
+          "label": "Clé API (laisse vide pour utiliser OPENAI_API_KEY)",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "prompt", "type": "text", "label": "Instruction" },
+        { "name": "text", "type": "text", "label": "Texte" },
+        { "name": "model", "type": "text", "label": "Modèle" },
+        { "name": "api_key", "type": "text", "label": "Clé API" }
+      ]
+    },
+    {
+      "title": "summarize_scheduled",
+      "label": "Planifier un résumé",
+      "type": "cron",
+      "fields": [
+        {
+          "name": "delay",
+          "type": "number",
+          "label": "Délai avant exécution (secondes)",
+          "required": true,
+          "default": "0"
+        },
+        {
+          "name": "text",
+          "type": "textarea",
+          "label": "Texte à résumer",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "model",
+          "type": "text",
+          "label": "Modèle",
+          "required": true,
+          "default": "gpt-4o-mini"
+        },
+        {
+          "name": "api_key",
+          "type": "password",
+          "label": "Clé API (laisse vide pour utiliser OPENAI_API_KEY)",
+          "required": false,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "text", "type": "text", "label": "Texte" },
+        { "name": "model", "type": "text", "label": "Modèle" },
+        { "name": "api_key", "type": "text", "label": "Clé API" }
+      ]
+    }
   ],
   "reactions": [
     {
@@ -22,11 +110,25 @@
           "default": ""
         },
         {
+          "name": "text",
+          "type": "textarea",
+          "label": "Texte à traiter (optionnel)",
+          "required": false,
+          "default": ""
+        },
+        {
           "name": "model",
           "type": "text",
           "label": "Modèle",
           "required": true,
           "default": "gpt-4o-mini"
+        },
+        {
+          "name": "api_key",
+          "type": "password",
+          "label": "Clé API (laisse vide pour utiliser OPENAI_API_KEY)",
+          "required": false,
+          "default": ""
         }
       ],
       "body_struct": [
@@ -67,11 +169,25 @@
       "bodyType": "json",
       "fields": [
         {
+          "name": "text",
+          "type": "textarea",
+          "label": "Texte à résumer",
+          "required": true,
+          "default": ""
+        },
+        {
           "name": "model",
           "type": "text",
           "label": "Modèle",
           "required": true,
           "default": "gpt-4o-mini"
+        },
+        {
+          "name": "api_key",
+          "type": "password",
+          "label": "Clé API (laisse vide pour utiliser OPENAI_API_KEY)",
+          "required": false,
+          "default": ""
         }
       ],
       "body_struct": [

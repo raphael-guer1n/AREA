@@ -1,0 +1,40 @@
+{
+  "provider": "microsoft",
+  "name": "microsoft_onedrive",
+  "label": "OneDrive",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/3917/3917575.svg?token=exp=1768583381~hmac=c369e012fcb41eac5ad0691c88d80333",
+  "actions": [
+    {
+      "title": "onedrive_new_file",
+      "label": "OneDrive - New File Added",
+      "type": "webhook",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/Documents" }
+      ],
+      "output_fields": [
+        { "name": "file_name", "type": "text", "label": "File name" },
+        { "name": "file_id", "type": "text", "label": "File ID" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "onedrive_create_file",
+      "label": "OneDrive - Create Text File (JSON payload)",
+      "url": "https://graph.microsoft.com/v1.0/me/drive/root/children",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "file_name", "type": "text", "label": "File name", "required": true, "default": "" },
+        { "name": "content", "type": "textarea", "label": "Content", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "name", "type": "text", "value": "{{file_name}}" },
+        { "path": "file", "type": "object", "value": [] },
+        { "path": "@microsoft.graph.conflictBehavior", "type": "text", "value": "rename" },
+        { "path": "description", "type": "text", "value": "{{content}}" }
+      ]
+    }
+  ]
+}
