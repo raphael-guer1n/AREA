@@ -89,6 +89,10 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 			}
 			return
 		}
+		if strings.HasPrefix(path, "@") {
+			target[path] = value
+			return
+		}
 		parts := strings.Split(path, ".")
 		current := target
 		for i, part := range parts {
@@ -216,6 +220,9 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		req.Header.Set("Authorization", "Bearer "+userToken)
 	} else if strings.TrimSpace(apiKey) != "" {
 		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+	if clientID := strings.TrimSpace(fieldValues["client_id"]); clientID != "" {
+		req.Header.Set("Client-Id", clientID)
 	}
 	if s.internalSecret != "" {
 		req.Header.Set("X-Internal-Secret", s.internalSecret)

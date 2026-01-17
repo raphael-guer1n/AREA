@@ -1,37 +1,69 @@
 {
   "provider": "microsoft",
   "name": "microsoft_calendar",
-  "label": "Outlook Calendar",
+  "label": "Outlook Calendrier",
   "icon_url": "",
   "logo_url": "https://cdn-icons.flaticon.com/svg/9768/9768517.svg?token=exp=1768583417~hmac=8ba9285f9eb3d1b482a977ee37363431",
   "actions": [
     {
       "title": "calendar_event_soon",
-      "label": "Outlook Calendar - Event Starting Soon",
+      "label": "Événement qui démarre bientôt",
       "type": "webhook",
       "fields": [
-        { "name": "minutes_before", "type": "number", "label": "Minutes before", "required": true, "default": "15" }
+        { "name": "minutes_before", "type": "number", "label": "Minutes avant le début", "required": true, "default": "15" }
       ],
       "output_fields": [
-        { "name": "id", "type": "text", "label": "Event ID" },
-        { "name": "subject", "type": "text", "label": "Title" },
-        { "name": "start_time", "type": "text", "label": "Start" },
-        { "name": "end_time", "type": "text", "label": "End" }
+        { "name": "id", "type": "text", "label": "ID de l'événement" },
+        { "name": "subject", "type": "text", "label": "Titre" },
+        { "name": "start_time", "type": "text", "label": "Début" },
+        { "name": "end_time", "type": "text", "label": "Fin" }
+      ]
+    },
+    {
+      "title": "calendar_new_event",
+      "label": "Nouvel événement",
+      "type": "polling",
+      "fields": [
+        { "name": "top", "type": "number", "label": "Nombre max d'événements", "required": false, "default": "5" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "isCancelled eq false" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "ID de l'événement" },
+        { "name": "subject", "type": "text", "label": "Titre" },
+        { "name": "start_time", "type": "text", "label": "Début" },
+        { "name": "end_time", "type": "text", "label": "Fin" },
+        { "name": "last_modified", "type": "text", "label": "Modifié le" }
+      ]
+    },
+    {
+      "title": "calendar_event_updated",
+      "label": "Événement modifié récemment",
+      "type": "polling",
+      "fields": [
+        { "name": "top", "type": "number", "label": "Nombre max d'événements", "required": false, "default": "5" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "isCancelled eq false" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "ID de l'événement" },
+        { "name": "subject", "type": "text", "label": "Titre" },
+        { "name": "start_time", "type": "text", "label": "Début" },
+        { "name": "end_time", "type": "text", "label": "Fin" },
+        { "name": "last_modified", "type": "text", "label": "Modifié le" }
       ]
     }
   ],
   "reactions": [
     {
       "title": "calendar_create_event",
-      "label": "Outlook Calendar - Create Event",
+      "label": "Créer un événement",
       "url": "https://graph.microsoft.com/v1.0/me/events",
       "method": "POST",
       "bodyType": "json",
       "fields": [
-        { "name": "subject", "type": "text", "label": "Title", "required": true, "default": "" },
-        { "name": "start_datetime", "type": "date", "label": "Start", "required": true, "default": "" },
-        { "name": "end_datetime", "type": "date", "label": "End", "required": true, "default": "" },
-        { "name": "time_zone", "type": "text", "label": "Time zone", "required": false, "default": "UTC" }
+        { "name": "subject", "type": "text", "label": "Titre", "required": true, "default": "" },
+        { "name": "start_datetime", "type": "date", "label": "Début", "required": true, "default": "" },
+        { "name": "end_datetime", "type": "date", "label": "Fin", "required": true, "default": "" },
+        { "name": "time_zone", "type": "text", "label": "Fuseau horaire", "required": false, "default": "UTC" }
       ],
       "body_struct": [
         { "path": "subject", "type": "text", "value": "{{subject}}" },
@@ -40,6 +72,38 @@
         { "path": "end.dateTime", "type": "text", "value": "{{end_datetime}}" },
         { "path": "end.timeZone", "type": "text", "value": "{{time_zone}}" }
       ]
+    },
+    {
+      "title": "calendar_update_event",
+      "label": "Mettre à jour un événement",
+      "url": "https://graph.microsoft.com/v1.0/me/events/{{event_id}}",
+      "method": "PATCH",
+      "bodyType": "json",
+      "fields": [
+        { "name": "event_id", "type": "text", "label": "ID de l'événement", "required": true, "default": "" },
+        { "name": "subject", "type": "text", "label": "Titre (optionnel)", "required": false, "default": "" },
+        { "name": "start_datetime", "type": "date", "label": "Début (optionnel)", "required": false, "default": "" },
+        { "name": "end_datetime", "type": "date", "label": "Fin (optionnel)", "required": false, "default": "" },
+        { "name": "time_zone", "type": "text", "label": "Fuseau horaire", "required": false, "default": "UTC" }
+      ],
+      "body_struct": [
+        { "path": "subject", "type": "text", "value": "{{subject}}" },
+        { "path": "start.dateTime", "type": "text", "value": "{{start_datetime}}" },
+        { "path": "start.timeZone", "type": "text", "value": "{{time_zone}}" },
+        { "path": "end.dateTime", "type": "text", "value": "{{end_datetime}}" },
+        { "path": "end.timeZone", "type": "text", "value": "{{time_zone}}" }
+      ]
+    },
+    {
+      "title": "calendar_delete_event",
+      "label": "Supprimer un événement",
+      "url": "https://graph.microsoft.com/v1.0/me/events/{{event_id}}",
+      "method": "DELETE",
+      "bodyType": "json",
+      "fields": [
+        { "name": "event_id", "type": "text", "label": "ID de l'événement", "required": true, "default": "" }
+      ],
+      "body_struct": []
     }
   ]
 }

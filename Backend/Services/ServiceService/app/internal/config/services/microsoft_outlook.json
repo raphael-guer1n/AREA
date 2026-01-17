@@ -1,42 +1,81 @@
 {
   "provider": "microsoft",
   "name": "microsoft_outlook",
-  "label": "Outlook",
+  "label": "Outlook Mail",
   "icon_url": "",
   "logo_url": "https://cdn-icons.flaticon.com/svg/9768/9768517.svg?token=exp=1768583417~hmac=8ba9285f9eb3d1b482a977ee37363431",
   "actions": [
     {
       "title": "outlook_new_email",
-      "label": "Outlook - New Email Received",
-      "type": "webhook",
+      "label": "Nouveau mail reçu",
+      "type": "polling",
       "fields": [
-        { "name": "from_contains", "type": "text", "label": "From contains (optional)", "required": false, "default": "" },
-        { "name": "subject_contains", "type": "text", "label": "Subject contains (optional)", "required": false, "default": "" }
+        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
+        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "" }
       ],
       "output_fields": [
-        { "name": "id", "type": "text", "label": "Message ID" },
-        { "name": "subject", "type": "text", "label": "Subject" },
-        { "name": "from", "type": "text", "label": "From" },
-        { "name": "body", "type": "text", "label": "Body" },
-        { "name": "receivedDateTime", "type": "text", "label": "Received at" }
+        { "name": "id", "type": "text", "label": "ID du message" },
+        { "name": "subject", "type": "text", "label": "Objet" },
+        { "name": "from", "type": "text", "label": "Expéditeur" },
+        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
+        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
+        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
+      ]
+    },
+    {
+      "title": "outlook_email_with_attachment",
+      "label": "Mail avec pièce jointe",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
+        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "hasAttachments eq true" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "ID du message" },
+        { "name": "subject", "type": "text", "label": "Objet" },
+        { "name": "from", "type": "text", "label": "Expéditeur" },
+        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
+        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
+        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
+      ]
+    },
+    {
+      "title": "outlook_cc_email",
+      "label": "Mail où je suis en copie",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
+        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
+        { "name": "cc_email", "type": "text", "label": "Mon email (pour le filtrage CC)", "required": true, "default": "" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "ccRecipients/any(c:c/emailAddress/address eq '{{config.cc_email}}')" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "ID du message" },
+        { "name": "subject", "type": "text", "label": "Objet" },
+        { "name": "from", "type": "text", "label": "Expéditeur" },
+        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
+        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
+        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
       ]
     }
   ],
   "reactions": [
     {
       "title": "outlook_send_email",
-      "label": "Outlook - Send an Email",
+      "label": "Envoyer un mail Outlook",
       "url": "https://graph.microsoft.com/v1.0/me/sendMail",
       "method": "POST",
       "bodyType": "json",
       "fields": [
-        { "name": "to", "type": "text", "label": "To", "required": true, "default": "" },
-        { "name": "subject", "type": "text", "label": "Subject", "required": true, "default": "" },
+        { "name": "to", "type": "text", "label": "Destinataire", "required": true, "default": "" },
+        { "name": "subject", "type": "text", "label": "Objet", "required": true, "default": "" },
         { "name": "message", "type": "textarea", "label": "Message", "required": true, "default": "" },
         {
           "name": "content_type",
           "type": "text",
-          "label": "Content type",
+          "label": "Format de contenu",
           "required": false,
           "default": "Text",
           "selection": [
@@ -57,6 +96,84 @@
               "path": "",
               "type": "object",
               "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{to}}" }]
+            }
+          ]
+        },
+        { "path": "saveToSentItems", "type": "boolean", "value": "true" }
+      ]
+    },
+    {
+      "title": "outlook_reply_email",
+      "label": "Répondre à tous",
+      "url": "https://graph.microsoft.com/v1.0/me/messages/{{message_id}}/replyAll",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "message_id", "type": "text", "label": "ID du message", "required": true, "default": "" },
+        { "name": "comment", "type": "textarea", "label": "Commentaire", "required": false, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "comment", "type": "text", "value": "{{comment}}" }
+      ]
+    },
+    {
+      "title": "outlook_send_email_cc",
+      "label": "Envoyer un mail avec CC/CCI",
+      "url": "https://graph.microsoft.com/v1.0/me/sendMail",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "to", "type": "text", "label": "Destinataire", "required": true, "default": "" },
+        { "name": "cc", "type": "text", "label": "CC (séparés par ;)", "required": false, "default": "" },
+        { "name": "bcc", "type": "text", "label": "CCI (séparés par ;)", "required": false, "default": "" },
+        { "name": "subject", "type": "text", "label": "Objet", "required": true, "default": "" },
+        { "name": "message", "type": "textarea", "label": "Message", "required": true, "default": "" },
+        {
+          "name": "content_type",
+          "type": "text",
+          "label": "Format de contenu",
+          "required": false,
+          "default": "Text",
+          "selection": [
+            { "value": "Text", "label": "Text" },
+            { "value": "HTML", "label": "HTML" }
+          ]
+        }
+      ],
+      "body_struct": [
+        { "path": "message.subject", "type": "text", "value": "{{subject}}" },
+        { "path": "message.body.contentType", "type": "text", "value": "{{content_type}}" },
+        { "path": "message.body.content", "type": "text", "value": "{{message}}" },
+        {
+          "path": "message.toRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{to}}" }]
+            }
+          ]
+        },
+        {
+          "path": "message.ccRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{cc}}" }]
+            }
+          ]
+        },
+        {
+          "path": "message.bccRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{bcc}}" }]
             }
           ]
         },

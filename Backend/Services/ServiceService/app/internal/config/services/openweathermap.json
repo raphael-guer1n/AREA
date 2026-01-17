@@ -1,0 +1,37 @@
+{
+  "provider": "",
+  "name": "openweathermap",
+  "label": "OpenWeatherMap",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons-png.flaticon.com/512/1163/1163624.png",
+  "actions": [
+    {
+      "title": "owm_weather_alert",
+      "label": "OpenWeather - Weather Alert",
+      "type": "webhook",
+      "fields": [],
+      "output_fields": [
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "event", "type": "text", "label": "Event" },
+        { "name": "severity", "type": "text", "label": "Severity" },
+        { "name": "description", "type": "text", "label": "Description" }
+      ]
+    },
+    {
+      "title": "owm_temperature_threshold",
+      "label": "OpenWeather - Temperature Threshold",
+      "type": "webhook",
+      "fields": [
+        { "name": "city", "type": "text", "label": "City", "required": true, "default": "" },
+        { "name": "threshold", "type": "number", "label": "Threshold (°)", "required": true, "default": "30" }
+      ],
+      "output_fields": [
+        { "name": "city", "type": "text", "label": "City" },
+        { "name": "temperature", "type": "number", "label": "Temperature" },
+        { "name": "condition", "type": "text", "label": "Condition" }
+      ]
+    }
+  ],
+  "reactions": [
+  ]
+}
