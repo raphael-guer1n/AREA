@@ -1,7 +1,7 @@
 # Global Makefile for Backend
 # Runs common targets across subprojects
 
-.PHONY: help build run test clean docker-build docker-up docker-down docker-logs docker-restart dev init deps fmt lint
+.PHONY: help build run test test_run clean docker-build docker-up docker-down docker-logs docker-restart dev init deps fmt lint
 
 SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
@@ -45,6 +45,9 @@ run: ## Run all subprojects locally (may block)
 
 test: ## Run tests for all subprojects
 	$(call run_for_all,test)
+
+test_run: ## Run unit tests for all subprojects
+	$(call run_for_all,test_run)
 
 clean: ## Clean build artifacts in all subprojects
 	$(call run_for_all,clean)
