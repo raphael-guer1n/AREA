@@ -37,6 +37,10 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   Map<String, String> _actionFieldValues = {};
   Map<String, String> _reactionFieldValues = {};
 
+  final Map<String, TextEditingController> _reactionControllers = {};
+  final Map<String, FocusNode> _reactionFocusNodes = {};
+  String? _focusedReactionField;
+
   String _areaName = '';
   AreaWizardStep _wizardStep = AreaWizardStep.action;
   String? _createError;
@@ -48,6 +52,17 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     _catalog = ServiceCatalogService();
     _connector = ServiceConnector();
     _loadFromBackend();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _reactionControllers.values) {
+      c.dispose();
+    }
+    for (final f in _reactionFocusNodes.values) {
+      f.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadFromBackend() async {
@@ -140,7 +155,9 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   }
 
   bool get _canCreate {
-    return _areaName.trim().isNotEmpty && _canProceedAction && _canProceedReaction;
+    return _areaName.trim().isNotEmpty &&
+        _canProceedAction &&
+        _canProceedReaction;
   }
 
   void _next() {
@@ -205,16 +222,79 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     onChanged(fieldName, dt.toUtc().toIso8601String());
   }
 
-  Future<void> _copyPlaceholder(String fieldName) async {
-    final text = '{{${fieldName.trim()}}}';
-    await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copié: $text'),
-        backgroundColor: context.appColors.deepBlue,
-      ),
+  void _initReactionEditors(List<AreaFieldDefinition> fields) {
+    for (final c in _reactionControllers.values) {
+      c.dispose();
+    }
+    for (final f in _reactionFocusNodes.values) {
+      f.dispose();
+    }
+    _reactionControllers.clear();
+    _reactionFocusNodes.clear();
+    _focusedReactionField = null;
+
+    for (final field in fields) {
+      final initial =
+          _reactionFieldValues[field.name] ?? (field.defaultValue ?? '');
+      final controller = TextEditingController(text: initial);
+      final focusNode = FocusNode();
+
+      focusNode.addListener(() {
+        if (focusNode.hasFocus) {
+          setState(() {
+            _focusedReactionField = field.name;
+          });
+        }
+      });
+
+      _reactionControllers[field.name] = controller;
+      _reactionFocusNodes[field.name] = focusNode;
+    }
+  }
+
+  Future<void> _insertOrCopyOutputPlaceholder(String outputName) async {
+    final placeholder = '{{${outputName.trim()}}}';
+
+    // Insert into last focused reaction field (even if focus was lost when tapping)
+    final target = _focusedReactionField;
+    if (target == null || !_reactionControllers.containsKey(target)) {
+      await Clipboard.setData(ClipboardData(text: placeholder));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Copié: $placeholder'),
+          backgroundColor: context.appColors.deepBlue,
+        ),
+      );
+      return;
+    }
+
+    final controller = _reactionControllers[target]!;
+    final focusNode = _reactionFocusNodes[target];
+
+    final text = controller.text;
+    final sel = controller.selection;
+
+    final start = (sel.start >= 0 && sel.start <= text.length)
+        ? sel.start
+        : text.length;
+    final end =
+        (sel.end >= 0 && sel.end <= text.length) ? sel.end : text.length;
+
+    final newText = text.replaceRange(start, end, placeholder);
+    controller.text = newText;
+    controller.selection = TextSelection.collapsed(
+      offset: start + placeholder.length,
     );
+
+    // restore focus + keep model in sync
+    focusNode?.requestFocus();
+    setState(() {
+      _reactionFieldValues = {
+        ..._reactionFieldValues,
+        target: newText,
+      };
+    });
   }
 
   Widget _outputFieldsPanel({
@@ -229,7 +309,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
       children: [
         _label('Variables disponibles (output)', theme, colors),
         Text(
-          'Touchez une variable pour copier son placeholder (ex: {{delay}}).',
+          'Touchez une variable pour l’insérer dans le champ sélectionné (ex: {{delay}}).',
           style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
         ),
         const SizedBox(height: 8),
@@ -240,7 +320,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
             final display = f.label.isNotEmpty ? f.label : f.name;
             return ActionChip(
               label: Text(display),
-              onPressed: () => _copyPlaceholder(f.name),
+              onPressed: () => _insertOrCopyOutputPlaceholder(f.name),
             );
           }).toList(),
         ),
@@ -279,19 +359,19 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
           .toList(),
     );
 
+    // Read reaction values from controllers (authoritative) if present
+    final reactionInputs = _selectedReaction!.fields.map((f) {
+      final controllerText = _reactionControllers[f.name]?.text;
+      final v = (controllerText ?? _reactionFieldValues[f.name] ?? '').trim();
+      return InputFieldDto(name: f.name, value: v);
+    }).toList();
+
     final reaction = AreaReactionDto(
       id: 0,
       provider: _reactionService!.provider,
       service: _reactionService!.id,
       title: _selectedReaction!.title,
-      input: _selectedReaction!.fields
-          .map(
-            (f) => InputFieldDto(
-              name: f.name,
-              value: (_reactionFieldValues[f.name] ?? '').trim(),
-            ),
-          )
-          .toList(),
+      input: reactionInputs,
     );
 
     final area = AreaDto(
@@ -469,7 +549,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                   setState(() {
                     _actionService = s;
                     _selectedAction = first;
-                    _actionFieldValues = first != null ? _initValues(first.fields) : {};
+                    _actionFieldValues =
+                        first != null ? _initValues(first.fields) : {};
                   });
                 },
               ),
@@ -478,7 +559,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
               if (_actionService == null)
                 Text(
                   'Choisissez un service.',
-                  style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: colors.darkGrey),
                 )
               else
                 Column(
@@ -512,6 +594,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                   },
                   onDatePick: _pickDateTime,
                 ),
+                // You can keep output fields visible here too (copy/insert will still work,
+                // but insertion will target reaction fields only)
                 const SizedBox(height: 8),
                 _outputFieldsPanel(
                   theme: theme,
@@ -548,11 +632,17 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                 return;
               }
               final first = s.reactions.isNotEmpty ? s.reactions.first : null;
+
               setState(() {
                 _reactionService = s;
                 _selectedReaction = first;
-                _reactionFieldValues = first != null ? _initValues(first.fields) : {};
+                _reactionFieldValues =
+                    first != null ? _initValues(first.fields) : {};
               });
+
+              if (_selectedReaction != null) {
+                _initReactionEditors(_selectedReaction!.fields);
+              }
             },
           ),
           const SizedBox(height: 16),
@@ -560,7 +650,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
           if (_reactionService == null)
             Text(
               'Choisissez un service.',
-              style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
             )
           else
             Column(
@@ -576,6 +667,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                       _selectedReaction = r;
                       _reactionFieldValues = _initValues(r.fields);
                     });
+                    _initReactionEditors(r.fields);
                   },
                 );
               }).toList(),
@@ -587,6 +679,8 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
               keyPrefix: _selectedReaction!.title,
               fields: _selectedReaction!.fields,
               values: _reactionFieldValues,
+              controllers: _reactionControllers,
+              focusNodes: _reactionFocusNodes,
               onChanged: (name, value) {
                 setState(() {
                   _reactionFieldValues = {..._reactionFieldValues, name: value};
@@ -777,12 +871,17 @@ class _FieldList extends StatelessWidget {
   final void Function(String, String) onChanged;
   final Future<void> Function(String, void Function(String, String)) onDatePick;
 
+  final Map<String, TextEditingController>? controllers;
+  final Map<String, FocusNode>? focusNodes;
+
   const _FieldList({
     required this.keyPrefix,
     required this.fields,
     required this.values,
     required this.onChanged,
     required this.onDatePick,
+    this.controllers,
+    this.focusNodes,
   });
 
   @override
@@ -792,15 +891,23 @@ class _FieldList extends StatelessWidget {
 
     return Column(
       children: fields.map((field) {
-        final value = values[field.name] ?? '';
         final label = field.required ? '${field.label} *' : field.label;
+
+        final controller = controllers?[field.name];
+        final focusNode = focusNodes?[field.name];
+        final value = controller?.text ?? (values[field.name] ?? '');
 
         if (field.type == AreaFieldType.date) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => onDatePick(field.name, onChanged),
+              onTap: () async {
+                await onDatePick(field.name, (name, iso) {
+                  if (controller != null) controller.text = iso;
+                  onChanged(name, iso);
+                });
+              },
               child: InputDecorator(
                 decoration: InputDecoration(labelText: label),
                 child: Row(
@@ -809,7 +916,9 @@ class _FieldList extends StatelessWidget {
                     Text(
                       value.isEmpty ? 'Sélectionner une date' : value,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: value.isEmpty ? colors.darkGrey : colors.almostBlack,
+                        color: value.isEmpty
+                            ? colors.darkGrey
+                            : colors.almostBlack,
                       ),
                     ),
                     const Icon(Icons.calendar_today, size: 18),
@@ -826,9 +935,12 @@ class _FieldList extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 12),
           child: TextFormField(
             key: ValueKey('$keyPrefix-${field.name}'),
-            initialValue: value,
+            controller: controller,
+            focusNode: focusNode,
+            initialValue: controller == null ? value : null,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-            inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
+            inputFormatters:
+                isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
             decoration: InputDecoration(labelText: label),
             onChanged: (v) => onChanged(field.name, v),
           ),
@@ -855,7 +967,8 @@ class _MobileService {
     required this.reactions,
   });
 
-  factory _MobileService.fromConfig(ServiceConfigDto cfg, {required bool connected}) {
+  factory _MobileService.fromConfig(ServiceConfigDto cfg,
+      {required bool connected}) {
     return _MobileService(
       id: cfg.name,
       name: cfg.label.isNotEmpty ? cfg.label : cfg.name,
