@@ -111,7 +111,18 @@ type PollingProviderConfig struct {
 	ChangeDetection *PollingChangeDetectionConfig `json:"change_detection,omitempty"`
 	Filters         *PollingFilterConfig          `json:"filters,omitempty"`
 	Mappings        []MappingConfig               `json:"mappings,omitempty"`
+	ItemSources     []PollingItemSourceConfig     `json:"item_sources,omitempty"`
 	Prepare         []PollingProviderPrepareStep  `json:"prepare,omitempty"`
+}
+
+type PollingItemSourceConfig struct {
+	Name            string                        `json:"name,omitempty"`
+	ItemsPath       string                        `json:"items_path,omitempty"`
+	ItemIDPath      string                        `json:"item_id_path,omitempty"`
+	ChangeDetection *PollingChangeDetectionConfig `json:"change_detection,omitempty"`
+	Filters         *PollingFilterConfig          `json:"filters,omitempty"`
+	Mappings        []MappingConfig               `json:"mappings,omitempty"`
+	Context         map[string]string             `json:"context,omitempty"`
 }
 
 type PollingChangeDetectionConfig struct {
