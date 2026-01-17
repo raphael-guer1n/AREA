@@ -13,71 +13,79 @@
       "apikey": "{{env.IDFM_API_TOKEN}}"
     }
   },
-  "items_path": "disruptions",
-  "item_id_path": "id",
-  "filters": {
-    "mode": "all",
-    "rules": [
-      {
-        "json_path": "tags[0]",
-        "operator": "equals",
-        "value": "Actualité"
+  "item_sources": [
+    {
+      "name": "disruptions",
+      "items_path": "disruptions",
+      "item_id_path": "id",
+      "context": {
+        "line": "line_reports[0].line"
       },
-      {
-        "json_path": "cause",
-        "operator": "equals",
-        "value": "perturbation"
-      },
-      {
-        "json_path": "severity.name",
-        "operator": "in",
-        "values": [
-          "bloquante",
-          "perturbée"
+      "filters": {
+        "mode": "all",
+        "rules": [
+          {
+            "json_path": "tags[0]",
+            "operator": "equals",
+            "value": "Actualité"
+          },
+          {
+            "json_path": "cause",
+            "operator": "equals",
+            "value": "perturbation"
+          },
+          {
+            "json_path": "severity.name",
+            "operator": "in",
+            "values": [
+              "bloquante",
+              "perturbée"
+            ]
+          },
+          {
+            "json_path": "status",
+            "operator": "equals",
+            "value": "active"
+          }
         ]
       },
-      {
-        "json_path": "status",
-        "operator": "equals",
-        "value": "active"
-      }
-    ]
-  },
-  "mappings": [
-    {
-      "field_key": "line_id",
-      "json_path": "impacted_objects[0].pt_object.line.id",
-      "type": "string",
-      "optional": true
-    },
-    {
-      "field_key": "line_name",
-      "json_path": "impacted_objects[0].pt_object.line.name",
-      "type": "string",
-      "optional": true
-    },
-    {
-      "field_key": "severity_name",
-      "json_path": "severity.name",
-      "type": "string"
-    },
-    {
-      "field_key": "severity_effect",
-      "json_path": "severity.effect",
-      "type": "string",
-      "optional": true
-    },
-    {
-      "field_key": "message",
-      "json_path": "messages[0].text",
-      "type": "string",
-      "optional": true
-    },
-    {
-      "field_key": "updated_at",
-      "json_path": "updated_at",
-      "type": "string",
-      "optional": true
+      "mappings": [
+        {
+          "field_key": "line_id",
+          "json_path": "line.id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "line_name",
+          "json_path": "line.name",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "severity_name",
+          "json_path": "severity.name",
+          "type": "string"
+        },
+        {
+          "field_key": "severity_effect",
+          "json_path": "severity.effect",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "message",
+          "json_path": "messages[0].text",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "updated_at",
+          "json_path": "updated_at",
+          "type": "string",
+          "optional": true
+        }
+      ]
     }
   ]
 }
