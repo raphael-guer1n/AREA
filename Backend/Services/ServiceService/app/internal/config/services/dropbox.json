@@ -8,7 +8,7 @@
     {
       "title": "dropbox_new_file",
       "label": "Dropbox - New File Added",
-      "type": "webhook",
+      "type": "polling",
       "fields": [
         { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/" }
       ],
@@ -18,24 +18,11 @@
       ]
     },
     {
-      "title": "dropbox_file_updated",
-      "label": "Dropbox - File Updated",
-      "type": "webhook",
-      "fields": [
-        { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/" }
-      ],
-      "output_fields": [
-        { "name": "file_name", "type": "text", "label": "File name" },
-        { "name": "path", "type": "text", "label": "Path" },
-        { "name": "updated_at", "type": "text", "label": "Updated at" }
-      ]
-    },
-    {
       "title": "dropbox_new_folder",
       "label": "Dropbox - New Folder Created",
-      "type": "webhook",
+      "type": "polling",
       "fields": [
-        { "name": "parent_folder", "type": "text", "label": "Parent folder", "required": true, "default": "/" }
+        { "name": "folder", "type": "text", "label": "Parent folder", "required": true, "default": "/" }
       ],
       "output_fields": [
         { "name": "folder_name", "type": "text", "label": "Folder name" },
@@ -53,7 +40,17 @@
       "fields": [
         { "name": "path", "type": "text", "label": "Path (ex: /docs/file.txt)", "required": true, "default": "" },
         { "name": "content", "type": "textarea", "label": "File content", "required": true, "default": "" },
-        { "name": "mode", "type": "text", "label": "Mode (add|overwrite)", "required": false, "default": "add" },
+        {
+          "name": "mode",
+          "type": "text",
+          "label": "Mode",
+          "required": false,
+          "default": "add",
+          "selection": [
+            { "value": "add", "label": "Add" },
+            { "value": "overwrite", "label": "Overwrite" }
+          ]
+        },
         { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "true" }
       ],
       "headers": {
@@ -94,6 +91,19 @@
         { "path": "from_path", "type": "text", "value": "{{from_path}}" },
         { "path": "to_path", "type": "text", "value": "{{to_path}}" },
         { "path": "autorename", "type": "boolean", "value": "{{autorename}}" }
+      ]
+    },
+    {
+      "title": "dropbox_delete_file",
+      "label": "Dropbox - Delete File or Folder",
+      "url": "https://api.dropboxapi.com/2/files/delete_v2",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "path", "type": "text", "label": "Path", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "path", "type": "text", "value": "{{path}}" }
       ]
     }
   ]

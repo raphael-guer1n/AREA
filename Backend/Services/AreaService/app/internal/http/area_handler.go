@@ -778,6 +778,7 @@ func (h *AreaHandler) HandleActionTrigger(w http.ResponseWriter, req *http.Reque
 				"success": false,
 				"error":   err.Error(),
 			})
+			return
 		}
 	}
 	respondJSON(w, http.StatusOK, map[string]any{})

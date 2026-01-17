@@ -22,43 +22,6 @@
         { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
         { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
       ]
-    },
-    {
-      "title": "outlook_email_with_attachment",
-      "label": "Mail avec pièce jointe",
-      "type": "polling",
-      "fields": [
-        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
-        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
-        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "hasAttachments eq true" }
-      ],
-      "output_fields": [
-        { "name": "id", "type": "text", "label": "ID du message" },
-        { "name": "subject", "type": "text", "label": "Objet" },
-        { "name": "from", "type": "text", "label": "Expéditeur" },
-        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
-        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
-        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
-      ]
-    },
-    {
-      "title": "outlook_cc_email",
-      "label": "Mail où je suis en copie",
-      "type": "polling",
-      "fields": [
-        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
-        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
-        { "name": "cc_email", "type": "text", "label": "Mon email (pour le filtrage CC)", "required": true, "default": "" },
-        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "ccRecipients/any(c:c/emailAddress/address eq '{{config.cc_email}}')" }
-      ],
-      "output_fields": [
-        { "name": "id", "type": "text", "label": "ID du message" },
-        { "name": "subject", "type": "text", "label": "Objet" },
-        { "name": "from", "type": "text", "label": "Expéditeur" },
-        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
-        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
-        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
-      ]
     }
   ],
   "reactions": [
@@ -100,20 +63,6 @@
           ]
         },
         { "path": "saveToSentItems", "type": "boolean", "value": "true" }
-      ]
-    },
-    {
-      "title": "outlook_reply_email",
-      "label": "Répondre à tous",
-      "url": "https://graph.microsoft.com/v1.0/me/messages/{{message_id}}/replyAll",
-      "method": "POST",
-      "bodyType": "json",
-      "fields": [
-        { "name": "message_id", "type": "text", "label": "ID du message", "required": true, "default": "" },
-        { "name": "comment", "type": "textarea", "label": "Commentaire", "required": false, "default": "" }
-      ],
-      "body_struct": [
-        { "path": "comment", "type": "text", "value": "{{comment}}" }
       ]
     },
     {

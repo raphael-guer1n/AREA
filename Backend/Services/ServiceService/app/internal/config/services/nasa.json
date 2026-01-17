@@ -7,55 +7,37 @@
   "actions": [
     {
       "title": "nasa_apod_ready",
-      "label": "NASA - Astronomy Picture Available",
-      "type": "webhook",
-      "fields": [],
+      "label": "NASA - Astronomy Picture of the Day (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "date", "type": "date", "label": "Date (YYYY-MM-DD, optional)", "required": false, "default": "" },
+        { "name": "hd", "type": "boolean", "label": "HD image", "required": false, "default": "false" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NASA (ne pas modifier)", "required": true, "default": "planetary/apod" }
+      ],
       "output_fields": [
         { "name": "date", "type": "text", "label": "Date" },
         { "name": "title", "type": "text", "label": "Title" },
         { "name": "url", "type": "text", "label": "Image URL" },
+        { "name": "hdurl", "type": "text", "label": "HD Image URL" },
+        { "name": "media_type", "type": "text", "label": "Media Type" },
         { "name": "explanation", "type": "text", "label": "Explanation" }
       ]
     },
     {
-      "title": "nasa_mars_photo_ready",
-      "label": "NASA - New Mars Rover Photo",
-      "type": "webhook",
-      "fields": [],
+      "title": "nasa_neo_feed",
+      "label": "NASA - Near Earth Objects Feed (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "start_date", "type": "date", "label": "Start date (YYYY-MM-DD)", "required": true, "default": "" },
+        { "name": "end_date", "type": "date", "label": "End date (YYYY-MM-DD)", "required": true, "default": "" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NASA (ne pas modifier)", "required": true, "default": "neo/rest/v1/feed" }
+      ],
       "output_fields": [
-        { "name": "rover", "type": "text", "label": "Rover" },
-        { "name": "sol", "type": "text", "label": "Sol" },
-        { "name": "camera", "type": "text", "label": "Camera" },
-        { "name": "img_src", "type": "text", "label": "Image URL" }
+        { "name": "name", "type": "text", "label": "Asteroid Name" },
+        { "name": "close_approach_date", "type": "text", "label": "Close Approach Date" },
+        { "name": "miss_distance_km", "type": "text", "label": "Miss Distance (km)" }
       ]
     }
   ],
-  "reactions": [
-    {
-      "title": "nasa_fetch_apod",
-      "label": "NASA - Fetch Astronomy Picture of the Day",
-      "url": "https://api.nasa.gov/planetary/apod?api_key={{api_key}}&date={{date}}",
-      "method": "GET",
-      "bodyType": "json",
-      "fields": [
-        { "name": "api_key", "type": "password", "label": "API Key", "required": true, "default": "" },
-        { "name": "date", "type": "text", "label": "Date (YYYY-MM-DD, optional)", "required": false, "default": "" }
-      ],
-      "body_struct": []
-    },
-    {
-      "title": "nasa_mars_rover_photo",
-      "label": "NASA - Fetch Mars Rover Photo",
-      "url": "https://api.nasa.gov/mars-photos/api/v1/rovers/{{rover}}/photos?sol={{sol}}&camera={{camera}}&api_key={{api_key}}",
-      "method": "GET",
-      "bodyType": "json",
-      "fields": [
-        { "name": "api_key", "type": "password", "label": "API Key", "required": true, "default": "" },
-        { "name": "rover", "type": "text", "label": "Rover (curiosity|opportunity|spirit)", "required": true, "default": "curiosity" },
-        { "name": "sol", "type": "number", "label": "Martian sol", "required": true, "default": "1000" },
-        { "name": "camera", "type": "text", "label": "Camera (optional)", "required": false, "default": "" }
-      ],
-      "body_struct": []
-    }
-  ]
+  "reactions": []
 }

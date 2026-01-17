@@ -6,29 +6,37 @@
   "logo_url": "https://cdn-icons-png.flaticon.com/512/1163/1163624.png",
   "actions": [
     {
-      "title": "owm_weather_alert",
-      "label": "OpenWeather - Weather Alert",
-      "type": "webhook",
-      "fields": [],
-      "output_fields": [
-        { "name": "city", "type": "text", "label": "City" },
-        { "name": "event", "type": "text", "label": "Event" },
-        { "name": "severity", "type": "text", "label": "Severity" },
-        { "name": "description", "type": "text", "label": "Description" }
-      ]
-    },
-    {
-      "title": "owm_temperature_threshold",
-      "label": "OpenWeather - Temperature Threshold",
-      "type": "webhook",
+      "title": "owm_weather_change",
+      "label": "OpenWeather - Changement de météo (polling)",
+      "type": "polling",
       "fields": [
-        { "name": "city", "type": "text", "label": "City", "required": true, "default": "" },
-        { "name": "threshold", "type": "number", "label": "Threshold (°)", "required": true, "default": "30" }
+        { "name": "q", "type": "text", "label": "Ville (ex: Paris,FR)", "required": true, "default": "" },
+        { "name": "units", "type": "text", "label": "Unites (metric)", "required": false, "default": "metric" },
+        { "name": "lang", "type": "text", "label": "Langue (fr)", "required": false, "default": "fr" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint OpenWeather (ne pas modifier)", "required": true, "default": "weather" }
       ],
       "output_fields": [
         { "name": "city", "type": "text", "label": "City" },
-        { "name": "temperature", "type": "number", "label": "Temperature" },
-        { "name": "condition", "type": "text", "label": "Condition" }
+        { "name": "condition", "type": "text", "label": "Condition" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "temperature", "type": "number", "label": "Temperature" }
+      ]
+    },
+    {
+      "title": "owm_weather_alerts",
+      "label": "OpenWeather - Alertes météo extrêmes (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "lat", "type": "text", "label": "Latitude", "required": true, "default": "" },
+        { "name": "lon", "type": "text", "label": "Longitude", "required": true, "default": "" },
+        { "name": "exclude", "type": "text", "label": "Exclude", "required": false, "default": "current,minutely,hourly" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint OpenWeather (ne pas modifier)", "required": true, "default": "onecall" }
+      ],
+      "output_fields": [
+        { "name": "event", "type": "text", "label": "Event" },
+        { "name": "start", "type": "number", "label": "Start" },
+        { "name": "end", "type": "number", "label": "End" },
+        { "name": "alert_description", "type": "text", "label": "Description" }
       ]
     }
   ],

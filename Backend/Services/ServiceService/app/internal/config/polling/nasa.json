@@ -1,0 +1,29 @@
+{
+  "name": "nasa",
+  "payload_format": "json",
+  "interval_seconds": 86400,
+  "request": {
+    "method": "GET",
+    "url_template": "https://api.nasa.gov/{{config.endpoint}}",
+    "query_params": {
+      "api_key": "{{env.NASA_API_KEY}}",
+      "date": "{{config.date}}",
+      "hd": "{{config.hd}}",
+      "start_date": "{{config.start_date}}",
+      "end_date": "{{config.end_date}}"
+    }
+  },
+  "items_path": "",
+  "item_id_path": "",
+  "mappings": [
+    { "field_key": "date", "json_path": "date", "type": "string", "optional": true },
+    { "field_key": "title", "json_path": "title", "type": "string", "optional": true },
+    { "field_key": "url", "json_path": "url", "type": "string", "optional": true },
+    { "field_key": "hdurl", "json_path": "hdurl", "type": "string", "optional": true },
+    { "field_key": "media_type", "json_path": "media_type", "type": "string", "optional": true },
+    { "field_key": "explanation", "json_path": "explanation", "type": "string", "optional": true },
+    { "field_key": "name", "json_path": "near_earth_objects.{{config.start_date}}[0].name", "type": "string", "optional": true },
+    { "field_key": "close_approach_date", "json_path": "near_earth_objects.{{config.start_date}}[0].close_approach_data[0].close_approach_date", "type": "string", "optional": true },
+    { "field_key": "miss_distance_km", "json_path": "near_earth_objects.{{config.start_date}}[0].close_approach_data[0].miss_distance.kilometers", "type": "string", "optional": true }
+  ]
+}

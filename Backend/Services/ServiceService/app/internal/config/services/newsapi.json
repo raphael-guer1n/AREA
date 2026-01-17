@@ -10,7 +10,6 @@
       "label": "News - Dernières actualités (polling)",
       "type": "polling",
       "fields": [
-        { "name": "api_key", "type": "password", "label": "Clé API NewsAPI", "required": true, "default": "" },
         { "name": "country", "type": "text", "label": "Code pays (ex: us, fr)", "required": false, "default": "us" },
         { "name": "category", "type": "text", "label": "Catégorie (business, sports...)", "required": false, "default": "general" },
         { "name": "page_size", "type": "number", "label": "Nombre max d'articles", "required": false, "default": "10" },
@@ -26,12 +25,12 @@
     },
     {
       "title": "news_keyword_match",
-      "label": "News - Correspondance par mot-clé (polling)",
+      "label": "News - Nouvel article sur un sujet (polling)",
       "type": "polling",
       "fields": [
-        { "name": "api_key", "type": "password", "label": "Clé API NewsAPI", "required": true, "default": "" },
         { "name": "query", "type": "text", "label": "Mot-clé ou requête", "required": true, "default": "" },
-        { "name": "language", "type": "text", "label": "Langue (ex: en, fr)", "required": false, "default": "en" },
+        { "name": "language", "type": "text", "label": "Langue (ex: en, fr)", "required": false, "default": "fr" },
+        { "name": "from", "type": "date", "label": "Date de début (YYYY-MM-DD)", "required": false, "default": "" },
         { "name": "sort_by", "type": "text", "label": "Tri (publishedAt, relevance)", "required": false, "default": "publishedAt" },
         { "name": "page_size", "type": "number", "label": "Nombre max d'articles", "required": false, "default": "10" },
         { "name": "endpoint", "type": "text", "label": "Endpoint NewsAPI (ne pas modifier)", "required": true, "default": "everything" }
@@ -45,35 +44,5 @@
       ]
     }
   ],
-  "reactions": [
-    {
-      "title": "news_fetch_headlines",
-      "label": "News - Fetch Top Headlines",
-      "url": "https://newsapi.org/v2/top-headlines?country={{country}}&category={{category}}&pageSize={{page_size}}&apiKey={{api_key}}",
-      "method": "GET",
-      "bodyType": "json",
-      "fields": [
-        { "name": "api_key", "type": "password", "label": "API Key", "required": true, "default": "" },
-        { "name": "country", "type": "text", "label": "Country code", "required": false, "default": "us" },
-        { "name": "category", "type": "text", "label": "Category", "required": false, "default": "general" },
-        { "name": "page_size", "type": "number", "label": "Results count", "required": false, "default": "10" }
-      ],
-      "body_struct": []
-    },
-    {
-      "title": "news_search_keyword",
-      "label": "News - Search by Keyword",
-      "url": "https://newsapi.org/v2/everything?q={{query}}&language={{language}}&sortBy={{sort_by}}&pageSize={{page_size}}&apiKey={{api_key}}",
-      "method": "GET",
-      "bodyType": "json",
-      "fields": [
-        { "name": "api_key", "type": "password", "label": "API Key", "required": true, "default": "" },
-        { "name": "query", "type": "text", "label": "Query", "required": true, "default": "" },
-        { "name": "language", "type": "text", "label": "Language", "required": false, "default": "en" },
-        { "name": "sort_by", "type": "text", "label": "Sort by", "required": false, "default": "publishedAt" },
-        { "name": "page_size", "type": "number", "label": "Results count", "required": false, "default": "10" }
-      ],
-      "body_struct": []
-    }
-  ]
+  "reactions": []
 }

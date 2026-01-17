@@ -1,16 +1,17 @@
 {
   "name": "newsapi",
   "payload_format": "json",
-  "interval_seconds": 300,
+  "interval_seconds": 3600,
   "request": {
     "method": "GET",
     "url_template": "https://newsapi.org/v2/{{config.endpoint}}",
     "query_params": {
-      "apiKey": "{{config.api_key}}",
+      "apiKey": "{{env.NEWSAPI_API_KEY}}",
       "country": "{{config.country}}",
       "category": "{{config.category}}",
       "q": "{{config.query}}",
       "language": "{{config.language}}",
+      "from": "{{config.from}}",
       "sortBy": "{{config.sort_by}}",
       "pageSize": "{{config.page_size}}"
     }

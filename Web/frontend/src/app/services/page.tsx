@@ -6,7 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
-import { fetchServices, fetchUserServiceStatuses, type ProviderSummary } from "@/lib/api/services";
+import {
+  disconnectProvider,
+  fetchServices,
+  fetchUserServiceStatuses,
+  type ProviderSummary,
+} from "@/lib/api/services";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { normalizeSearchValue } from "@/lib/helpers";
@@ -163,6 +168,27 @@ export function ServicesClient() {
           ? err.message
           : "Une erreur est survenue lors de la connexion du service.";
       setError(message);
+    }
+  };
+
+  const handleDisconnect = async (serviceId: string) => {
+    if (!token) {
+      setError("Vous devez être connecté pour déconnecter un service.");
+      updateConnection(serviceId, true);
+      return;
+    }
+
+    try {
+      setError(null);
+      await disconnectProvider(token, serviceId);
+      updateConnection(serviceId, false);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de la déconnexion du service.";
+      setError(message);
+      updateConnection(serviceId, true);
     }
   };
 
@@ -426,7 +452,7 @@ export function ServicesClient() {
                     reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
                     connected={service.connected}
                     action="Connecté"
-                    onDisconnect={() => updateConnection(service.id, false)}
+                    onDisconnect={() => handleDisconnect(service.id)}
                   />
                 ))}
               </div>

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings" // Ajout de strings
 
@@ -70,13 +71,28 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 	if apiKey == "" {
 		apiKey = os.Getenv("OPENAI_API_KEY")
 	}
+	if apiKey == "" && strings.Contains(reaction.Url, "slack.com/api/") {
+		apiKey = os.Getenv("SLACK_BOT_TOKEN")
+	}
 
+	envPlaceholderRegexp := regexp.MustCompile(`\{\{\s*env\.([A-Za-z0-9_]+)\s*\}\}`)
 	replacePlaceholders := func(input string) string {
 		result := input
 		for key, value := range fieldValues {
 			placeholder := "{{" + key + "}}"
 			result = strings.ReplaceAll(result, placeholder, value)
 		}
+		result = envPlaceholderRegexp.ReplaceAllStringFunc(result, func(match string) string {
+			parts := envPlaceholderRegexp.FindStringSubmatch(match)
+			if len(parts) != 2 {
+				return match
+			}
+			envValue := os.Getenv(parts[1])
+			if envValue == "" {
+				return match
+			}
+			return envValue
+		})
 		return result
 	}
 
@@ -191,15 +207,40 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		}
 	}
 
-	payload, err := buildPayload(reaction.BodyStruct)
-	if err != nil {
-		return err
+	var bodyReader io.Reader
+	contentType := ""
+	if strings.EqualFold(reaction.BodyType, "binary") {
+		if len(reaction.BodyStruct) == 1 {
+			val, err := buildValue(reaction.BodyStruct[0])
+			if err != nil {
+				return err
+			}
+			bodyReader = strings.NewReader(fmt.Sprint(val))
+		} else if len(reaction.BodyStruct) > 1 {
+			payload, err := buildPayload(reaction.BodyStruct)
+			if err != nil {
+				return err
+			}
+			bodyReader = strings.NewReader(fmt.Sprint(payload))
+		}
+	} else {
+		payload, err := buildPayload(reaction.BodyStruct)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal event payload: %w", err)
+		}
+		bodyReader = bytes.NewReader(body)
+		contentType = "application/json"
 	}
 	url := reaction.Url
 
 	for key, value := range fieldValues {
 		url = strings.ReplaceAll(url, "{{"+key+"}}", value)
 	}
+	url = replacePlaceholders(url)
 	log.Println(url)
 
 	method := reaction.Method
@@ -207,11 +248,7 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		method = http.MethodPost
 	}
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event payload: %w", err)
-	}
-	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -227,9 +264,14 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 	if s.internalSecret != "" {
 		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	for key, value := range reaction.Headers {
+		renderedValue := replacePlaceholders(value)
+		req.Header.Set(key, renderedValue)
+	}
+	if contentType != "" && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	resp, err := http.DefaultClient.Do(req)
-	fmt.Println(payload)
 	if err != nil {
 		return fmt.Errorf("failed to call reaction endpoint: %w", err)
 	}
