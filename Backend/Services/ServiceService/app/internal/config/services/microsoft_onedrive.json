@@ -1,0 +1,71 @@
+{
+  "provider": "microsoft",
+  "name": "microsoft_onedrive",
+  "label": "OneDrive",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/3917/3917575.svg?token=exp=1768583381~hmac=c369e012fcb41eac5ad0691c88d80333",
+  "actions": [
+    {
+      "title": "onedrive_new_file",
+      "label": "Fichier modifié/ajouté dans un dossier OneDrive",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier surveillé (ex: /Documents)", "required": true, "default": "/Documents" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "file ne null" }
+      ],
+      "output_fields": [
+        { "name": "file_name", "type": "text", "label": "Nom du fichier" },
+        { "name": "file_id", "type": "text", "label": "ID du fichier" },
+        { "name": "last_modified", "type": "text", "label": "Dernière modification" }
+      ]
+    },
+    {
+      "title": "onedrive_new_folder",
+      "label": "Nouveau dossier dans OneDrive",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier surveillé (ex: /Documents)", "required": true, "default": "/Documents" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "folder ne null" }
+      ],
+      "output_fields": [
+        { "name": "file_name", "type": "text", "label": "Nom du dossier" },
+        { "name": "file_id", "type": "text", "label": "ID du dossier" },
+        { "name": "last_modified", "type": "text", "label": "Dernière modification" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "onedrive_create_file",
+      "label": "OneDrive - Create Text File (JSON payload)",
+      "url": "https://graph.microsoft.com/v1.0/me/drive/root/children",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "file_name", "type": "text", "label": "File name", "required": true, "default": "" },
+        { "name": "content", "type": "textarea", "label": "Content", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "name", "type": "text", "value": "{{file_name}}" },
+        { "path": "file", "type": "object", "value": [] },
+        { "path": "@microsoft.graph.conflictBehavior", "type": "text", "value": "rename" },
+        { "path": "description", "type": "text", "value": "{{content}}" }
+      ]
+    },
+    {
+      "title": "onedrive_create_folder",
+      "label": "OneDrive - Create Folder",
+      "url": "https://graph.microsoft.com/v1.0/me/drive/root/children",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "folder_name", "type": "text", "label": "Folder name", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "name", "type": "text", "value": "{{folder_name}}" },
+        { "path": "folder", "type": "object", "value": [] },
+        { "path": "@microsoft.graph.conflictBehavior", "type": "text", "value": "rename" }
+      ]
+    }
+  ]
+}

@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"regexp"
+	"strconv"
 	"strings" // Ajout de strings
 
 	"github.com/raphael-guer1n/AREA/AreaService/internal/domain"
@@ -62,78 +66,172 @@ func (s *AreaService) CreateCalendarEvent(authToken string, event domain.Event) 
 }
 
 func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]string, reaction domain.ReactionConfig) error {
+	envPlaceholderRegexp := regexp.MustCompile(`\{\{\s*env\.([A-Za-z0-9_]+)\s*\}\}`)
+	replacePlaceholders := func(input string) string {
+		result := input
+		for key, value := range fieldValues {
+			placeholder := "{{" + key + "}}"
+			result = strings.ReplaceAll(result, placeholder, value)
+		}
+		result = envPlaceholderRegexp.ReplaceAllStringFunc(result, func(match string) string {
+			parts := envPlaceholderRegexp.FindStringSubmatch(match)
+			if len(parts) != 2 {
+				return match
+			}
+			envValue := os.Getenv(parts[1])
+			if envValue == "" {
+				return match
+			}
+			return envValue
+		})
+		return result
+	}
 
+	setNestedValue := func(target map[string]any, path string, value any) {
+		if path == "" {
+			if nested, ok := value.(map[string]any); ok {
+				for k, v := range nested {
+					target[k] = v
+				}
+			}
+			return
+		}
+		if strings.HasPrefix(path, "@") {
+			target[path] = value
+			return
+		}
+		parts := strings.Split(path, ".")
+		current := target
+		for i, part := range parts {
+			if i == len(parts)-1 {
+				current[part] = value
+				return
+			}
+			next, ok := current[part].(map[string]any)
+			if !ok {
+				next = make(map[string]any)
+				current[part] = next
+			}
+			current = next
+		}
+	}
+
+	var buildValue func(field domain.BodyField) (any, error)
 	var buildPayload func(fields []domain.BodyField) (map[string]any, error)
+
 	buildPayload = func(fields []domain.BodyField) (map[string]any, error) {
 		result := make(map[string]any)
 		for _, bf := range fields {
-			if bf.Type == "object" {
-				var subFields []domain.BodyField
-				if err := json.Unmarshal(bf.Value, &subFields); err == nil {
-					result[bf.Path], err = buildPayload(subFields)
-				}
-			} else if bf.Type == "array" {
-				var arrayItems []any
-				if err := json.Unmarshal(bf.Value, &arrayItems); err != nil {
-					return nil, fmt.Errorf("failed to unmarshal array value: %w", err)
-				}
-
-				processedArray := make([]any, 0, len(arrayItems))
-				for _, item := range arrayItems {
-					switch v := item.(type) {
-					case string:
-						finalVal := v
-						for key, value := range fieldValues {
-							placeholder := "{{" + key + "}}"
-							finalVal = strings.ReplaceAll(finalVal, placeholder, value)
-						}
-						processedArray = append(processedArray, finalVal)
-					case map[string]any:
-						processedObj := make(map[string]any)
-						for k, objVal := range v {
-							if strVal, ok := objVal.(string); ok {
-								finalVal := strVal
-								for key, value := range fieldValues {
-									placeholder := "{{" + key + "}}"
-									finalVal = strings.ReplaceAll(finalVal, placeholder, value)
-								}
-								processedObj[k] = finalVal
-							} else {
-								processedObj[k] = objVal
-							}
-						}
-						processedArray = append(processedArray, processedObj)
-					default:
-						processedArray = append(processedArray, item)
-					}
-				}
-				result[bf.Path] = processedArray
-			} else {
-				valStr := string(bf.Value)
-				valStr = string(bytes.Trim(bf.Value, `"`))
-
-				finalVal := valStr
-				for key, value := range fieldValues {
-					placeholder := "{{" + key + "}}"
-					finalVal = strings.ReplaceAll(finalVal, placeholder, value)
-				}
-
-				result[bf.Path] = finalVal
+			val, err := buildValue(bf)
+			if err != nil {
+				return nil, err
 			}
+			setNestedValue(result, bf.Path, val)
 		}
 		return result, nil
 	}
 
-	payload, err := buildPayload(reaction.BodyStruct)
+	buildValue = func(field domain.BodyField) (any, error) {
+		switch strings.ToLower(field.Type) {
+		case "object":
+			var subFields []domain.BodyField
+			if err := json.Unmarshal(field.Value, &subFields); err != nil {
+				return nil, fmt.Errorf("failed to parse object for path %s: %w", field.Path, err)
+			}
+			return buildPayload(subFields)
 
-	if err != nil {
-		return err
+		case "array":
+			var rawItems []json.RawMessage
+			if err := json.Unmarshal(field.Value, &rawItems); err != nil {
+				return nil, fmt.Errorf("failed to parse array for path %s: %w", field.Path, err)
+			}
+
+			result := make([]any, 0, len(rawItems))
+			for _, rawItem := range rawItems {
+				var subField domain.BodyField
+				if err := json.Unmarshal(rawItem, &subField); err == nil && subField.Type != "" {
+					val, err := buildValue(subField)
+					if err != nil {
+						return nil, err
+					}
+					if subField.Path == "" {
+						result = append(result, val)
+					} else {
+						obj := make(map[string]any)
+						setNestedValue(obj, subField.Path, val)
+						result = append(result, obj)
+					}
+					continue
+				}
+
+				var strVal string
+				if err := json.Unmarshal(rawItem, &strVal); err == nil {
+					result = append(result, replacePlaceholders(strVal))
+					continue
+				}
+
+				var generic any
+				if err := json.Unmarshal(rawItem, &generic); err == nil {
+					result = append(result, generic)
+					continue
+				}
+
+				return nil, fmt.Errorf("unsupported array item for path %s", field.Path)
+			}
+			return result, nil
+
+		default:
+			valStr := strings.Trim(string(field.Value), `"`)
+			finalVal := replacePlaceholders(valStr)
+
+			switch strings.ToLower(field.Type) {
+			case "boolean":
+				return strings.EqualFold(finalVal, "true") || finalVal == "1", nil
+			case "number":
+				if numVal, err := strconv.ParseFloat(finalVal, 64); err == nil {
+					return numVal, nil
+				}
+				return finalVal, nil
+			default:
+				return finalVal, nil
+			}
+		}
+	}
+
+	var bodyReader io.Reader
+	contentType := ""
+	if strings.EqualFold(reaction.BodyType, "binary") {
+		if len(reaction.BodyStruct) == 1 {
+			val, err := buildValue(reaction.BodyStruct[0])
+			if err != nil {
+				return err
+			}
+			bodyReader = strings.NewReader(fmt.Sprint(val))
+		} else if len(reaction.BodyStruct) > 1 {
+			payload, err := buildPayload(reaction.BodyStruct)
+			if err != nil {
+				return err
+			}
+			bodyReader = strings.NewReader(fmt.Sprint(payload))
+		}
+	} else {
+		payload, err := buildPayload(reaction.BodyStruct)
+		if err != nil {
+			return err
+		}
+		body, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("failed to marshal event payload: %w", err)
+		}
+		bodyReader = bytes.NewReader(body)
+		contentType = "application/json"
 	}
 	url := reaction.Url
 
 	for key, value := range fieldValues {
 		url = strings.ReplaceAll(url, "{{"+key+"}}", value)
 	}
+	url = replacePlaceholders(url)
 	log.Println(url)
 
 	method := reaction.Method
@@ -141,11 +239,7 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 		method = http.MethodPost
 	}
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event payload: %w", err)
-	}
-	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -153,19 +247,27 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 	if strings.TrimSpace(userToken) != "" {
 		req.Header.Set("Authorization", "Bearer "+userToken)
 	}
+	if clientID := strings.TrimSpace(fieldValues["client_id"]); clientID != "" {
+		req.Header.Set("Client-Id", clientID)
+	}
 	if s.internalSecret != "" {
 		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	for key, value := range reaction.Headers {
+		renderedValue := replacePlaceholders(value)
+		req.Header.Set(key, renderedValue)
+	}
+	if contentType != "" && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	resp, err := http.DefaultClient.Do(req)
-	fmt.Println(payload)
 	if err != nil {
-		return fmt.Errorf("failed to call Google Calendar API: %w", err)
+		return fmt.Errorf("failed to call reaction endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Println(resp)
-		return fmt.Errorf("google calendar API returned status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("reaction request returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return nil
 }

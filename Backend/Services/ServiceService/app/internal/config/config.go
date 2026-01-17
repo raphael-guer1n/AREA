@@ -317,6 +317,7 @@ type ReactionConfig struct {
 	Method     string          `json:"method"`
 	BodyType   string          `json:"bodyType"`
 	BodyStruct json.RawMessage `json:"body_struct"`
+	Headers    map[string]string `json:"headers,omitempty"`
 }
 
 type ServiceConfig struct {

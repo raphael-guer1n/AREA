@@ -45,6 +45,7 @@ export type AreaInputField = {
 };
 
 export type AreaActionPayload = {
+  id?: number;
   service: string;
   provider: string;
   title: string;
@@ -53,6 +54,7 @@ export type AreaActionPayload = {
 };
 
 export type AreaReactionPayload = {
+  id?: number;
   service: string;
   provider: string;
   title: string;

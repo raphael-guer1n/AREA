@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -54,8 +55,12 @@ func (s *RequestService) ExecuteRequest(request config.PollingProviderRequestCon
 		if strings.TrimSpace(key) == "" {
 			continue
 		}
-		renderedValue, err := utils.RenderTemplateString(value, ctx)
+		renderedValue, err := renderTemplateStringNested(value, ctx)
 		if err != nil {
+			var missing utils.MissingTemplateValueError
+			if errors.As(err, &missing) {
+				continue
+			}
 			return nil, err
 		}
 		query.Set(key, fmt.Sprint(renderedValue))
@@ -107,7 +112,7 @@ func (s *RequestService) ExecuteRequest(request config.PollingProviderRequestCon
 	}
 
 	for key, value := range request.Headers {
-		renderedValue, err := utils.RenderTemplateString(value, ctx)
+		renderedValue, err := renderTemplateStringNested(value, ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -154,6 +159,21 @@ func (s *RequestService) ExecuteRequest(request config.PollingProviderRequestCon
 	}
 
 	return responseBody, nil
+}
+
+func renderTemplateStringNested(value string, ctx utils.TemplateContext) (any, error) {
+	rendered, err := utils.RenderTemplateString(value, ctx)
+	if err != nil {
+		return nil, err
+	}
+	str, ok := rendered.(string)
+	if !ok {
+		return rendered, nil
+	}
+	if !strings.Contains(str, "{{") || !strings.Contains(str, "}}") {
+		return str, nil
+	}
+	return utils.RenderTemplateString(str, ctx)
 }
 
 func buildFormPayload(rendered any) (url.Values, error) {

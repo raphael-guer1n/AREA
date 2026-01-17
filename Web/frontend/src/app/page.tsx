@@ -349,19 +349,6 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-[var(--surface-border)] bg-[var(--background)]/80 py-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-white/90 shadow-sm">
-              <Image src="/logo.png" alt="Logo AREA" fill className="object-contain p-1" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">AREA</span>
-          </div>
-          <span className="text-sm text-[var(--muted)]">
-            © 2025 AREA. Automatisation open-source portée par l'équipe Epitech.
-          </span>
-        </div>
-      </footer>
       </div>
     </div>
   );

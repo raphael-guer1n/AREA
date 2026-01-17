@@ -1,0 +1,27 @@
+{
+  "name": "microsoft_onedrive",
+  "payload_format": "json",
+  "interval_seconds": 120,
+  "request": {
+    "method": "GET",
+    "url_template": "https://graph.microsoft.com/v1.0/me/drive/root:{{config.folder}}:/children",
+    "query_params": {
+      "$orderby": "lastModifiedDateTime desc",
+      "$top": "5",
+      "$filter": "{{config.filter}}"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer ",
+      "provider": "microsoft"
+    }
+  },
+  "items_path": "value",
+  "item_id_path": "lastModifiedDateTime",
+  "mappings": [
+    { "field_key": "file_name", "json_path": "name", "type": "string" },
+    { "field_key": "file_id", "json_path": "id", "type": "string" },
+    { "field_key": "last_modified", "json_path": "lastModifiedDateTime", "type": "string" }
+  ]
+}

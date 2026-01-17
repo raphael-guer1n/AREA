@@ -160,6 +160,13 @@ func resolvePlaceholder(key string, ctx TemplateContext) (any, bool) {
 		return val, true
 	}
 
+	if key != "config" && !strings.Contains(key, ".") {
+		val, ok := ExtractJSONPath(ctx.Config, key)
+		if ok {
+			return val, true
+		}
+	}
+
 	return nil, false
 }
 
