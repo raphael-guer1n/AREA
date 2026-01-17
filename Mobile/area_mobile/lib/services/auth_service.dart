@@ -14,8 +14,8 @@ class AuthService {
   final AppLinks _appLinks = AppLinks();
   final _storage = const FlutterSecureStorage();
 
-  static const String redirectUri =
-      'https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback';
+  final String redirectUri = dotenv.env['REDIRECT_URI'] ??
+      "https://unrelenting-sona-nonexcepting.ngrok-free.dev/oauth2/callback";
 
   Future<void> _saveToken(String token) async {
     await _storage.write(key: 'jwt_token', value: token);

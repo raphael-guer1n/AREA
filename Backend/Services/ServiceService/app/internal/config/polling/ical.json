@@ -1,7 +1,7 @@
 {
   "name": "ical",
   "payload_format": "ical",
-  "interval_seconds": 300,
+  "interval_seconds": 60,
   "skip_first": true,
   "request": {
     "method": "GET",
@@ -12,6 +12,7 @@
   "mappings": [
     { "field_key": "uid", "json_path": "uid", "type": "string" },
     { "field_key": "recurrence_id", "json_path": "recurrence_id", "type": "string", "optional": true },
+    { "field_key": "update_type", "json_path": "update_type", "type": "string", "optional": true },
     { "field_key": "title", "json_path": "summary", "type": "string", "optional": true },
     { "field_key": "start", "json_path": "start", "type": "string", "optional": true },
     { "field_key": "end", "json_path": "end", "type": "string", "optional": true },
