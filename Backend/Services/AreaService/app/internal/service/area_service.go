@@ -66,15 +66,6 @@ func (s *AreaService) CreateCalendarEvent(authToken string, event domain.Event) 
 }
 
 func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]string, reaction domain.ReactionConfig) error {
-
-	apiKey := fieldValues["api_key"]
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENAI_API_KEY")
-	}
-	if apiKey == "" && strings.Contains(reaction.Url, "slack.com/api/") {
-		apiKey = os.Getenv("SLACK_BOT_TOKEN")
-	}
-
 	envPlaceholderRegexp := regexp.MustCompile(`\{\{\s*env\.([A-Za-z0-9_]+)\s*\}\}`)
 	replacePlaceholders := func(input string) string {
 		result := input
@@ -255,8 +246,6 @@ func (s *AreaService) LaunchReactions(userToken string, fieldValues map[string]s
 
 	if strings.TrimSpace(userToken) != "" {
 		req.Header.Set("Authorization", "Bearer "+userToken)
-	} else if strings.TrimSpace(apiKey) != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 	if clientID := strings.TrimSpace(fieldValues["client_id"]); clientID != "" {
 		req.Header.Set("Client-Id", clientID)
