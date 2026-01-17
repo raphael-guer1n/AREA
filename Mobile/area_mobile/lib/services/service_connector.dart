@@ -1,11 +1,14 @@
 import "dart:convert";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:http/http.dart" as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import "../models/service_model.dart";
 import "../services/config_service.dart";
 
 class ServiceConnector {
   final _storage = const FlutterSecureStorage();
+  final String redirectUri = dotenv.env['REDIRECT_URI'] ??
+    "https://unrelenting-sona-nonexcepting.ngrok-free.dev/oauth2/callback";
 
   Future<List<ServiceModel>> fetchServices(int userId) async {
     try {
@@ -44,8 +47,7 @@ class ServiceConnector {
       }
 
       final baseUrl = await ConfigService.getBaseUrl();
-      const redirectUri =
-          "https://nonbeatifically-stridulatory-denver.ngrok-free.dev/oauth2/callback";
+
       final encodedRedirect = Uri.encodeComponent(redirectUri);
 
       final uri = Uri.parse(

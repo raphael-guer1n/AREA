@@ -1,22 +1,5 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/area_definitions.dart';
-
-const List<AreaGradient> areaGradients = [
-  AreaGradient(from: Color(0xFF002642), to: Color(0xFF0B3C5D)),
-  AreaGradient(from: Color(0xFF840032), to: Color(0xFFA33A60)),
-  AreaGradient(from: Color(0xFFE59500), to: Color(0xFFF2B344)),
-  AreaGradient(from: Color(0xFF5B834D), to: Color(0xFF68915A)),
-  AreaGradient(from: Color(0xFF02040F), to: Color(0xFF1B2640)),
-];
-
-AreaGradient pickRandomGradient() {
-  if (areaGradients.isEmpty) {
-    return const AreaGradient(from: Color(0xFF112A46), to: Color(0xFF1C3D63));
-  }
-  final index = Random().nextInt(areaGradients.length);
-  return areaGradients[index];
-}
 
 const List<AreaServiceDefinition> areaServiceCatalog = [
   AreaServiceDefinition(
@@ -24,9 +7,9 @@ const List<AreaServiceDefinition> areaServiceCatalog = [
     name: 'Timer',
     actions: [
       AreaActionDefinition(
-        id: 'cron_action',
-        title: 'cron action',
-        label: 'Timer',
+        id: 'delay_action',
+        title: 'delay_action',
+        label: 'Delay Action',
         type: 'cron',
         fields: [
           AreaFieldDefinition(
@@ -41,8 +24,8 @@ const List<AreaServiceDefinition> areaServiceCatalog = [
     ],
   ),
   AreaServiceDefinition(
-    id: 'google',
-    name: 'Google',
+    id: 'google_calendar',
+    name: 'Google Calendar',
     reactions: [
       AreaReactionDefinition(
         id: 'create_event',
@@ -88,8 +71,12 @@ const List<AreaServiceDefinition> areaServiceCatalog = [
       ),
     ],
   ),
-  AreaServiceDefinition(
-    id: 'github',
-    name: 'GitHub',
-  ),
+];
+
+const List<AreaGradient> areaGradients = [
+  AreaGradient(from: Color(0xFF002642), to: Color(0xFF0B3C5D)),
+  AreaGradient(from: Color(0xFF840032), to: Color(0xFFA33A60)),
+  AreaGradient(from: Color(0xFFE59500), to: Color(0xFFF2B344)),
+  AreaGradient(from: Color(0xFF5B834D), to: Color(0xFF68915A)),
+  AreaGradient(from: Color(0xFF02040F), to: Color(0xFF1B2640)),
 ];
