@@ -1,7 +1,11 @@
 package http
 
 import (
+	"net"
 	"net/http"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/raphael-guer1n/AREA/ServiceService/internal/service"
 )
@@ -147,4 +151,114 @@ func (h *ProviderHandler) HandleGetServices(w http.ResponseWriter, req *http.Req
 			"services": servicesNames,
 		},
 	})
+}
+
+func (h *ProviderHandler) HandleGetAboutJSON(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
+			"success": false,
+			"error":   "Method not allowed",
+		})
+		return
+	}
+
+	serviceNames := h.providerConfigSvc.GetAllServicesNames()
+	sort.Strings(serviceNames)
+
+	services := make([]aboutService, 0, len(serviceNames))
+	for _, serviceName := range serviceNames {
+		serviceConfig, exists := h.providerConfigSvc.GetServiceConfig(serviceName)
+		if !exists {
+			continue
+		}
+
+		actions := make([]aboutServiceItem, 0, len(serviceConfig.Actions))
+		for _, action := range serviceConfig.Actions {
+			description := action.Label
+			if description == "" {
+				description = action.Title
+			}
+			actions = append(actions, aboutServiceItem{
+				Name:        action.Title,
+				Description: description,
+			})
+		}
+
+		reactions := make([]aboutServiceItem, 0, len(serviceConfig.Reactions))
+		for _, reaction := range serviceConfig.Reactions {
+			description := reaction.Label
+			if description == "" {
+				description = reaction.Title
+			}
+			reactions = append(reactions, aboutServiceItem{
+				Name:        reaction.Title,
+				Description: description,
+			})
+		}
+
+		services = append(services, aboutService{
+			Name:      serviceConfig.Name,
+			Actions:   actions,
+			Reactions: reactions,
+		})
+	}
+
+	resp := aboutResponse{
+		Client: aboutClient{
+			Host: clientIPFromRequest(req),
+		},
+		Server: aboutServer{
+			CurrentTime: time.Now().Unix(),
+			Services:    services,
+		},
+	}
+
+	respondJSON(w, http.StatusOK, resp)
+}
+
+type aboutResponse struct {
+	Client aboutClient `json:"client"`
+	Server aboutServer `json:"server"`
+}
+
+type aboutClient struct {
+	Host string `json:"host"`
+}
+
+type aboutServer struct {
+	CurrentTime int64          `json:"current_time"`
+	Services    []aboutService `json:"services"`
+}
+
+type aboutService struct {
+	Name      string             `json:"name"`
+	Actions   []aboutServiceItem `json:"actions"`
+	Reactions []aboutServiceItem `json:"reactions"`
+}
+
+type aboutServiceItem struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func clientIPFromRequest(req *http.Request) string {
+	if forwarded := req.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 {
+			if ip := strings.TrimSpace(parts[0]); ip != "" {
+				return ip
+			}
+		}
+	}
+
+	if realIP := strings.TrimSpace(req.Header.Get("X-Real-IP")); realIP != "" {
+		return realIP
+	}
+
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+
+	return req.RemoteAddr
 }
