@@ -12,6 +12,15 @@
       "internal_only": false
     },
     {
+      "path": "/about.json",
+      "methods": [
+        "GET"
+      ],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": false
+    },
+    {
       "path": "/providers/services",
       "methods": [
         "GET"
