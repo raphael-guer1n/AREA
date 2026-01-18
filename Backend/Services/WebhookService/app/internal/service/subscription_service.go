@@ -25,11 +25,11 @@ var (
 
 type SubscriptionService struct {
 	repo            domain.SubscriptionRepository
-	providerConfig  *ProviderConfigService
-	webhookSetupSvc *WebhookSetupService
+	providerConfig  ProviderConfigServiceInterface
+	webhookSetupSvc WebhookSetupServiceInterface
 }
 
-func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig *ProviderConfigService, webhookSetupSvc *WebhookSetupService) *SubscriptionService {
+func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig ProviderConfigServiceInterface, webhookSetupSvc WebhookSetupServiceInterface) *SubscriptionService {
 	return &SubscriptionService{
 		repo:            repo,
 		providerConfig:  providerConfig,
