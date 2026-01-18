@@ -1896,7 +1896,7 @@ function AreaPageContent() {
           aria-label="Détail de l'area"
         >
           <div
-            className="relative w-full max-w-4xl overflow-hidden rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl"
+            className="relative w-full max-w-4xl max-h-[85vh] overflow-y-auto overscroll-contain rounded-3xl border border-[var(--surface-border)] bg-[var(--background)] shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
               <div

@@ -1,7 +1,7 @@
 services:
   client_web:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile
       args:
         NODE_ENV: production
