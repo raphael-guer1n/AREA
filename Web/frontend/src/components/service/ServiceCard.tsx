@@ -6,7 +6,7 @@ import { cn } from "@/lib/helpers";
 
 type ServiceCardProps = {
   name: string;
-  url: string;
+  url?: string;
   badge: string;
   logoUrl?: string;
   category?: string;
@@ -26,7 +26,7 @@ type ServiceDetailsModalProps = {
   onClose: () => void;
   name: string;
   category?: string;
-  url: string;
+  url?: string;
   gradientFrom: string;
   gradientTo: string;
   actions: string[];
@@ -201,6 +201,7 @@ function ServiceDetailsModal({
   connected,
 }: ServiceDetailsModalProps) {
   if (!open) return null;
+  const shouldShowLink = Boolean(url && url !== "#");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true">
@@ -220,15 +221,17 @@ function ServiceDetailsModal({
               {category ? <p className="text-sm text-[var(--muted)]">Catégorie : {category}</p> : null}
               <ServiceStatus connected={connected} tone="light" />
             </div>
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--blue-primary-2)] underline-offset-4 transition hover:text-[var(--blue-primary-3)] hover:underline"
-            >
-              Ouvrir le site
-              <ExternalLinkIcon />
-            </a>
+            {shouldShowLink ? (
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[var(--blue-primary-2)] underline-offset-4 transition hover:text-[var(--blue-primary-3)] hover:underline"
+              >
+                Ouvrir le site
+                <ExternalLinkIcon />
+              </a>
+            ) : null}
           </div>
           <button
             type="button"
