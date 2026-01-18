@@ -1,9 +1,9 @@
-.PHONY: help install dev build start lint clean docker-build docker-up docker-down docker-logs
+.PHONY: help install dev build start lint clean docker-build docker-up docker-down docker-logs docker-restart
 
 SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
-COMPOSE_FILE := docker-compose.yml
+COMPOSE_FILE := ../docker-compose.yml
 COMPOSE_ENV := .env.docker
 COMPOSE_ARGS := --env-file $(COMPOSE_ENV)
 
@@ -42,3 +42,5 @@ docker-down: ## Stop Docker containers
 
 docker-logs: ## Tail Docker logs
 	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) logs -f
+
+docker-restart: docker-down docker-up ## Restart Docker containers
