@@ -49,6 +49,9 @@ test: ## Run tests for all subprojects
 test_run: ## Run unit tests for all subprojects
 	$(call run_for_all,test_run)
 
+test_summary: ## Run unit tests with clean summary output
+	@$(MAKE) test_run 2>&1 | ./scripts/test_summary.sh
+
 clean: ## Clean build artifacts in all subprojects
 	$(call run_for_all,clean)
 
