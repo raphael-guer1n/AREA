@@ -1,0 +1,29 @@
+{
+  "name": "microsoft_calendar",
+  "payload_format": "json",
+  "interval_seconds": 180,
+  "request": {
+    "method": "GET",
+    "url_template": "https://graph.microsoft.com/v1.0/me/events",
+    "query_params": {
+      "$orderby": "lastModifiedDateTime desc",
+      "$top": "{{config.top}}",
+      "$filter": "{{config.filter}}"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer ",
+      "provider": "microsoft"
+    }
+  },
+  "items_path": "value",
+  "item_id_path": "id",
+  "mappings": [
+    { "field_key": "id", "json_path": "id", "type": "string" },
+    { "field_key": "subject", "json_path": "subject", "type": "string", "optional": true },
+    { "field_key": "start_time", "json_path": "start.dateTime", "type": "string", "optional": true },
+    { "field_key": "end_time", "json_path": "end.dateTime", "type": "string", "optional": true },
+    { "field_key": "last_modified", "json_path": "lastModifiedDateTime", "type": "string", "optional": true }
+  ]
+}

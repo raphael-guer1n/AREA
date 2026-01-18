@@ -6,23 +6,47 @@ import { useSearchParams } from "next/navigation";
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
 import { Card } from "@/components/ui/AreaCard";
-import { fetchServices, fetchUserServiceStatuses, type ProviderSummary } from "@/lib/api/services";
+import {
+  disconnectProvider,
+  fetchServiceConfig,
+  fetchServices,
+  fetchUserServiceStatuses,
+  type ProviderSummary,
+} from "@/lib/api/services";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
 import { normalizeSearchValue } from "@/lib/helpers";
-import { gradients as gradientPalette, mockServices, type MockService } from "./mockServices";
 
-const serviceTemplatesById = new Map(mockServices.map((service) => [service.id, service]));
+type ServiceCatalogItem = {
+  id: string;
+  name: string;
+  url?: string;
+  badge: string;
+  logoUrl?: string;
+  category?: string;
+  gradient: { from: string; to: string };
+  actions: string[];
+  reactions: string[];
+  connected: boolean;
+};
 
-function matchesSearch(service: MockService, term: string) {
+const gradientPalette: Array<{ from: string; to: string }> = [
+  { from: "#002642", to: "#0b3c5d" },
+  { from: "#840032", to: "#a33a60" },
+  { from: "#e59500", to: "#f2b344" },
+  { from: "#5B834D", to: "#68915a" },
+  { from: "#02040f", to: "#1b2640" },
+];
+
+function matchesSearch(service: ServiceCatalogItem, term: string) {
   const normalizedTerm = normalizeSearchValue(term);
   if (!normalizedTerm) return true;
   const haystack = normalizeSearchValue(
     [
       service.name,
       service.category ?? "",
-      ...service.actions.map((action) => action.label ?? action.title ?? action.id),
-      ...service.reactions.map((reaction) => reaction.label ?? reaction.title ?? reaction.id),
+      ...service.actions,
+      ...service.reactions,
     ].join(" "),
   );
   return haystack.includes(normalizedTerm);
@@ -45,26 +69,40 @@ function buildBadge(name: string) {
   return letters.toUpperCase();
 }
 
-function mapBackendService(provider: ProviderSummary, index: number): MockService {
+function toActionLabel(item: { label?: string; title?: string }) {
+  return item.label?.trim() || item.title?.trim() || "";
+}
+
+function mapBackendService(
+  provider: ProviderSummary,
+  index: number,
+  config: Awaited<ReturnType<typeof fetchServiceConfig>> | null,
+): ServiceCatalogItem {
   const serviceId = provider.name;
-  const template = serviceTemplatesById.get(serviceId);
+  const gradient = gradientPalette[index % gradientPalette.length];
+  const rawName =
+    config?.label?.trim() ||
+    config?.name?.trim() ||
+    formatServiceNameFromId(serviceId) ||
+    serviceId;
+  const name = rawName || serviceId;
   const formattedName = formatServiceNameFromId(serviceId);
-  const name = template?.name ?? (formattedName || serviceId);
-  const badge = template?.badge ?? buildBadge(name || serviceId);
-  const gradient = template?.gradient ?? gradientPalette[index % gradientPalette.length];
-  const logoUrl = provider.logo_url ?? template?.logoUrl;
+  const badge = buildBadge(name || formattedName || serviceId);
+  const logoUrl = config?.logo_url ?? config?.icon_url ?? provider.logo_url;
+  const actions = (config?.actions ?? []).map(toActionLabel).filter(Boolean);
+  const reactions = (config?.reactions ?? []).map(toActionLabel).filter(Boolean);
 
   return {
     id: serviceId,
     name,
-    url: template?.url ?? "#",
+    url: undefined,
     badge,
     logoUrl,
-    category: template?.category,
+    category: undefined,
     gradient,
-    actions: template?.actions ?? [],
-    reactions: template?.reactions ?? [],
-    connected: template?.connected ?? false,
+    actions,
+    reactions,
+    connected: false,
   };
 }
 
@@ -76,7 +114,7 @@ export function ServicesClient() {
     enabled: hasOAuthParams,
   });
   const isProcessingOAuth = hasOAuthParams && oauthStatus !== "error";
-  const [services, setServices] = useState<MockService[]>([]);
+  const [services, setServices] = useState<ServiceCatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
@@ -96,6 +134,16 @@ export function ServicesClient() {
         return true;
       });
 
+      const configs = await Promise.all(
+        uniqueProviders.map(async (provider) => {
+          try {
+            return await fetchServiceConfig(provider.name);
+          } catch {
+            return null;
+          }
+        }),
+      );
+
       let statusByService: Record<string, { is_logged: boolean; logo_url?: string }> = {};
       if (token && user?.id) {
         const statuses = await fetchUserServiceStatuses(token, user.id);
@@ -112,10 +160,10 @@ export function ServicesClient() {
 
       const mappedServices = uniqueProviders.map((provider, index) => {
         const status = statusByService[provider.name];
-        const base = mapBackendService(provider, index);
+        const base = mapBackendService(provider, index, configs[index] ?? null);
         return {
           ...base,
-          logoUrl: provider.logo_url ?? status?.logo_url ?? base.logoUrl,
+          logoUrl: status?.logo_url ?? base.logoUrl,
           connected: Boolean(status?.is_logged),
         };
       });
@@ -163,6 +211,27 @@ export function ServicesClient() {
           ? err.message
           : "Une erreur est survenue lors de la connexion du service.";
       setError(message);
+    }
+  };
+
+  const handleDisconnect = async (serviceId: string) => {
+    if (!token) {
+      setError("Vous devez être connecté pour déconnecter un service.");
+      updateConnection(serviceId, true);
+      return;
+    }
+
+    try {
+      setError(null);
+      await disconnectProvider(token, serviceId);
+      updateConnection(serviceId, false);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue lors de la déconnexion du service.";
+      setError(message);
+      updateConnection(serviceId, true);
     }
   };
 
@@ -250,6 +319,7 @@ export function ServicesClient() {
                     value={modalSearch}
                     onChange={(event) => setModalSearch(event.target.value)}
                     placeholder="Rechercher un service (Slack, Gmail, Discord...)"
+                    aria-label="Rechercher un service à connecter"
                     className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-11 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
                   />
                 </div>
@@ -282,13 +352,13 @@ export function ServicesClient() {
                         key={service.id}
                         name={service.name}
                         url={service.url}
-                        badge={service.badge}
-                        logoUrl={service.logoUrl}
-                        category={service.category}
-                        gradientFrom={service.gradient.from}
-                        gradientTo={service.gradient.to}
-                          actions={service.actions.map((action) => action.label ?? action.id)}
-                          reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
+                          badge={service.badge}
+                          logoUrl={service.logoUrl}
+                          category={service.category}
+                          gradientFrom={service.gradient.from}
+                          gradientTo={service.gradient.to}
+                          actions={service.actions}
+                          reactions={service.reactions}
                           connected={service.connected}
                           action="À connecter"
                           onConnect={() => handleConnect(service.id)}
@@ -365,6 +435,7 @@ export function ServicesClient() {
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Rechercher un service (Slack, Gmail, Discord...)"
+                aria-label="Rechercher un service"
                 className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-11 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--blue-primary-3)] focus:outline-none focus:ring-2 focus:ring-[var(--blue-primary-3)]/25"
               />
             </div>
@@ -422,11 +493,11 @@ export function ServicesClient() {
                     category={service.category}
                     gradientFrom={service.gradient.from}
                     gradientTo={service.gradient.to}
-                    actions={service.actions.map((action) => action.label ?? action.id)}
-                    reactions={service.reactions.map((reaction) => reaction.label ?? reaction.id)}
+                    actions={service.actions}
+                    reactions={service.reactions}
                     connected={service.connected}
                     action="Connecté"
-                    onDisconnect={() => updateConnection(service.id, false)}
+                    onDisconnect={() => handleDisconnect(service.id)}
                   />
                 ))}
               </div>

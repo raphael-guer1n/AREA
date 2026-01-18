@@ -187,3 +187,26 @@ export async function fetchUserServiceStatuses(
     return [];
   }
 }
+
+export async function disconnectProvider(token: string, provider: string): Promise<void> {
+  const response = await fetch(`${BACKEND_BASE_URL}/oauth2/disconnect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ provider }),
+  });
+
+  const body = (await response.json().catch(() => null)) as
+    | { success?: boolean; error?: string; message?: string }
+    | null;
+
+  if (!response.ok || body?.success === false || body?.error) {
+    const errorMessage =
+      body?.error ??
+      body?.message ??
+      `Impossible de déconnecter le service (statut ${response.status}).`;
+    throw new Error(errorMessage);
+  }
+}

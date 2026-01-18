@@ -1,0 +1,34 @@
+{
+  "name": "microsoft_outlook",
+  "payload_format": "json",
+  "interval_seconds": 60,
+  "request": {
+    "method": "GET",
+    "url_template": "https://graph.microsoft.com/v1.0/me/mailFolders/{{config.folder}}/messages",
+    "query_params": {
+      "$top": "{{config.top}}",
+      "$orderby": "receivedDateTime desc",
+      "$filter": "{{config.filter}}"
+    },
+    "headers": {
+      "ConsistencyLevel": "eventual",
+      "Prefer": "HonorNonIndexedQueriesWarning=true"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer ",
+      "provider": "microsoft"
+    }
+  },
+  "items_path": "value",
+  "item_id_path": "id",
+  "mappings": [
+    { "field_key": "id", "json_path": "id", "type": "string" },
+    { "field_key": "subject", "json_path": "subject", "type": "string" },
+    { "field_key": "from", "json_path": "from.emailAddress.address", "type": "string", "optional": true },
+    { "field_key": "body_preview", "json_path": "bodyPreview", "type": "string", "optional": true },
+    { "field_key": "receivedDateTime", "json_path": "receivedDateTime", "type": "string" },
+    { "field_key": "hasAttachments", "json_path": "hasAttachments", "type": "boolean", "optional": true }
+  ]
+}

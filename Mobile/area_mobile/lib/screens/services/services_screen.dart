@@ -244,21 +244,25 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: _filterServices,
-                          decoration: InputDecoration(
-                            hintText: 'Rechercher un service connecté...',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      _filterServices('');
-                                    },
-                                  )
-                                : null,
+                        child: Semantics(
+                          label: 'Rechercher un service connecté',
+                          textField: true,
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: _filterServices,
+                            decoration: InputDecoration(
+                              hintText: 'Rechercher un service connecté...',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        _filterServices('');
+                                      },
+                                    )
+                                  : null,
+                            ),
                           ),
                         ),
                       ),
@@ -476,12 +480,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _connectSearchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText: 'Rechercher un service à connecter',
+                    Semantics(
+                      label: 'Rechercher un service à connecter',
+                      textField: true,
+                      child: TextField(
+                        controller: _connectSearchController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search),
+                          hintText: 'Rechercher un service à connecter',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),

@@ -12,6 +12,14 @@ import '../../theme/colors.dart';
 
 enum AreaWizardStep { action, reaction, details }
 
+Map<String, String> _initFieldValues(List<AreaFieldDefinition> fields) {
+  final out = <String, String>{};
+  for (final f in fields) {
+    out[f.name] = f.defaultValue ?? '';
+  }
+  return out;
+}
+
 class CreateAreaScreen extends StatefulWidget {
   const CreateAreaScreen({super.key});
 
@@ -29,22 +37,17 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   List<_MobileService> _services = [];
 
   _MobileService? _actionService;
-  _MobileService? _reactionService;
-
   _MobileAction? _selectedAction;
-  _MobileReaction? _selectedReaction;
 
   Map<String, String> _actionFieldValues = {};
-  Map<String, String> _reactionFieldValues = {};
-
-  final Map<String, TextEditingController> _reactionControllers = {};
-  final Map<String, FocusNode> _reactionFocusNodes = {};
-  String? _focusedReactionField;
+  final List<_ReactionForm> _reactions = [];
+  int _reactionId = 0;
 
   String _areaName = '';
   AreaWizardStep _wizardStep = AreaWizardStep.action;
   String? _createError;
   bool _isCreating = false;
+  bool _showAllActionServices = true;
 
   @override
   void initState() {
@@ -56,12 +59,6 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
 
   @override
   void dispose() {
-    for (final c in _reactionControllers.values) {
-      c.dispose();
-    }
-    for (final f in _reactionFocusNodes.values) {
-      f.dispose();
-    }
     super.dispose();
   }
 
@@ -121,14 +118,6 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     }
   }
 
-  Map<String, String> _initValues(List<AreaFieldDefinition> fields) {
-    final out = <String, String>{};
-    for (final f in fields) {
-      out[f.name] = f.defaultValue ?? '';
-    }
-    return out;
-  }
-
   bool _requiredFilled(
     List<AreaFieldDefinition> fields,
     Map<String, String> values,
@@ -147,11 +136,20 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
         _requiredFilled(_selectedAction!.fields, _actionFieldValues);
   }
 
+  bool _reactionIsValid(_ReactionForm reaction) {
+    if (reaction.service == null ||
+        reaction.reaction == null ||
+        !(reaction.service?.connected ?? false)) {
+      return false;
+    }
+    return _requiredFilled(
+      reaction.reaction!.fields,
+      reaction.fieldValues,
+    );
+  }
+
   bool get _canProceedReaction {
-    return _reactionService != null &&
-        _reactionService!.connected &&
-        _selectedReaction != null &&
-        _requiredFilled(_selectedReaction!.fields, _reactionFieldValues);
+    return _reactions.isNotEmpty && _reactions.every(_reactionIsValid);
   }
 
   bool get _canCreate {
@@ -161,18 +159,30 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   }
 
   void _next() {
-    if (_wizardStep == AreaWizardStep.action && _canProceedAction) {
-      setState(() {
-        _wizardStep = AreaWizardStep.reaction;
-        _createError = null;
-      });
+    if (_wizardStep == AreaWizardStep.action) {
+      if (_canProceedAction) {
+        setState(() {
+          _wizardStep = AreaWizardStep.reaction;
+          _createError = null;
+        });
+      } else {
+        setState(() {
+          _createError = 'Complétez le déclencheur avant de continuer.';
+        });
+      }
       return;
     }
-    if (_wizardStep == AreaWizardStep.reaction && _canProceedReaction) {
-      setState(() {
-        _wizardStep = AreaWizardStep.details;
-        _createError = null;
-      });
+    if (_wizardStep == AreaWizardStep.reaction) {
+      if (_canProceedReaction) {
+        setState(() {
+          _wizardStep = AreaWizardStep.details;
+          _createError = null;
+        });
+      } else {
+        setState(() {
+          _createError = 'Ajoutez au moins une réaction complète.';
+        });
+      }
     }
   }
 
@@ -222,111 +232,40 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     onChanged(fieldName, dt.toUtc().toIso8601String());
   }
 
-  void _initReactionEditors(List<AreaFieldDefinition> fields) {
-    for (final c in _reactionControllers.values) {
-      c.dispose();
-    }
-    for (final f in _reactionFocusNodes.values) {
-      f.dispose();
-    }
-    _reactionControllers.clear();
-    _reactionFocusNodes.clear();
-    _focusedReactionField = null;
-
-    for (final field in fields) {
-      final initial =
-          _reactionFieldValues[field.name] ?? (field.defaultValue ?? '');
-      final controller = TextEditingController(text: initial);
-      final focusNode = FocusNode();
-
-      focusNode.addListener(() {
-        if (focusNode.hasFocus) {
-          setState(() {
-            _focusedReactionField = field.name;
-          });
-        }
-      });
-
-      _reactionControllers[field.name] = controller;
-      _reactionFocusNodes[field.name] = focusNode;
-    }
-  }
-
-  Future<void> _insertOrCopyOutputPlaceholder(String outputName) async {
-    final placeholder = '{{${outputName.trim()}}}';
-
-    // Insert into last focused reaction field (even if focus was lost when tapping)
-    final target = _focusedReactionField;
-    if (target == null || !_reactionControllers.containsKey(target)) {
-      await Clipboard.setData(ClipboardData(text: placeholder));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Copié: $placeholder'),
-          backgroundColor: context.appColors.deepBlue,
-        ),
-      );
-      return;
-    }
-
-    final controller = _reactionControllers[target]!;
-    final focusNode = _reactionFocusNodes[target];
-
-    final text = controller.text;
-    final sel = controller.selection;
-
-    final start = (sel.start >= 0 && sel.start <= text.length)
-        ? sel.start
-        : text.length;
-    final end =
-        (sel.end >= 0 && sel.end <= text.length) ? sel.end : text.length;
-
-    final newText = text.replaceRange(start, end, placeholder);
-    controller.text = newText;
-    controller.selection = TextSelection.collapsed(
-      offset: start + placeholder.length,
-    );
-
-    // restore focus + keep model in sync
-    focusNode?.requestFocus();
+  void _resetActionSelection() {
     setState(() {
-      _reactionFieldValues = {
-        ..._reactionFieldValues,
-        target: newText,
-      };
+      _actionService = null;
+      _selectedAction = null;
+      _actionFieldValues = {};
+      _showAllActionServices = true;
+      _createError = null;
     });
   }
-
-  Widget _outputFieldsPanel({
-    required ThemeData theme,
-    required AppColorPalette colors,
-    required List<OutputFieldDto> outputFields,
-  }) {
-    if (outputFields.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Variables disponibles (output)', theme, colors),
-        Text(
-          'Touchez une variable pour l’insérer dans le champ sélectionné (ex: {{delay}}).',
-          style: theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+  Future<void> _openReactionEditor({
+    required _ReactionForm reaction,
+  }) async {
+    final result = await Navigator.of(context).push<_ReactionForm>(
+      MaterialPageRoute(
+        builder: (context) => _ReactionEditorScreen(
+          initial: reaction,
+          services:
+              _services.where((s) => s.connected && s.reactions.isNotEmpty).toList(),
+          outputFields: _selectedAction?.outputFields ?? const [],
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: outputFields.map((f) {
-            final display = f.label.isNotEmpty ? f.label : f.name;
-            return ActionChip(
-              label: Text(display),
-              onPressed: () => _insertOrCopyOutputPlaceholder(f.name),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-      ],
+      ),
     );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      final index = _reactions.indexWhere((item) => item.id == result.id);
+      if (index >= 0) {
+        _reactions[index] = result;
+      } else {
+        _reactions.add(result);
+      }
+      _createError = null;
+    });
   }
 
   Future<void> _createArea() async {
@@ -359,20 +298,20 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
           .toList(),
     );
 
-    // Read reaction values from controllers (authoritative) if present
-    final reactionInputs = _selectedReaction!.fields.map((f) {
-      final controllerText = _reactionControllers[f.name]?.text;
-      final v = (controllerText ?? _reactionFieldValues[f.name] ?? '').trim();
-      return InputFieldDto(name: f.name, value: v);
+    final reactions = _reactions.map((reaction) {
+      final fields = reaction.reaction?.fields ?? const <AreaFieldDefinition>[];
+      final inputs = fields.map((f) {
+        final v = (reaction.fieldValues[f.name] ?? '').trim();
+        return InputFieldDto(name: f.name, value: v);
+      }).toList();
+      return AreaReactionDto(
+        id: 0,
+        provider: reaction.service?.provider ?? '',
+        service: reaction.service?.id ?? '',
+        title: reaction.reaction?.title ?? '',
+        input: inputs,
+      );
     }).toList();
-
-    final reaction = AreaReactionDto(
-      id: 0,
-      provider: _reactionService!.provider,
-      service: _reactionService!.id,
-      title: _selectedReaction!.title,
-      input: reactionInputs,
-    );
 
     final area = AreaDto(
       id: 0,
@@ -380,7 +319,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
       active: true,
       userId: 0,
       actions: [action],
-      reactions: [reaction],
+      reactions: reactions,
     );
 
     final provider = context.read<AreaProvider>();
@@ -422,10 +361,12 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     final theme = Theme.of(context);
     final colors = context.appColors;
 
-    final actionServices =
-        _services.where((s) => s.actions.isNotEmpty).toList(growable: false);
-    final reactionServices =
-        _services.where((s) => s.reactions.isNotEmpty).toList(growable: false);
+    final actionServices = _services
+        .where((s) => s.connected && s.actions.isNotEmpty)
+        .toList(growable: false);
+    final reactionServices = _services
+        .where((s) => s.connected && s.reactions.isNotEmpty)
+        .toList(growable: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -433,7 +374,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
           _wizardStep == AreaWizardStep.action
               ? '1/3 · Action'
               : _wizardStep == AreaWizardStep.reaction
-                  ? '2/3 · Réaction'
+                  ? '2/3 · Réactions'
                   : '3/3 · Détails',
         ),
       ),
@@ -470,11 +411,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                           child: _wizardStep == AreaWizardStep.action
                               ? _buildActionStep(theme, colors, actionServices)
                               : _wizardStep == AreaWizardStep.reaction
-                                  ? _buildReactionStep(
-                                      theme,
-                                      colors,
-                                      reactionServices,
-                                    )
+                              ? _buildReactionStep(reactionServices)
                                   : _buildDetailsStep(theme, colors),
                         ),
                       ),
@@ -529,33 +466,43 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_createError != null)
+          _ErrorCard(message: _createError!),
         _Section(
           title: 'Action (Déclencheur)',
-          subtitle:
-              'Choisissez un service, puis un déclencheur. Les services non connectés sont désactivés.',
+          subtitle: 'Choisissez un service puis un déclencheur.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _label('Service', theme, colors),
-              _serviceGrid(
-                services,
-                selectedId: _actionService?.id,
-                onTap: (s) {
-                  if (!s.connected) {
-                    _toastConnect();
-                    return;
-                  }
-                  final first = s.actions.isNotEmpty ? s.actions.first : null;
-                  setState(() {
-                    _actionService = s;
-                    _selectedAction = first;
-                    _actionFieldValues =
-                        first != null ? _initValues(first.fields) : {};
-                  });
-                },
-              ),
+              const _SectionLabel(text: 'Service'),
+              if (services.isEmpty)
+                const _MutedPanel(text: 'Aucun service connecté disponible.')
+              else if (_actionService == null || _showAllActionServices)
+                _ServiceGrid(
+                  services: services,
+                  selectedId: _actionService?.id,
+                  onTap: (s) {
+                    if (!s.connected) {
+                      _toastConnect();
+                      return;
+                    }
+                    final first = s.actions.isNotEmpty ? s.actions.first : null;
+                    setState(() {
+                      _actionService = s;
+                      _selectedAction = first;
+                      _actionFieldValues =
+                          first != null ? _initFieldValues(first.fields) : {};
+                      _showAllActionServices = false;
+                    });
+                  },
+                )
+              else
+                _SelectedServiceCard(
+                  service: _actionService!,
+                  onChange: _resetActionSelection,
+                ),
               const SizedBox(height: 16),
-              _label('Déclencheur', theme, colors),
+              const _SectionLabel(text: 'Déclencheur'),
               if (_actionService == null)
                 Text(
                   'Choisissez un service.',
@@ -574,7 +521,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                       onChanged: (_) {
                         setState(() {
                           _selectedAction = a;
-                          _actionFieldValues = _initValues(a.fields);
+                          _actionFieldValues = _initFieldValues(a.fields);
                         });
                       },
                     );
@@ -582,7 +529,7 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                 ),
               if (_selectedAction != null) ...[
                 const SizedBox(height: 16),
-                _label('Paramètres', theme, colors),
+                const _SectionLabel(text: 'Paramètres'),
                 _FieldList(
                   keyPrefix: _selectedAction!.title,
                   fields: _selectedAction!.fields,
@@ -594,14 +541,6 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                   },
                   onDatePick: _pickDateTime,
                 ),
-                // You can keep output fields visible here too (copy/insert will still work,
-                // but insertion will target reaction fields only)
-                const SizedBox(height: 8),
-                _outputFieldsPanel(
-                  theme: theme,
-                  colors: colors,
-                  outputFields: _selectedAction!.outputFields,
-                ),
               ],
             ],
           ),
@@ -610,90 +549,61 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     );
   }
 
-  Widget _buildReactionStep(
-    ThemeData theme,
-    AppColorPalette colors,
-    List<_MobileService> services,
-  ) {
+  Widget _buildReactionStep(List<_MobileService> services) {
     return _Section(
-      title: 'Réaction',
-      subtitle:
-          'Choisissez un service, puis une action. Les services non connectés sont désactivés.',
+      title: 'Réactions',
+      subtitle: 'Ajoutez les actions exécutées.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _label('Service', theme, colors),
-          _serviceGrid(
-            services,
-            selectedId: _reactionService?.id,
-            onTap: (s) {
-              if (!s.connected) {
-                _toastConnect();
-                return;
-              }
-              final first = s.reactions.isNotEmpty ? s.reactions.first : null;
-
-              setState(() {
-                _reactionService = s;
-                _selectedReaction = first;
-                _reactionFieldValues =
-                    first != null ? _initValues(first.fields) : {};
-              });
-
-              if (_selectedReaction != null) {
-                _initReactionEditors(_selectedReaction!.fields);
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          _label('Action', theme, colors),
-          if (_reactionService == null)
-            Text(
-              'Choisissez un service.',
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+          if (_createError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _ErrorCard(message: _createError!),
+            ),
+          if (services.isEmpty)
+            _MutedPanel(
+              text: 'Aucun service connecté disponible.',
             )
-          else
-            Column(
-              children: _reactionService!.reactions.map((r) {
-                return RadioListTile<String>(
-                  value: r.title,
-                  groupValue: _selectedReaction?.title,
-                  title: Text(r.label),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (_) {
-                    setState(() {
-                      _selectedReaction = r;
-                      _reactionFieldValues = _initValues(r.fields);
-                    });
-                    _initReactionEditors(r.fields);
-                  },
+          else ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                final id = 'reaction-${_reactionId++}';
+                _openReactionEditor(
+                  reaction: _ReactionForm(id: id),
                 );
-              }).toList(),
-            ),
-          if (_selectedReaction != null) ...[
-            const SizedBox(height: 16),
-            _label('Paramètres', theme, colors),
-            _FieldList(
-              keyPrefix: _selectedReaction!.title,
-              fields: _selectedReaction!.fields,
-              values: _reactionFieldValues,
-              controllers: _reactionControllers,
-              focusNodes: _reactionFocusNodes,
-              onChanged: (name, value) {
-                setState(() {
-                  _reactionFieldValues = {..._reactionFieldValues, name: value};
-                });
               },
-              onDatePick: _pickDateTime,
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter une réaction'),
             ),
-            const SizedBox(height: 8),
-            if (_selectedAction != null)
-              _outputFieldsPanel(
-                theme: theme,
-                colors: colors,
-                outputFields: _selectedAction!.outputFields,
+            const SizedBox(height: 12),
+            if (_reactions.isEmpty)
+              _MutedPanel(
+                text: 'Aucune réaction ajoutée.',
+              )
+            else
+              Column(
+                children: _reactions.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final reaction = entry.value;
+                  final label = reaction.reaction?.label ??
+                      reaction.service?.displayName ??
+                      'Réaction ${index + 1}';
+                  final isValid = _reactionIsValid(reaction);
+
+                  return _ReactionSummaryCard(
+                    key: ValueKey(reaction.id),
+                    label: label,
+                    service: reaction.service,
+                    isValid: isValid,
+                    onTap: () => _openReactionEditor(reaction: reaction),
+                    onDelete: () {
+                      setState(() {
+                        _removeReaction(reaction);
+                      });
+                    },
+                  );
+                }).toList(),
               ),
           ],
         ],
@@ -702,9 +612,16 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
   }
 
   Widget _buildDetailsStep(ThemeData theme, AppColorPalette colors) {
+    final actionSummary = _actionService == null || _selectedAction == null
+        ? 'Action non définie'
+        : '${_actionService!.displayName} · ${_selectedAction!.label}';
+    final actionItems = _selectedAction == null
+        ? const <_SummaryItem>[]
+        : _buildFieldSummaryItems(_selectedAction!.fields, _actionFieldValues);
+
     return _Section(
       title: "Détails de l'AREA",
-      subtitle: 'Ajoutez un nom et validez la création.',
+      subtitle: 'Nom et validation.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -728,6 +645,50 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                 ),
               ),
             ),
+          const SizedBox(height: 12),
+          _SummaryCard(
+            title: 'Résumé',
+            children: [
+              _SummaryGroup(
+                title: 'Action',
+                subtitle: actionSummary,
+                items: actionItems,
+              ),
+              const SizedBox(height: 12),
+              if (_reactions.isEmpty)
+                Text(
+                  'Aucune réaction ajoutée.',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: colors.darkGrey),
+                )
+              else
+                Column(
+                  children: _reactions.asMap().entries.map((entry) {
+                    final index = entry.key + 1;
+                    final reaction = entry.value;
+                    final subtitle =
+                        reaction.service == null || reaction.reaction == null
+                            ? 'Réaction non définie'
+                            : '${reaction.service!.displayName} · ${reaction.reaction!.label}';
+                    final items = reaction.reaction == null
+                        ? const <_SummaryItem>[]
+                        : _buildFieldSummaryItems(
+                            reaction.reaction!.fields,
+                            reaction.fieldValues,
+                          );
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _SummaryGroup(
+                        title: 'Réaction $index',
+                        subtitle: subtitle,
+                        items: items,
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -742,24 +703,88 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
     );
   }
 
-  Widget _label(String text, ThemeData theme, AppColorPalette colors) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: colors.darkGrey,
-          fontWeight: FontWeight.w600,
-        ),
+  void _removeReaction(_ReactionForm reaction) {
+    _reactions.removeWhere((item) => item.id == reaction.id);
+    _createError = null;
+  }
+
+}
+
+List<_SummaryItem> _buildFieldSummaryItems(
+  List<AreaFieldDefinition> fields,
+  Map<String, String> values,
+) {
+  return fields.map((field) {
+    final value = values[field.name]?.trim() ?? '';
+    return _SummaryItem(
+      label: field.label,
+      value: value.isEmpty ? '—' : value,
+    );
+  }).toList();
+}
+
+class _SelectedServiceCard extends StatelessWidget {
+  final _MobileService service;
+  final VoidCallback onChange;
+
+  const _SelectedServiceCard({
+    required this.service,
+    required this.onChange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.grey),
+        boxShadow: [
+          BoxShadow(
+            color: colors.grey.withOpacity(0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _ServiceLogo(service: service, size: 34),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              service.displayName,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          TextButton(
+            onPressed: onChange,
+            child: const Text('Changer'),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _serviceGrid(
-    List<_MobileService> services, {
-    required String? selectedId,
-    required void Function(_MobileService) onTap,
-  }) {
+class _ServiceGrid extends StatelessWidget {
+  final List<_MobileService> services;
+  final String? selectedId;
+  final void Function(_MobileService) onTap;
+
+  const _ServiceGrid({
+    required this.services,
+    required this.selectedId,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.appColors;
 
     return GridView.builder(
@@ -788,25 +813,33 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
                 color: colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: selected ? colors.deepBlue : colors.grey,
-                  width: selected ? 1.4 : 1,
+                  color: selected ? colors.midBlue : colors.grey,
+                  width: selected ? 1.6 : 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: colors.grey.withOpacity(0.2),
+                    color: colors.grey.withOpacity(0.18),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  s.displayName,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
+              child: Row(
+                children: [
+                  _ServiceLogo(service: s, size: 30),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      s.displayName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: colors.almostBlack,
+                          ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -814,6 +847,729 @@ class _CreateAreaScreenState extends State<CreateAreaScreen> {
       },
     );
   }
+}
+
+class _ServiceLogo extends StatelessWidget {
+  final _MobileService service;
+  final double size;
+
+  const _ServiceLogo({required this.service, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final initials = service.displayName.isNotEmpty
+        ? service.displayName.trim().substring(0, 1).toUpperCase()
+        : '?';
+
+    if (service.logoUrl.isEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundColor: colors.deepBlue.withOpacity(0.1),
+        child: Text(
+          initials,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: colors.deepBlue,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size / 2),
+      child: Image.network(
+        service.logoUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => CircleAvatar(
+          radius: size / 2,
+          backgroundColor: colors.deepBlue.withOpacity(0.1),
+          child: Text(
+            initials,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colors.deepBlue,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReactionSummaryCard extends StatelessWidget {
+  final String label;
+  final _MobileService? service;
+  final bool isValid;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _ReactionSummaryCard({
+    super.key,
+    required this.label,
+    required this.service,
+    required this.isValid,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final badgeColor = isValid ? Colors.green : Colors.orange;
+    final badgeText = isValid ? 'Complet' : 'Incomplet';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.grey),
+            boxShadow: [
+              BoxShadow(
+                color: colors.grey.withOpacity(0.16),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              if (service != null) _ServiceLogo(service: service!, size: 34),
+              if (service != null) const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      service?.displayName ?? 'Service non défini',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.darkGrey,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: badgeColor.withOpacity(0.5)),
+                ),
+                child: Text(
+                  badgeText,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: badgeColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MutedPanel extends StatelessWidget {
+  final String text;
+
+  const _MutedPanel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.grey),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.darkGrey,
+            ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+
+  const _SectionLabel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colors.darkGrey,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+}
+
+class _ReactionEditorScreen extends StatefulWidget {
+  final _ReactionForm initial;
+  final List<_MobileService> services;
+  final List<OutputFieldDto> outputFields;
+
+  const _ReactionEditorScreen({
+    required this.initial,
+    required this.services,
+    required this.outputFields,
+  });
+
+  @override
+  State<_ReactionEditorScreen> createState() => _ReactionEditorScreenState();
+}
+
+class _ReactionEditorScreenState extends State<_ReactionEditorScreen> {
+  _MobileService? _service;
+  _MobileReaction? _reaction;
+  Map<String, String> _values = {};
+  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, FocusNode> _focusNodes = {};
+  String? _focusedField;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _service = widget.initial.service;
+    _reaction = widget.initial.reaction;
+    _values = Map<String, String>.from(widget.initial.fieldValues);
+    if (_reaction != null) {
+      _initControllers(_reaction!.fields);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    for (final f in _focusNodes.values) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  void _initControllers(List<AreaFieldDefinition> fields) {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    for (final f in _focusNodes.values) {
+      f.dispose();
+    }
+    _controllers.clear();
+    _focusNodes.clear();
+    _focusedField = null;
+
+    for (final field in fields) {
+      final initialValue = _values[field.name] ?? (field.defaultValue ?? '');
+      final controller = TextEditingController(text: initialValue);
+      final focusNode = FocusNode();
+
+      focusNode.addListener(() {
+        if (focusNode.hasFocus) {
+          setState(() {
+            _focusedField = field.name;
+          });
+        }
+      });
+
+      _controllers[field.name] = controller;
+      _focusNodes[field.name] = focusNode;
+    }
+  }
+
+  bool _requiredFilled(
+    List<AreaFieldDefinition> fields,
+    Map<String, String> values,
+  ) {
+    return fields.every((f) {
+      if (!f.required) return true;
+      final v = values[f.name];
+      return v != null && v.trim().isNotEmpty;
+    });
+  }
+
+  Future<void> _pickDateTime(
+    String fieldName,
+    void Function(String, String) onChanged,
+  ) async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (pickedTime == null) return;
+
+    final dt = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    onChanged(fieldName, dt.toUtc().toIso8601String());
+  }
+
+  Future<void> _insertToken(String outputName) async {
+    final placeholder = '{{${outputName.trim()}}}';
+    final target = _focusedField;
+
+    if (target == null || !_controllers.containsKey(target)) {
+      await Clipboard.setData(ClipboardData(text: placeholder));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Copié: $placeholder'),
+          backgroundColor: context.appColors.deepBlue,
+        ),
+      );
+      return;
+    }
+
+    final controller = _controllers[target]!;
+    final focusNode = _focusNodes[target];
+
+    final text = controller.text;
+    final sel = controller.selection;
+    final start = (sel.start >= 0 && sel.start <= text.length)
+        ? sel.start
+        : text.length;
+    final end =
+        (sel.end >= 0 && sel.end <= text.length) ? sel.end : text.length;
+
+    final newText = text.replaceRange(start, end, placeholder);
+    controller.text = newText;
+    controller.selection = TextSelection.collapsed(
+      offset: start + placeholder.length,
+    );
+
+    focusNode?.requestFocus();
+    setState(() {
+      _values = {
+        ..._values,
+        target: newText,
+      };
+    });
+  }
+
+  void _save() {
+    if (_service == null) {
+      setState(() {
+        _error = 'Choisissez un service.';
+      });
+      return;
+    }
+    if (_reaction == null) {
+      setState(() {
+        _error = 'Choisissez une action.';
+      });
+      return;
+    }
+
+    if (!_requiredFilled(_reaction!.fields, _values)) {
+      setState(() {
+        _error = 'Complétez les champs obligatoires.';
+      });
+      return;
+    }
+
+    final updated = _ReactionForm(
+      id: widget.initial.id,
+      service: _service,
+      reaction: _reaction,
+      fieldValues: Map<String, String>.from(_values),
+    );
+
+    Navigator.of(context).pop(updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = context.appColors;
+    final title = widget.initial.reaction == null
+        ? 'Nouvelle réaction'
+        : 'Modifier réaction';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ErrorCard(message: _error!),
+                ),
+              const _SectionLabel(text: 'Service'),
+              if (widget.services.isEmpty)
+                _MutedPanel(text: 'Aucun service connecté disponible.')
+              else if (_service == null)
+                _ServiceGrid(
+                  services: widget.services,
+                  selectedId: _service?.id,
+                  onTap: (s) {
+                    final first =
+                        s.reactions.isNotEmpty ? s.reactions.first : null;
+                    setState(() {
+                      _service = s;
+                      _reaction = first;
+                      _values =
+                          first != null ? _initFieldValues(first.fields) : {};
+                      _error = null;
+                    });
+                    if (_reaction != null) {
+                      _initControllers(_reaction!.fields);
+                    }
+                  },
+                )
+              else
+                _SelectedServiceCard(
+                  service: _service!,
+                  onChange: () {
+                    setState(() {
+                      _service = null;
+                      _reaction = null;
+                      _values = {};
+                      _controllers.clear();
+                      _focusNodes.clear();
+                    });
+                  },
+                ),
+              const SizedBox(height: 16),
+              const _SectionLabel(text: 'Action'),
+              if (_service == null)
+                Text(
+                  'Choisissez un service.',
+                  style:
+                      theme.textTheme.bodySmall?.copyWith(color: colors.darkGrey),
+                )
+              else
+                Column(
+                  children: _service!.reactions.map((r) {
+                    return RadioListTile<String>(
+                      value: r.title,
+                      groupValue: _reaction?.title,
+                      title: Text(r.label),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (_) {
+                        setState(() {
+                          _reaction = r;
+                          _values = _initFieldValues(r.fields);
+                          _error = null;
+                        });
+                        _initControllers(r.fields);
+                      },
+                    );
+                  }).toList(),
+                ),
+              if (_reaction != null) ...[
+                const SizedBox(height: 16),
+                const _SectionLabel(text: 'Paramètres'),
+                _FieldList(
+                  keyPrefix: '${widget.initial.id}-${_reaction!.title}',
+                  fields: _reaction!.fields,
+                  values: _values,
+                  controllers: _controllers,
+                  focusNodes: _focusNodes,
+                  onChanged: (name, value) {
+                    setState(() {
+                      _values = {..._values, name: value};
+                    });
+                  },
+                  onDatePick: _pickDateTime,
+                ),
+                const SizedBox(height: 12),
+                _OutputFieldsPanel(
+                  outputFields: widget.outputFields,
+                  onTapToken: _insertToken,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        child: ElevatedButton(
+          onPressed: (_service != null &&
+                  _reaction != null &&
+                  _requiredFilled(_reaction!.fields, _values))
+              ? _save
+              : null,
+          child: const Text('Suivant'),
+        ),
+      ),
+    );
+  }
+}
+
+class _OutputFieldsPanel extends StatelessWidget {
+  final List<OutputFieldDto> outputFields;
+  final void Function(String) onTapToken;
+
+  const _OutputFieldsPanel({
+    required this.outputFields,
+    required this.onTapToken,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (outputFields.isEmpty) return const SizedBox.shrink();
+
+    final colors = context.appColors;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.grey),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Variables',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Touchez pour insérer',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colors.darkGrey,
+                ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: outputFields.map((field) {
+              final label = field.label.isNotEmpty ? field.label : field.name;
+              return InkWell(
+                onTap: () => onTapToken(field.name),
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.midBlue,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _SummaryCard({
+    required this.title,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.midBlue.withOpacity(0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.grey.withOpacity(0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: colors.midBlue,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colors.deepBlue,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryGroup extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<_SummaryItem> items;
+
+  const _SummaryGroup({
+    required this.title,
+    required this.subtitle,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colors.darkGrey,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colors.almostBlack,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (items.isEmpty)
+          Text(
+            'Aucun paramètre',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colors.darkGrey,
+            ),
+          )
+        else
+          Column(
+            children: items.map((item) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      margin: const EdgeInsets.only(top: 6, right: 8),
+                      decoration: BoxDecoration(
+                        color: colors.midBlue,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${item.label} : ${item.value}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.almostBlack,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+}
+
+class _SummaryItem {
+  final String label;
+  final String value;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+  });
 }
 
 class _Section extends StatelessWidget {
@@ -836,12 +1592,12 @@ class _Section extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.white,
+        color: colors.lightGrey,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: colors.grey),
         boxShadow: [
           BoxShadow(
-            color: colors.grey.withOpacity(0.12),
+            color: colors.grey.withOpacity(0.18),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -850,7 +1606,26 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleMedium),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: colors.midBlue,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                      color: colors.deepBlue,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             subtitle,
@@ -859,6 +1634,29 @@ class _Section extends StatelessWidget {
           const SizedBox(height: 12),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _ErrorCard extends StatelessWidget {
+  final String message;
+
+  const _ErrorCard({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      color: Colors.red.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(
+          message,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: Colors.red.shade700),
+        ),
       ),
     );
   }
@@ -954,6 +1752,7 @@ class _MobileService {
   final String id;
   final String name;
   final String provider;
+  final String logoUrl;
   final bool connected;
   final List<_MobileAction> actions;
   final List<_MobileReaction> reactions;
@@ -962,6 +1761,7 @@ class _MobileService {
     required this.id,
     required this.name,
     required this.provider,
+    required this.logoUrl,
     required this.connected,
     required this.actions,
     required this.reactions,
@@ -973,6 +1773,9 @@ class _MobileService {
       id: cfg.name,
       name: cfg.label.isNotEmpty ? cfg.label : cfg.name,
       provider: cfg.provider,
+      logoUrl: cfg.logoUrl.isNotEmpty
+          ? cfg.logoUrl
+          : (cfg.iconUrl.isNotEmpty ? cfg.iconUrl : ''),
       connected: connected,
       actions: cfg.actions
           .map(
@@ -1048,4 +1851,18 @@ AreaFieldDefinition _fieldFromConfig(ServiceFieldConfigDto f) {
     required: f.required,
     defaultValue: f.defaultValue,
   );
+}
+
+class _ReactionForm {
+  final String id;
+  _MobileService? service;
+  _MobileReaction? reaction;
+  Map<String, String> fieldValues;
+
+  _ReactionForm({
+    required this.id,
+    this.service,
+    this.reaction,
+    Map<String, String>? fieldValues,
+  }) : fieldValues = fieldValues ?? {};
 }

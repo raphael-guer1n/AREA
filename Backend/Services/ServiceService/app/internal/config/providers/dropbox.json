@@ -12,7 +12,9 @@
     },
     "scopes": [
       "account_info.read",
-      "files.metadata.read"
+      "files.metadata.read",
+      "files.content.write",
+      "files.content.read"
     ],
     "user_info_url": "https://api.dropboxapi.com/2/users/get_current_account",
     "refresh": {
@@ -20,25 +22,9 @@
     }
   },
   "mappings": [
-    {
-      "field_key": "provider_user_id",
-      "json_path": "account_id",
-      "type": "string"
-    },
-    {
-      "field_key": "display_name",
-      "json_path": "name.display_name",
-      "type": "string"
-    },
-    {
-      "field_key": "email",
-      "json_path": "email",
-      "type": "string"
-    },
-    {
-      "field_key": "avatar_url",
-      "json_path": "profile_photo_url",
-      "type": "string"
-    }
+    { "field_key": "provider_user_id", "json_path": "account_id", "type": "string" },
+    { "field_key": "display_name", "json_path": "name.display_name", "type": "string" },
+    { "field_key": "email", "json_path": "email", "type": "string" },
+    { "field_key": "avatar_url", "json_path": "profile_photo_url", "type": "string" }
   ]
 }
