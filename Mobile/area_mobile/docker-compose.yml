@@ -1,7 +1,7 @@
 services:
   client_mobile:
     build:
-      context: ./area_mobile
+      context: .
       dockerfile: Dockerfile
       args:
         BASE_URL: ${MOBILE_BASE_URL:-https://api.area-connect.cloud}
@@ -10,8 +10,5 @@ services:
       APK_OUTPUT_PATH: /apk/client.apk
       EXIT_AFTER_BUILD: "true"
     volumes:
-      - apk_dist:/apk
+      - ./dist:/apk
     restart: "no"
-
-volumes:
-  apk_dist:

@@ -1,10 +1,10 @@
-.PHONY: help install dev build start lint clean docker-build docker-up docker-down docker-logs docker-restart
+.PHONY: help install dev build start run test init deps fmt lint clean docker-build docker-up docker-down docker-logs docker-restart up
 
 SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
-COMPOSE_FILE := ../docker-compose.yml
-COMPOSE_ENV := .env.docker
+COMPOSE_FILE := docker-compose.yml
+COMPOSE_ENV := .env
 COMPOSE_ARGS := --env-file $(COMPOSE_ENV)
 
 help: ## Show this help message
@@ -25,6 +25,18 @@ build: ## Build for production
 start: ## Start production server (requires build)
 	npm run start
 
+run: start ## Alias for start
+
+test: ## Run tests (not configured)
+	@echo "No test script configured in package.json."
+
+init: install ## Initialize local environment
+
+deps: install ## Install dependencies
+
+fmt: ## Format code (not configured)
+	@echo "No formatter script configured in package.json."
+
 lint: ## Run eslint
 	npm run lint
 
@@ -44,3 +56,5 @@ docker-logs: ## Tail Docker logs
 	docker compose $(COMPOSE_ARGS) -f $(COMPOSE_FILE) logs -f
 
 docker-restart: docker-down docker-up ## Restart Docker containers
+
+up: docker-up ## Alias for docker-up
