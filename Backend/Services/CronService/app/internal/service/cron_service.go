@@ -16,7 +16,7 @@ import (
 )
 
 type CronService struct {
-	repo           *repository.ActionRepository
+	repo           repository.ActionRepositoryInterface
 	cron           *cron.Cron
 	jobs           map[int]cron.EntryID
 	jobsMutex      sync.RWMutex
@@ -24,7 +24,7 @@ type CronService struct {
 	internalSecret string
 }
 
-func NewCronService(repo *repository.ActionRepository, areaServiceURL, internalSecret string) *CronService {
+func NewCronService(repo repository.ActionRepositoryInterface, areaServiceURL, internalSecret string) *CronService {
 	return &CronService{
 		repo:           repo,
 		cron:           cron.New(),
