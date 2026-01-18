@@ -334,14 +334,7 @@ func TestBuildMultipartMessage_MultipleRecipients(t *testing.T) {
 }
 
 func TestBuildHTMLBody_Success(t *testing.T) {
-	// Note: This test will fail if the template file doesn't exist
-	// In a real test environment, you would either:
-	// 1. Ensure the template file exists in the test environment
-	// 2. Mock the template loading
-	// 3. Skip this test in CI/CD if template is not available
-
-	t.Skip("Skipping test that requires template file - run manually when template is available")
-
+	t.Skip("Template file not accessible in test environment - requires runtime path setup")
 	subject := "Test Subject"
 	body := "Test body\nwith multiple lines"
 
@@ -354,8 +347,7 @@ func TestBuildHTMLBody_Success(t *testing.T) {
 }
 
 func TestBuildHTMLBody_EscapesHTML(t *testing.T) {
-	t.Skip("Skipping test that requires template file - run manually when template is available")
-
+	t.Skip("Template file not accessible in test environment - requires runtime path setup")
 	subject := "Test <script>alert('xss')</script>"
 	body := "Body with <script>alert('xss')</script> tags"
 
