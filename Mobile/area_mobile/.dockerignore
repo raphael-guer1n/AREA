@@ -1,0 +1,15 @@
+.dart_tool
+.env*
+.flutter-plugins
+.flutter-plugins-dependencies
+.git
+.gitignore
+.metadata
+build
+dist
+ios/Pods
+android/.gradle
+android/.idea
+android/local.properties
+scripts/*.log
+**/*.iml

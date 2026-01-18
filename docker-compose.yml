@@ -1,0 +1,61 @@
+services:
+  client_mobile:
+    build:
+      context: ./Mobile/area_mobile
+      dockerfile: Dockerfile
+      args:
+        BASE_URL: ${MOBILE_BASE_URL:-https://api.area-connect.cloud}
+    environment:
+      BASE_URL: ${MOBILE_BASE_URL:-https://api.area-connect.cloud}
+      APK_OUTPUT_PATH: /apk/client.apk
+      EXIT_AFTER_BUILD: "true"
+    volumes:
+      - apk_dist:/apk
+    networks:
+      - area_network
+    restart: "no"
+
+  client_web:
+    build:
+      context: ./Web/frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+        API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-8081}
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://app.area-connect.cloud}
+      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-https://app.area-connect.cloud}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      NEXT_FONT_GOOGLE_DISABLE: ${NEXT_FONT_GOOGLE_DISABLE:-1}
+      APK_FILE_PATH: /apk/client.apk
+    depends_on:
+      - client_mobile
+    ports:
+      - "${WEB_PORT:-8081}:${WEB_PORT:-8081}"
+    volumes:
+      - apk_dist:/apk
+    networks:
+      - area_network
+    restart: unless-stopped
+
+volumes:
+  apk_dist:
+
+networks:
+  area_network:
+    name: area_network
