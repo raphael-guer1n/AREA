@@ -1,12 +1,247 @@
 services:
+  gateway:
+    build:
+      context: ./Backend/Gateway
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Gateway/configs/gateway.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Backend/Gateway/services-config:/root/services-config:ro
+      - ./Backend/Gateway/configs:/root/configs:ro
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_auth_api:
+    build:
+      context: ./Backend/Services/AuthService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/AuthService/.env
+    environment:
+      DB_HOST: area_auth_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_auth_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_auth_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_service_db
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/AuthService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_service_api:
+    build:
+      context: ./Backend/Services/ServiceService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/ServiceService/.env
+    environment:
+      DB_HOST: area_service_db
+      DB_PORT: 5432
+    depends_on:
+      area_service_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_service_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: service_service_db
+    volumes:
+      - service_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/ServiceService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_area_api:
+    build:
+      context: ./Backend/Services/AreaService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/AreaService/.env
+    environment:
+      DB_HOST: area_area_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_area_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_area_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: area_area_db
+    volumes:
+      - area_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/AreaService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_webhook_api:
+    build:
+      context: ./Backend/Services/WebhookService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/WebhookService/.env
+    environment:
+      DB_HOST: area_webhook_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_webhook_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_webhook_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webhook_service_db
+    volumes:
+      - webhook_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/WebhookService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_polling_api:
+    build:
+      context: ./Backend/Services/PollingService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/PollingService/.env
+    environment:
+      DB_HOST: area_polling_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_polling_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_polling_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: polling_service_db
+    volumes:
+      - polling_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/PollingService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_cron_api:
+    build:
+      context: ./Backend/Services/CronService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/CronService/.env
+    environment:
+      DB_HOST: area_cron_db
+      DB_PORT: 5432
+      SERVER_PORT: 8088
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_cron_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_cron_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cron_service_db
+    volumes:
+      - cron_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/CronService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_mail_api:
+    build:
+      context: ./Backend/Services/MailService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/MailService/.env
+    networks:
+      - area_network
+    restart: unless-stopped
+
   client_mobile:
     build:
       context: ./Mobile/area_mobile
       dockerfile: Dockerfile
       args:
-        BASE_URL: ${MOBILE_BASE_URL:-https://api.area-connect.cloud}
+        BASE_URL: ${MOBILE_BASE_URL:-http://gateway:8080}
     environment:
-      BASE_URL: ${MOBILE_BASE_URL:-https://api.area-connect.cloud}
+      BASE_URL: ${MOBILE_BASE_URL:-http://gateway:8080}
       APK_OUTPUT_PATH: /apk/client.apk
       EXIT_AFTER_BUILD: "true"
     volumes:
@@ -21,30 +256,31 @@ services:
       dockerfile: Dockerfile
       args:
         NODE_ENV: production
-        API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
-        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
-        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
-        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
-        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+        API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
+        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
+        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
     environment:
       NODE_ENV: production
       PORT: ${WEB_PORT:-8081}
       HOSTNAME: 0.0.0.0
-      API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
-      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
-      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
-      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
-      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://app.area-connect.cloud}
-      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-https://app.area-connect.cloud}
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
+      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
+      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:8081}
+      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-http://localhost:8081}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       NEXT_FONT_GOOGLE_DISABLE: ${NEXT_FONT_GOOGLE_DISABLE:-1}
       APK_FILE_PATH: /apk/client.apk
     depends_on:
       - client_mobile
+      - gateway
     ports:
       - "${WEB_PORT:-8081}:${WEB_PORT:-8081}"
     volumes:
@@ -55,6 +291,12 @@ services:
 
 volumes:
   apk_dist:
+  auth_db_data:
+  service_db_data:
+  area_db_data:
+  webhook_db_data:
+  polling_db_data:
+  cron_db_data:
 
 networks:
   area_network:
