@@ -163,7 +163,6 @@ func TestSubscriptionService_CreateSubscription_Success(t *testing.T) {
 }
 
 func TestSubscriptionService_CreateSubscription_ActionAlreadyExists(t *testing.T) {
-	t.Skip("Test requires refactoring to support proper mocking of services")
 	mockRepo := new(MockSubscriptionRepository)
 	mockProviderConfig := new(MockProviderConfigService)
 	mockWebhookSetup := new(MockWebhookSetupService)
@@ -187,7 +186,6 @@ func TestSubscriptionService_CreateSubscription_ActionAlreadyExists(t *testing.T
 }
 
 func TestSubscriptionService_CreateSubscription_ProviderNotSupported(t *testing.T) {
-	t.Skip("Test requires refactoring to support proper mocking of services")
 	mockRepo := new(MockSubscriptionRepository)
 	mockProviderConfig := new(MockProviderConfigService)
 	mockWebhookSetup := new(MockWebhookSetupService)
@@ -207,7 +205,6 @@ func TestSubscriptionService_CreateSubscription_ProviderNotSupported(t *testing.
 }
 
 func TestSubscriptionService_CreateSubscription_InvalidConfig(t *testing.T) {
-	t.Skip("Test requires refactoring to support proper mocking of services")
 	mockRepo := new(MockSubscriptionRepository)
 	mockProviderConfig := new(MockProviderConfigService)
 	mockWebhookSetup := new(MockWebhookSetupService)
