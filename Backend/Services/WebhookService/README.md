@@ -9,13 +9,15 @@ Webhook receiver and subscription service for AREA. It stores webhook subscripti
 docker-compose up -d
 ```
 
-The API should be accessed through the gateway at `http://localhost:8080/webhook-service`.
+The API should be accessed through the gateway at `http://localhost:8080/area_webhook_api`.
 
 ## API Endpoints
 
 - **GET** `/health` - Check service health
-- **POST** `/subscriptions` - Create a webhook subscription (intended for internal use via AreaService)
-- **GET** `/subscriptions/{hookId}` - Fetch a subscription
+- **POST** `/actions` - Create webhook subscriptions for AREA actions (requires Authorization)
+- **PUT** `/actions` - Update webhook subscriptions (requires Authorization)
+- **GET** `/actions/{actionId}` - Fetch webhook info by action_id (requires Authorization)
+- **DELETE** `/actions/{actionId}` - Delete webhook subscription by action_id (requires Authorization)
 - **POST** `/webhooks/{provider}/{hookId}` - Receive a webhook
 
 ## Configuration
@@ -24,22 +26,25 @@ Environment variables can be configured in `.env`:
 
 ```env
 DB_HOST=localhost
-DB_PORT=5432
+DB_INTERNAL_PORT=5432
+DB_EXTERNAL_PORT=5436
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=webhook_service_db
-SERVER_PORT=8085
-SERVICE_SERVICE_URL=http://gateway:8080/service-service
-AUTH_SERVICE_URL=http://gateway:8080/auth-service
-AREA_SERVICE_URL=http://gateway:8080/area-service
-PUBLIC_BASE_URL=https://api.example.com/webhook-service
+SERVER_PORT=8086
+INTERNAL_SECRET=secret123
+SERVICE_SERVICE_URL=http://gateway:8080/area_service_api
+AUTH_SERVICE_URL=http://gateway:8080/area_auth_api
+AREA_SERVICE_URL=http://gateway:8080/area_area_api
+PUBLIC_BASE_URL=https://api.example.com/area_webhook_api
+LOG_ALL_REQUESTS=false
 ```
 
 ## Provider Configs
 
 Webhook providers (signature rules, event headers, mappings, setup templates) are configured in `Services/ServiceService/app/internal/config/webhooks/*.json` and served by ServiceService. If a provider defines a `setup` block with OAuth2 auth, WebhookService will create the webhook automatically using the user's OAuth2 token from AuthService.
 
-When running behind the gateway, `PUBLIC_BASE_URL` must include the `/webhook-service` prefix so providers call the gateway route rather than the service directly.
+When running behind the gateway, `PUBLIC_BASE_URL` must include the `/area_webhook_api` prefix so providers call the gateway route rather than the service directly.
 
 ## Signature Support
 

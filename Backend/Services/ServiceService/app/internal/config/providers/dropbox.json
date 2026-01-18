@@ -1,37 +1,30 @@
 {
   "name": "dropbox",
+  "logo_url": "https://cdn.simpleicons.org/dropbox/0061FF",
   "oauth2": {
     "client_id": "DROPBOX_CLIENT_ID",
     "client_secret": "DROPBOX_CLIENT_SECRET",
     "auth_url": "https://www.dropbox.com/oauth2/authorize",
     "token_url": "https://api.dropboxapi.com/oauth2/token",
     "redirect_uri": "http://localhost:8083/oauth2/callback",
+    "auth_params": {
+      "token_access_type": "offline"
+    },
     "scopes": [
       "account_info.read",
-      "files.metadata.read"
+      "files.metadata.read",
+      "files.content.write",
+      "files.content.read"
     ],
-    "user_info_url": "https://api.dropboxapi.com/2/users/get_current_account"
+    "user_info_url": "https://api.dropboxapi.com/2/users/get_current_account",
+    "refresh": {
+      "enabled": true
+    }
   },
   "mappings": [
-    {
-      "field_key": "provider_user_id",
-      "json_path": "account_id",
-      "type": "string"
-    },
-    {
-      "field_key": "display_name",
-      "json_path": "name.display_name",
-      "type": "string"
-    },
-    {
-      "field_key": "email",
-      "json_path": "email",
-      "type": "string"
-    },
-    {
-      "field_key": "avatar_url",
-      "json_path": "profile_photo_url",
-      "type": "string"
-    }
+    { "field_key": "provider_user_id", "json_path": "account_id", "type": "string" },
+    { "field_key": "display_name", "json_path": "name.display_name", "type": "string" },
+    { "field_key": "email", "json_path": "email", "type": "string" },
+    { "field_key": "avatar_url", "json_path": "profile_photo_url", "type": "string" }
   ]
 }

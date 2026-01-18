@@ -9,6 +9,18 @@
     "secret_json_path": "secret"
   },
   "event_header": "X-GitHub-Event",
+  "event_allow_serviceConfigFile_path": "events",
+  "event_ignore": ["ping"],
+  "prepare": [
+    {
+      "generate": {
+        "store_path": "secret",
+        "length": 32,
+        "encoding": "hex",
+        "only_if_missing": true
+      }
+    }
+  ],
   "mappings": [
     {
       "field_key": "repository",

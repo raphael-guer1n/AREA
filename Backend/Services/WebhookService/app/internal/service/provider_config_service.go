@@ -15,14 +15,16 @@ import (
 var ErrProviderConfigNotFound = errors.New("provider not found")
 
 type ProviderConfigService struct {
-	baseURL string
-	client  *http.Client
-	cache   map[string]config.WebhookProviderConfig
+	baseURL        string
+	internalSecret string
+	client         *http.Client
+	cache          map[string]config.WebhookProviderConfig
 }
 
-func NewProviderConfigService(baseURL string) *ProviderConfigService {
+func NewProviderConfigService(baseURL string, internalSecret string) *ProviderConfigService {
 	return &ProviderConfigService{
-		baseURL: strings.TrimRight(baseURL, "/"),
+		baseURL:        strings.TrimRight(baseURL, "/"),
+		internalSecret: strings.TrimSpace(internalSecret),
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -43,6 +45,45 @@ func (s *ProviderConfigService) GetProviderConfig(name string) (*config.WebhookP
 	return cfg, nil
 }
 
+func (s *ProviderConfigService) ListProviders() ([]string, error) {
+	endpoint := s.baseURL + "/webhooks/providers"
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch providers: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var body struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Providers []string `json:"providers"`
+		} `json:"data"`
+		Error json.RawMessage `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("decode providers: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK || !body.Success {
+		message, _ := parseRemoteError(body.Error)
+		if message == "" {
+			message = "failed to fetch providers"
+		}
+		return nil, fmt.Errorf(message)
+	}
+
+	return body.Data.Providers, nil
+}
+
 func (s *ProviderConfigService) fetchProviderConfig(name string) (*config.WebhookProviderConfig, error) {
 	endpoint := s.baseURL + "/webhooks/providers/config"
 	params := url.Values{}
@@ -52,6 +93,9 @@ func (s *ProviderConfigService) fetchProviderConfig(name string) (*config.Webhoo
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
+	}
+	if s.internalSecret != "" {
+		req.Header.Set("X-Internal-Secret", s.internalSecret)
 	}
 
 	resp, err := s.client.Do(req)

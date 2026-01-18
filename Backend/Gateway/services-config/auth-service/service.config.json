@@ -70,6 +70,20 @@
       "methods": ["GET"],
       "auth_required": false,
       "permissions": [],
+      "internal_only": true
+    },
+    {
+      "path": "/oauth2/provider/profile/",
+      "methods": ["GET"],
+      "auth_required": false,
+      "permissions": [],
+      "internal_only": true
+    },
+    {
+      "path": "/oauth2/disconnect",
+      "methods": ["POST"],
+      "auth_required": true,
+      "permissions": [],
       "internal_only": false
     },
     {

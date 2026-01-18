@@ -1,0 +1,38 @@
+{
+  "provider": "",
+  "name": "notion",
+  "label": "Notion",
+  "icon_url": "",
+  "logo_url": "",
+  "actions": [
+    {
+      "title": "new_page",
+      "label": "New Page in Database",
+      "type": "polling",
+      "fields": [
+        {
+          "name": "database_id",
+          "type": "text",
+          "label": "Database ID",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "token",
+          "type": "text",
+          "label": "Notion Token",
+          "required": true,
+          "default": ""
+        }
+      ],
+      "output_fields": [
+        { "name": "page_id", "type": "text", "label": "Page ID" },
+        { "name": "title", "type": "text", "label": "Page Title" },
+        { "name": "created_time", "type": "text", "label": "Created Time" },
+        { "name": "last_edited_time", "type": "text", "label": "Last Edited Time" },
+        { "name": "url", "type": "text", "label": "Page URL" }
+      ]
+    }
+  ],
+  "reactions": []
+}

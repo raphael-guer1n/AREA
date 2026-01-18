@@ -1,26 +1,37 @@
-version: "3.9"
-
 services:
-  frontend:
-    container_name: area-frontend
+  client_web:
     build:
       context: .
+      dockerfile: Dockerfile
       args:
-        API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/auth-service}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
-        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area-service}
-        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
-        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/service-service}
-        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
-    ports:
-      - "3000:3000"
+        NODE_ENV: production
+        API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:8080/auth-service}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
-      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://host.docker.internal:8080/area-service}
-      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
-      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://host.docker.internal:8080/service-service}
-      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-8081}
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.area-connect.cloud/area_auth_api}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-https://api.area-connect.cloud/area_area_api}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-https://api.area-connect.cloud/area_service_api}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:8081}
+      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-http://localhost:8081}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      NEXT_FONT_GOOGLE_DISABLE: ${NEXT_FONT_GOOGLE_DISABLE:-1}
+      APK_FILE_PATH: /apk/client.apk
+    ports:
+      - "${WEB_PORT:-8081}:${WEB_PORT:-8081}"
+    volumes:
+      - apk_dist:/apk
     restart: unless-stopped
+
+volumes:
+  apk_dist:

@@ -1,0 +1,110 @@
+{
+  "provider": "dropbox",
+  "name": "dropbox",
+  "label": "Dropbox",
+  "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/dropbox/0061FF",
+  "actions": [
+    {
+      "title": "dropbox_new_file",
+      "label": "Dropbox - New File Added",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Watched folder", "required": true, "default": "/" }
+      ],
+      "output_fields": [
+        { "name": "file_name", "type": "text", "label": "File name" },
+        { "name": "path", "type": "text", "label": "Path" }
+      ]
+    },
+    {
+      "title": "dropbox_new_folder",
+      "label": "Dropbox - New Folder Created",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Parent folder", "required": true, "default": "/" }
+      ],
+      "output_fields": [
+        { "name": "folder_name", "type": "text", "label": "Folder name" },
+        { "name": "path", "type": "text", "label": "Path" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "dropbox_upload_file",
+      "label": "Dropbox - Upload a File",
+      "url": "https://content.dropboxapi.com/2/files/upload",
+      "method": "POST",
+      "bodyType": "binary",
+      "fields": [
+        { "name": "path", "type": "text", "label": "Path (ex: /docs/file.txt)", "required": true, "default": "" },
+        { "name": "content", "type": "textarea", "label": "File content", "required": true, "default": "" },
+        {
+          "name": "mode",
+          "type": "text",
+          "label": "Mode",
+          "required": false,
+          "default": "add",
+          "selection": [
+            { "value": "add", "label": "Add" },
+            { "value": "overwrite", "label": "Overwrite" }
+          ]
+        },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "true" }
+      ],
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Dropbox-API-Arg": "{\"path\":\"{{path}}\",\"mode\":\"{{mode}}\",\"autorename\":{{autorename}},\"mute\":false,\"strict_conflict\":false}"
+      },
+      "body_struct": [
+        { "path": "", "type": "text", "value": "{{content}}" }
+      ]
+    },
+    {
+      "title": "dropbox_create_folder",
+      "label": "Dropbox - Create Folder",
+      "url": "https://api.dropboxapi.com/2/files/create_folder_v2",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "path", "type": "text", "label": "Folder path", "required": true, "default": "" },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "false" }
+      ],
+      "body_struct": [
+        { "path": "path", "type": "text", "value": "{{path}}" },
+        { "path": "autorename", "type": "boolean", "value": "{{autorename}}" }
+      ]
+    },
+    {
+      "title": "dropbox_move_file",
+      "label": "Dropbox - Move File",
+      "url": "https://api.dropboxapi.com/2/files/move_v2",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "from_path", "type": "text", "label": "From path", "required": true, "default": "" },
+        { "name": "to_path", "type": "text", "label": "To path", "required": true, "default": "" },
+        { "name": "autorename", "type": "boolean", "label": "Autorename", "required": false, "default": "false" }
+      ],
+      "body_struct": [
+        { "path": "from_path", "type": "text", "value": "{{from_path}}" },
+        { "path": "to_path", "type": "text", "value": "{{to_path}}" },
+        { "path": "autorename", "type": "boolean", "value": "{{autorename}}" }
+      ]
+    },
+    {
+      "title": "dropbox_delete_file",
+      "label": "Dropbox - Delete File or Folder",
+      "url": "https://api.dropboxapi.com/2/files/delete_v2",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "path", "type": "text", "label": "Path", "required": true, "default": "" }
+      ],
+      "body_struct": [
+        { "path": "path", "type": "text", "value": "{{path}}" }
+      ]
+    }
+  ]
+}

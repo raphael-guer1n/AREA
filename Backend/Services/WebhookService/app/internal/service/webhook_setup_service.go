@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -40,7 +41,7 @@ func (s *WebhookSetupService) RegisterWebhook(providerConfig *config.WebhookProv
 	}
 
 	ctx := buildTemplateContext(sub, webhookURL, subscriptionConfig)
-	responseBody, err := s.executeAction(providerConfig.Setup, sub, ctx, "setup")
+	responseBody, err := s.executeAction(providerConfig.Setup, sub.Provider, sub.UserID, ctx, "setup")
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +69,7 @@ func (s *WebhookSetupService) DeleteWebhook(providerConfig *config.WebhookProvid
 	}
 
 	ctx := buildTemplateContext(sub, webhookURL, subscriptionConfig)
-	_, err := s.executeAction(providerConfig.Teardown, sub, ctx, "teardown")
+	_, err := s.executeAction(providerConfig.Teardown, sub.Provider, sub.UserID, ctx, "teardown")
 	if err != nil {
 		var missingValueErr utils.MissingTemplateValueError
 		if errors.As(err, &missingValueErr) && missingValueErr.Key == "provider_hook_id" {
@@ -80,11 +81,49 @@ func (s *WebhookSetupService) DeleteWebhook(providerConfig *config.WebhookProvid
 	return nil
 }
 
-func (s *WebhookSetupService) executeAction(action *config.WebhookProviderSetupConfig, sub *domain.Subscription, ctx utils.TemplateContext, label string) ([]byte, error) {
+func (s *WebhookSetupService) executeAction(action *config.WebhookProviderSetupConfig, provider string, userID int, ctx utils.TemplateContext, label string) ([]byte, error) {
 	if action == nil {
 		return nil, nil
 	}
 
+	repeatPath := strings.TrimSpace(action.RepeatFor)
+	repeatPath = strings.TrimPrefix(repeatPath, "config.")
+	if repeatPath != "" {
+		items, ok := utils.ExtractJSONPath(ctx.Config, repeatPath)
+		if !ok {
+			return nil, fmt.Errorf("repeat_for path not found: %s", action.RepeatFor)
+		}
+		var list []any
+		switch v := items.(type) {
+		case []any:
+			list = v
+		case []string:
+			list = make([]any, 0, len(v))
+			for _, item := range v {
+				list = append(list, item)
+			}
+		default:
+			return nil, fmt.Errorf("repeat_for path must resolve to an array: %s", action.RepeatFor)
+		}
+
+		var lastResponse []byte
+		for idx, item := range list {
+			itemCtx := ctx
+			itemCtx.Item = item
+			itemCtx.RepeatIndex = idx
+			response, err := s.executeActionOnce(action, provider, userID, itemCtx, label, nil)
+			if err != nil {
+				return nil, err
+			}
+			lastResponse = response
+		}
+		return lastResponse, nil
+	}
+
+	return s.executeActionOnce(action, provider, userID, ctx, label, nil)
+}
+
+func (s *WebhookSetupService) executeActionOnce(action *config.WebhookProviderSetupConfig, provider string, userID int, ctx utils.TemplateContext, label string, queryOverrides map[string]string) ([]byte, error) {
 	urlValue, err := utils.RenderTemplateString(action.URLTemplate, ctx)
 	if err != nil {
 		return nil, err
@@ -93,8 +132,24 @@ func (s *WebhookSetupService) executeAction(action *config.WebhookProviderSetupC
 	if !ok {
 		urlStr = fmt.Sprint(urlValue)
 	}
+	if len(queryOverrides) > 0 {
+		parsedURL, err := url.Parse(urlStr)
+		if err != nil {
+			return nil, err
+		}
+		query := parsedURL.Query()
+		for key, value := range queryOverrides {
+			if strings.TrimSpace(key) == "" {
+				continue
+			}
+			query.Set(key, value)
+		}
+		parsedURL.RawQuery = query.Encode()
+		urlStr = parsedURL.String()
+	}
 
 	var body io.Reader
+	contentType := ""
 	if len(action.BodyTemplate) > 0 {
 		var template any
 		if err := json.Unmarshal(action.BodyTemplate, &template); err != nil {
@@ -104,20 +159,30 @@ func (s *WebhookSetupService) executeAction(action *config.WebhookProviderSetupC
 		if err != nil {
 			return nil, err
 		}
-		payload, err := json.Marshal(rendered)
-		if err != nil {
-			return nil, fmt.Errorf("marshal webhook payload: %w", err)
+
+		switch strings.ToLower(strings.TrimSpace(action.BodyEncoding)) {
+		case "", "json":
+			payload, err := json.Marshal(rendered)
+			if err != nil {
+				return nil, fmt.Errorf("marshal webhook payload: %w", err)
+			}
+			body = bytes.NewReader(payload)
+			contentType = "application/json"
+		case "form", "x-www-form-urlencoded":
+			form, err := buildFormPayload(rendered)
+			if err != nil {
+				return nil, err
+			}
+			body = strings.NewReader(form.Encode())
+			contentType = "application/x-www-form-urlencoded"
+		default:
+			return nil, fmt.Errorf("unsupported body_encoding %q", action.BodyEncoding)
 		}
-		body = bytes.NewReader(payload)
 	}
 
 	req, err := http.NewRequest(action.Method, urlStr, body)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(action.BodyTemplate) > 0 {
-		req.Header.Set("Content-Type", "application/json")
 	}
 
 	for key, value := range action.Headers {
@@ -127,11 +192,18 @@ func (s *WebhookSetupService) executeAction(action *config.WebhookProviderSetupC
 		}
 		req.Header.Set(key, fmt.Sprint(renderedValue))
 	}
+	if contentType != "" && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 
 	if action.Auth != nil {
 		switch action.Auth.Type {
 		case "oauth2":
-			token, err := s.oauth2TokenSvc.GetProviderToken(sub.UserID, sub.Provider)
+			providerName := provider
+			if action.Auth.Provider != "" {
+				providerName = action.Auth.Provider
+			}
+			token, err := s.oauth2TokenSvc.GetProviderToken(userID, providerName)
 			if err != nil {
 				return nil, err
 			}
@@ -160,10 +232,9 @@ func buildTemplateContext(sub *domain.Subscription, webhookURL string, subscript
 	return utils.TemplateContext{
 		HookURL:        webhookURL,
 		HookID:         sub.HookID,
-		Provider:       sub.Provider,
+		Provider:       sub.Service,
 		ProviderHookID: normalizeProviderHookID(sub.ProviderHookID),
 		UserID:         sub.UserID,
-		AreaID:         sub.AreaID,
 		Config:         subscriptionConfig,
 	}
 }
@@ -218,4 +289,40 @@ func normalizeProviderHookID(value string) string {
 		return trimmed
 	}
 	return strconv.FormatInt(int64(parsed), 10)
+}
+
+func buildFormPayload(rendered any) (url.Values, error) {
+	obj, ok := rendered.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("form body must be an object")
+	}
+
+	values := url.Values{}
+	for key, value := range obj {
+		switch v := value.(type) {
+		case []any:
+			for _, item := range v {
+				addFormValue(values, key, item)
+			}
+		case []string:
+			for _, item := range v {
+				addFormValue(values, key, item)
+			}
+		default:
+			addFormValue(values, key, v)
+		}
+	}
+
+	return values, nil
+}
+
+func addFormValue(values url.Values, key string, value any) {
+	if value == nil {
+		return
+	}
+	str := strings.TrimSpace(fmt.Sprint(value))
+	if str == "" {
+		return
+	}
+	values.Add(key, str)
 }

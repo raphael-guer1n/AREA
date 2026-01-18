@@ -13,8 +13,9 @@ type TemplateContext struct {
 	Provider       string
 	ProviderHookID string
 	UserID         int
-	AreaID         int
 	Config         any
+	Item           any
+	RepeatIndex    int
 	Body           string
 	Headers        http.Header
 	Method         string
@@ -105,10 +106,12 @@ func resolvePlaceholder(key string, ctx TemplateContext) (any, bool) {
 		return ctx.ProviderHookID, ctx.ProviderHookID != ""
 	case "user_id":
 		return ctx.UserID, true
-	case "area_id":
-		return ctx.AreaID, true
 	case "config":
 		return ctx.Config, ctx.Config != nil
+	case "item":
+		return ctx.Item, ctx.Item != nil
+	case "index":
+		return ctx.RepeatIndex, true
 	case "body":
 		return ctx.Body, ctx.Body != ""
 	case "method":

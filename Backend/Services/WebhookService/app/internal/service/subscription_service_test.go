@@ -1,0 +1,602 @@
+package service
+
+import (
+	"encoding/json"
+	"errors"
+	"testing"
+
+	"github.com/lib/pq"
+	"github.com/raphael-guer1n/AREA/WebhookService/internal/config"
+	"github.com/raphael-guer1n/AREA/WebhookService/internal/domain"
+	"github.com/raphael-guer1n/AREA/WebhookService/internal/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// MockSubscriptionRepository is a mock implementation of SubscriptionRepository
+type MockSubscriptionRepository struct {
+	mock.Mock
+}
+
+func (m *MockSubscriptionRepository) Create(sub *domain.Subscription) (*domain.Subscription, error) {
+	args := m.Called(sub)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) FindByHookID(hookID string) (*domain.Subscription, error) {
+	args := m.Called(hookID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) FindByActionID(actionID int) (*domain.Subscription, error) {
+	args := m.Called(actionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) ListByUserID(userID int) ([]domain.Subscription, error) {
+	args := m.Called(userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) ListByProvider(provider string) ([]domain.Subscription, error) {
+	args := m.Called(provider)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) UpdateByActionID(sub *domain.Subscription) (*domain.Subscription, error) {
+	args := m.Called(sub)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Subscription), args.Error(1)
+}
+
+func (m *MockSubscriptionRepository) UpdateProviderHookID(hookID, providerHookID string) error {
+	args := m.Called(hookID, providerHookID)
+	return args.Error(0)
+}
+
+func (m *MockSubscriptionRepository) TouchByHookID(hookID string) error {
+	args := m.Called(hookID)
+	return args.Error(0)
+}
+
+func (m *MockSubscriptionRepository) DeleteByActionID(actionID int) error {
+	args := m.Called(actionID)
+	return args.Error(0)
+}
+
+// MockProviderConfigService is a mock for provider config service
+type MockProviderConfigService struct {
+	mock.Mock
+}
+
+func (m *MockProviderConfigService) GetProviderConfig(name string) (*config.WebhookProviderConfig, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*config.WebhookProviderConfig), args.Error(1)
+}
+
+// MockWebhookSetupService is a mock for webhook setup service
+type MockWebhookSetupService struct {
+	mock.Mock
+}
+
+func (m *MockWebhookSetupService) RegisterWebhook(providerConfig *config.WebhookProviderConfig, sub *domain.Subscription, webhookURL string, subscriptionConfig any) (string, error) {
+	args := m.Called(providerConfig, sub, webhookURL, subscriptionConfig)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockWebhookSetupService) DeleteWebhook(providerConfig *config.WebhookProviderConfig, sub *domain.Subscription, webhookURL string, subscriptionConfig any) error {
+	args := m.Called(providerConfig, sub, webhookURL, subscriptionConfig)
+	return args.Error(0)
+}
+
+func (m *MockWebhookSetupService) executeActionOnce(action *config.WebhookProviderSetupConfig, provider string, userID int, ctx utils.TemplateContext, label string, queryOverrides map[string]string) ([]byte, error) {
+	args := m.Called(action, provider, userID, ctx, label, queryOverrides)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func TestSubscriptionService_CreateSubscription_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	userID := 1
+	actionID := 100
+	provider := "github"
+	service := "github"
+	cfg := json.RawMessage(`{"secret": "webhook-secret"}`)
+	active := false
+	webhookBaseURL := "https://example.com"
+
+	providerCfg := &config.WebhookProviderConfig{
+		Signature: nil, // No signature validation required
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(nil, nil)
+	mockProviderConfig.On("GetProviderConfig", service).Return(providerCfg, nil)
+	mockRepo.On("Create", mock.MatchedBy(func(sub *domain.Subscription) bool {
+		return sub.UserID == userID && sub.ActionID == actionID && len(sub.HookID) > 0
+	})).Return(&domain.Subscription{
+		ID:       1,
+		HookID:   "generated-hook-id",
+		UserID:   userID,
+		ActionID: actionID,
+		Provider: provider,
+		Service:  service,
+		Active:   active,
+		Config:   cfg,
+	}, nil)
+
+	sub, err := svc.CreateSubscription(userID, actionID, provider, service, cfg, active, webhookBaseURL)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+	assert.Equal(t, actionID, sub.ActionID)
+	assert.Equal(t, userID, sub.UserID)
+	assert.NotEmpty(t, sub.HookID)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_CreateSubscription_ActionAlreadyExists(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	actionID := 100
+	existingSub := &domain.Subscription{
+		ID:       1,
+		ActionID: actionID,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(existingSub, nil)
+
+	sub, err := svc.CreateSubscription(1, actionID, "github", "github", json.RawMessage(`{}`), true, "https://example.com")
+
+	assert.Error(t, err)
+	assert.Nil(t, sub)
+	assert.ErrorIs(t, err, ErrActionExists)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSubscriptionService_CreateSubscription_ProviderNotSupported(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	mockRepo.On("FindByActionID", 100).Return(nil, nil)
+	mockProviderConfig.On("GetProviderConfig", "unknown").Return(nil, ErrProviderConfigNotFound)
+
+	sub, err := svc.CreateSubscription(1, 100, "unknown", "unknown", json.RawMessage(`{}`), true, "https://example.com")
+
+	assert.Error(t, err)
+	assert.Nil(t, sub)
+	assert.ErrorIs(t, err, ErrProviderNotSupported)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_CreateSubscription_InvalidConfig(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	providerCfg := &config.WebhookProviderConfig{}
+
+	mockRepo.On("FindByActionID", 100).Return(nil, nil)
+	mockProviderConfig.On("GetProviderConfig", "test").Return(providerCfg, nil)
+
+	// Invalid JSON
+	invalidCfg := json.RawMessage(`{invalid json}`)
+
+	sub, err := svc.CreateSubscription(1, 100, "test", "test", invalidCfg, true, "https://example.com")
+
+	assert.Error(t, err)
+	assert.Nil(t, sub)
+	assert.ErrorIs(t, err, ErrInvalidConfig)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_GetSubscriptionByHookID_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	hookID := "test-hook-id"
+	expectedSub := &domain.Subscription{
+		ID:     1,
+		HookID: hookID,
+		UserID: 1,
+	}
+
+	mockRepo.On("FindByHookID", hookID).Return(expectedSub, nil)
+
+	sub, err := svc.GetSubscriptionByHookID(hookID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSub, sub)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSubscriptionService_GetSubscriptionByActionID_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	actionID := 100
+	expectedSub := &domain.Subscription{
+		ID:       1,
+		ActionID: actionID,
+		UserID:   1,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(expectedSub, nil)
+
+	sub, err := svc.GetSubscriptionByActionID(actionID)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSub, sub)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestSubscriptionService_DeleteSubscription_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	actionID := 100
+	sub := &domain.Subscription{
+		ID:       1,
+		ActionID: actionID,
+		Active:   false,
+		Service:  "github",
+		Config:   json.RawMessage(`{}`),
+	}
+
+	providerCfg := &config.WebhookProviderConfig{
+		Teardown: nil,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(sub, nil)
+	mockProviderConfig.On("GetProviderConfig", "github").Return(providerCfg, nil)
+	mockRepo.On("DeleteByActionID", actionID).Return(nil)
+
+	err := svc.DeleteSubscription(actionID, "https://example.com")
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_DeleteSubscription_NotFound(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	actionID := 100
+
+	mockRepo.On("FindByActionID", actionID).Return(nil, nil)
+
+	err := svc.DeleteSubscription(actionID, "https://example.com")
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrSubscriptionNotFound)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGenerateHookID(t *testing.T) {
+	hookID1 := generateHookID()
+	hookID2 := generateHookID()
+
+	assert.NotEmpty(t, hookID1)
+	assert.NotEmpty(t, hookID2)
+	assert.NotEqual(t, hookID1, hookID2, "Generated hook IDs should be unique")
+	assert.Len(t, hookID1, 32, "Hook ID should be 32 characters (16 bytes hex encoded)")
+}
+
+func TestIsUniqueViolation(t *testing.T) {
+	testCases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "unique violation error",
+			err:      &pq.Error{Code: "23505"},
+			expected: true,
+		},
+		{
+			name:     "other pq error",
+			err:      &pq.Error{Code: "23503"},
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("some error"),
+			expected: false,
+		},
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isUniqueViolation(tc.err)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestBuildWebhookURL(t *testing.T) {
+	testCases := []struct {
+		name     string
+		baseURL  string
+		provider string
+		hookID   string
+		expected string
+	}{
+		{
+			name:     "full URL with trailing slash",
+			baseURL:  "https://example.com/",
+			provider: "github",
+			hookID:   "abc123",
+			expected: "https://example.com/webhooks/github/abc123",
+		},
+		{
+			name:     "full URL without trailing slash",
+			baseURL:  "https://example.com",
+			provider: "discord",
+			hookID:   "xyz789",
+			expected: "https://example.com/webhooks/discord/xyz789",
+		},
+		{
+			name:     "empty base URL",
+			baseURL:  "",
+			provider: "slack",
+			hookID:   "def456",
+			expected: "/webhooks/slack/def456",
+		},
+		{
+			name:     "base URL with path",
+			baseURL:  "https://api.example.com/v1",
+			provider: "twitter",
+			hookID:   "ghi789",
+			expected: "https://api.example.com/v1/webhooks/twitter/ghi789",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := buildWebhookURL(tc.baseURL, tc.provider, tc.hookID)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestDecodeSubscriptionConfig_Success(t *testing.T) {
+	cfg := json.RawMessage(`{"key": "value", "number": 123}`)
+
+	result, err := decodeSubscriptionConfig(cfg)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "value", result["key"])
+	assert.Equal(t, float64(123), result["number"])
+}
+
+func TestDecodeSubscriptionConfig_EmptyJSON(t *testing.T) {
+	cfg := json.RawMessage(``)
+
+	result, err := decodeSubscriptionConfig(cfg)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result)
+}
+
+func TestDecodeSubscriptionConfig_InvalidJSON(t *testing.T) {
+	cfg := json.RawMessage(`{invalid json}`)
+
+	result, err := decodeSubscriptionConfig(cfg)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, ErrInvalidConfig)
+}
+
+func TestDecodeSubscriptionConfig_NotAnObject(t *testing.T) {
+	cfg := json.RawMessage(`["array", "instead", "of", "object"]`)
+
+	result, err := decodeSubscriptionConfig(cfg)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, ErrInvalidConfig)
+}
+
+func TestSubscriptionService_ActivateSubscription_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	userID := 1
+	actionID := 100
+
+	existingSub := &domain.Subscription{
+		ID:       1,
+		UserID:   userID,
+		ActionID: actionID,
+		Active:   false,
+		Service:  "github",
+		Config:   json.RawMessage(`{}`),
+	}
+
+	providerCfg := &config.WebhookProviderConfig{
+		Setup:     nil,
+		Signature: nil,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(existingSub, nil)
+	mockProviderConfig.On("GetProviderConfig", "github").Return(providerCfg, nil)
+	mockRepo.On("UpdateByActionID", mock.MatchedBy(func(sub *domain.Subscription) bool {
+		return sub.ActionID == actionID && sub.Active == true
+	})).Return(&domain.Subscription{
+		ID:       1,
+		UserID:   userID,
+		ActionID: actionID,
+		Active:   true,
+	}, nil)
+
+	sub, err := svc.ActivateSubscription(userID, actionID, "https://example.com")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+	assert.True(t, sub.Active)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_ActivateSubscription_AlreadyActive(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	userID := 1
+	actionID := 100
+
+	existingSub := &domain.Subscription{
+		ID:       1,
+		UserID:   userID,
+		ActionID: actionID,
+		Active:   true,
+		Service:  "github",
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(existingSub, nil)
+
+	sub, err := svc.ActivateSubscription(userID, actionID, "https://example.com")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+	assert.True(t, sub.Active)
+	mockRepo.AssertExpectations(t)
+	// UpdateByActionID should not be called since it's already active
+	mockRepo.AssertNotCalled(t, "UpdateByActionID")
+}
+
+func TestSubscriptionService_DeactivateSubscription_Success(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	userID := 1
+	actionID := 100
+
+	existingSub := &domain.Subscription{
+		ID:       1,
+		UserID:   userID,
+		ActionID: actionID,
+		Active:   true,
+		Service:  "github",
+		Config:   json.RawMessage(`{}`),
+	}
+
+	providerCfg := &config.WebhookProviderConfig{
+		Teardown:  nil,
+		Signature: nil,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(existingSub, nil)
+	mockProviderConfig.On("GetProviderConfig", "github").Return(providerCfg, nil)
+	mockRepo.On("UpdateByActionID", mock.MatchedBy(func(sub *domain.Subscription) bool {
+		return sub.ActionID == actionID && sub.Active == false
+	})).Return(&domain.Subscription{
+		ID:       1,
+		UserID:   userID,
+		ActionID: actionID,
+		Active:   false,
+	}, nil)
+
+	sub, err := svc.DeactivateSubscription(userID, actionID, "https://example.com")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, sub)
+	assert.False(t, sub.Active)
+	mockRepo.AssertExpectations(t)
+	mockProviderConfig.AssertExpectations(t)
+}
+
+func TestSubscriptionService_UnauthorizedAction(t *testing.T) {
+	mockRepo := new(MockSubscriptionRepository)
+	mockProviderConfig := new(MockProviderConfigService)
+	mockWebhookSetup := new(MockWebhookSetupService)
+
+	svc := NewSubscriptionService(mockRepo, mockProviderConfig, mockWebhookSetup)
+
+	userID := 1
+	actionID := 100
+
+	existingSub := &domain.Subscription{
+		ID:       1,
+		UserID:   2, // Different user
+		ActionID: actionID,
+		Active:   false,
+	}
+
+	mockRepo.On("FindByActionID", actionID).Return(existingSub, nil)
+
+	sub, err := svc.ActivateSubscription(userID, actionID, "https://example.com")
+
+	assert.Error(t, err)
+	assert.Nil(t, sub)
+	assert.ErrorIs(t, err, ErrUnauthorizedAction)
+	mockRepo.AssertExpectations(t)
+}

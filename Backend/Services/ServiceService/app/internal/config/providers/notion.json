@@ -1,5 +1,6 @@
 {
   "name": "notion",
+  "logo_url": "https://cdn.simpleicons.org/notion/000000",
   "oauth2": {
     "client_id": "NOTION_CLIENT_ID",
     "client_secret": "NOTION_CLIENT_SECRET",
@@ -7,7 +8,10 @@
     "token_url": "https://api.notion.com/v1/oauth/token",
     "redirect_uri": "http://localhost:8083/oauth2/callback",
     "scopes": [],
-    "user_info_url": "https://api.notion.com/v1/users/me"
+    "user_info_url": "https://api.notion.com/v1/users/me",
+    "refresh": {
+      "enabled": false
+    }
   },
   "mappings": [
     {

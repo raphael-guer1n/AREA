@@ -1,0 +1,301 @@
+openapi: 3.1.0
+info:
+  title: Cron Service API
+  description: Cron/Timer action scheduler service for AREA
+  version: 1.0.0
+  contact:
+    name: AREA Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+  - url: http://api:8088
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: OK
+
+  /actions:
+    post:
+      summary: Create cron actions
+      description: Creates one or more cron/timer actions for AREA
+      operationId: createCronActions
+      tags:
+        - Actions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionBatchRequest'
+            examples:
+              timerAction:
+                summary: Timer action example
+                value:
+                  actions:
+                    - active: true
+                      action_id: 1
+                      type: "cron"
+                      provider: ""
+                      service: "timer"
+                      title: "timer_delay"
+                      input:
+                        - name: "delay"
+                          value: "10"
+      responses:
+        '201':
+          description: Actions created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /activate/{actionId}:
+    post:
+      summary: Activate cron action
+      description: Activates a cron action by action_id and starts the timer
+      operationId: activateCronAction
+      tags:
+        - Actions
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          description: The unique identifier of the action to activate
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: Action activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid action ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Action not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deactivate/{actionId}:
+    post:
+      summary: Deactivate cron action
+      description: Deactivates a cron action by action_id and stops the timer
+      operationId: deactivateCronAction
+      tags:
+        - Actions
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          description: The unique identifier of the action to deactivate
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: Action deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid action ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Action not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/{actionId}:
+    delete:
+      summary: Delete cron action
+      description: Deletes a cron action by action_id and removes it from the scheduler
+      operationId: deleteCronAction
+      tags:
+        - Actions
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          description: The unique identifier of the action to delete
+          schema:
+            type: integer
+            minimum: 1
+            example: 1
+      responses:
+        '200':
+          description: Action deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid action ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Action not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ActionInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: delay
+          description: The name of the input field
+        value:
+          type: string
+          example: "10"
+          description: The value of the input field (delay in seconds for timer actions)
+      required:
+        - name
+        - value
+
+    ActionRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+          example: true
+          description: Whether the action is active
+        action_id:
+          type: integer
+          example: 1
+          minimum: 1
+          description: Unique identifier for the action
+        type:
+          type: string
+          enum: [cron]
+          example: cron
+          description: Type of action (must be "cron")
+        provider:
+          type: string
+          example: ""
+          description: Provider name (usually empty for cron actions)
+        service:
+          type: string
+          example: timer
+          description: Service name (e.g., "timer")
+        title:
+          type: string
+          example: timer_delay
+          description: Title of the action
+        input:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionInput'
+          description: Array of input fields (must include "delay" field)
+      required:
+        - active
+        - action_id
+        - type
+        - service
+        - title
+        - input
+
+    ActionBatchRequest:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionRequest'
+          minItems: 1
+          description: Array of actions to create
+      required:
+        - actions
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Action activated successfully
+      required:
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: An error occurred
+      required:
+        - error
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Actions
+    description: Cron action management endpoints

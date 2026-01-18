@@ -294,6 +294,12 @@ paths:
                         items:
                           type: string
                         example: ["google", "github", "microsoft", "discord"]
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Service unavailable - OAuth2 not configured
           content:
@@ -362,6 +368,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing, invalid, or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Service unavailable - OAuth2 not configured
           content:
@@ -387,6 +399,12 @@ paths:
           in: query
           required: true
           description: CSRF protection state parameter containing encrypted metadata
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: false
+          description: Optional redirect URI override for token exchange
           schema:
             type: string
       responses:
@@ -438,14 +456,86 @@ paths:
                         type: string
                         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
                         description: JWT token returned when using /loginwith (create/connect user)
+            text/html:
+              schema:
+                type: string
+              example: "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>AREA Redirect</title></head><body>Returning to AREA app...</body></html>"
         '400':
           description: Bad request - Missing parameters or invalid state/code
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Service unavailable - OAuth2 not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth2/disconnect:
+    post:
+      summary: Disconnect an OAuth2 provider
+      description: Disconnects the authenticated user from a specific OAuth2 provider, removes the stored tokens, and deactivates all areas using this provider.
+      operationId: disconnectProvider
+      tags:
+        - OAuth2
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  description: The OAuth2 provider name to disconnect (e.g., google, github, discord)
+                  example: google
+              required:
+                - provider
+      responses:
+        '200':
+          description: Provider disconnected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: provider disconnected successfully
+                  data:
+                    type: object
+                    properties:
+                      deactivated_areas:
+                        type: integer
+                        description: Number of areas that were deactivated
+                        example: 3
+        '400':
+          description: Bad request - Missing or invalid provider parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Missing, invalid, or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -559,11 +649,17 @@ paths:
                               type: boolean
                               example: true
                               description: Whether the user has authenticated with this provider
+                            need_reconnecting:
+                              type: boolean
+                              example: false
+                              description: Whether the user must reconnect to refresh an expired token
                         example:
                           - provider: google
                             is_logged: true
+                            need_reconnecting: false
                           - provider: discord
                             is_logged: false
+                            need_reconnecting: true
         '400':
           description: Bad request - Invalid user_id
           content:
@@ -577,11 +673,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /oauth2/provider/id:
+  /oauth2/provider/token/:
     get:
-      summary: Get provider ID by service and user ID
-      description: Returns the provider ID for a specific service and user
-      operationId: getProviderIdByServiceByUserId
+      summary: Get provider access token by service and user ID
+      description: Returns the OAuth2 access token for a specific service and user
+      operationId: getProviderTokenByServiceByUserId
       tags:
         - OAuth2
       parameters:
@@ -601,7 +697,7 @@ paths:
             example: google
       responses:
         '200':
-          description: Successfully retrieved provider ID
+          description: Successfully retrieved provider token
           content:
             application/json:
               schema:
@@ -613,10 +709,65 @@ paths:
                   data:
                     type: object
                     properties:
-                      providerId:
+                      providerToken:
                         type: string
-                        example: "123456789"
-                        description: The provider-specific user ID
+                        example: "ya29.a0AfH6SMBx..."
+                        description: OAuth2 access token for the provider
+        '400':
+          description: Bad request - Missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /oauth2/provider/profile/:
+    get:
+      summary: Get provider profile by service and user ID
+      description: Returns the stored OAuth2 user profile and extracted fields for a specific service and user
+      operationId: getProviderProfileByServiceByUserId
+      tags:
+        - OAuth2
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: The user ID
+          schema:
+            type: integer
+            example: 1
+        - name: service
+          in: query
+          required: true
+          description: The OAuth2 service name (e.g., google, github, discord)
+          schema:
+            type: string
+            example: google
+      responses:
+        '200':
+          description: Successfully retrieved provider profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      userProfile:
+                        $ref: '#/components/schemas/UserProfile'
+                      userFields:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserServiceField'
         '400':
           description: Bad request - Missing or invalid parameters
           content:
@@ -751,8 +902,6 @@ components:
         - user_id
         - service
         - access_token
-        - expires_in
-        - user_info
 
     OAuth2UserInfo:
       type: object
@@ -784,6 +933,113 @@ components:
             name: "John Doe"
             picture: "https://example.com/photo.jpg"
             locale: "en"
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 42
+          description: Unique profile identifier
+        user_id:
+          type: integer
+          format: int32
+          example: 1
+          description: Associated user ID
+        service:
+          type: string
+          example: google
+          description: OAuth2 service name
+        provider_user_id:
+          type: string
+          example: "123456789"
+          description: Provider-specific user ID
+        access_token:
+          type: string
+          example: "ya29.a0AfH6SMBx..."
+          description: OAuth2 access token
+        refresh_token:
+          type: string
+          example: "1//0gZ9..."
+          description: OAuth2 refresh token
+        expires_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:30:00Z'
+          description: Token expiration timestamp
+        needs_reconnect:
+          type: boolean
+          example: false
+          description: Whether the token refresh failed and the user must reconnect
+        last_refresh_error:
+          type: string
+          example: invalid_grant
+          description: Last refresh error returned by the provider
+        last_refresh_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:25:00Z'
+          description: Last refresh attempt timestamp
+        raw_profile:
+          type: object
+          description: Raw profile payload returned by the provider
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:30:00Z'
+          description: Profile creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:30:00Z'
+          description: Profile last update timestamp
+
+    UserServiceField:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          example: 101
+          description: Unique field identifier
+        profile_id:
+          type: integer
+          format: int32
+          example: 42
+          description: Associated profile ID
+        field_key:
+          type: string
+          example: email
+          description: Field key defined in provider mapping
+        string_value:
+          type: string
+          example: user@example.com
+          description: String value extracted from profile
+        number_value:
+          type: number
+          format: float
+          example: 123.45
+          description: Numeric value extracted from profile
+        bool_value:
+          type: boolean
+          example: true
+          description: Boolean value extracted from profile
+        json_value:
+          type: object
+          description: JSON value extracted from profile
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:30:00Z'
+          description: Field creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          example: '2025-01-15T10:30:00Z'
+          description: Field last update timestamp
 
     ErrorResponse:
       type: object

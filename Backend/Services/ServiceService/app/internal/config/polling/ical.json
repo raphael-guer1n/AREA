@@ -1,0 +1,102 @@
+{
+  "name": "ical",
+  "payload_format": "ical",
+  "interval_seconds": 60,
+  "skip_first": true,
+  "request": {
+    "method": "GET",
+    "url_template": "{{ config.feed_url }}"
+  },
+  "item_sources": [
+    {
+      "name": "events",
+      "items_path": "items",
+      "item_id_path": "id",
+      "mappings": [
+        {
+          "field_key": "uid",
+          "json_path": "uid",
+          "type": "string"
+        },
+        {
+          "field_key": "recurrence_id",
+          "json_path": "recurrence_id",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "update_type",
+          "json_path": "update_type",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "title",
+          "json_path": "summary",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "start",
+          "json_path": "start",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "end",
+          "json_path": "end",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "location",
+          "json_path": "location",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "description",
+          "json_path": "description",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "status",
+          "json_path": "status",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "url",
+          "json_path": "url",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "organizer",
+          "json_path": "organizer",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "updated_at",
+          "json_path": "updated_at",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "all_day",
+          "json_path": "all_day",
+          "type": "boolean",
+          "optional": true
+        },
+        {
+          "field_key": "timezone",
+          "json_path": "timezone",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

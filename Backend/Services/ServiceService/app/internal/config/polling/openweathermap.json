@@ -1,0 +1,30 @@
+{
+  "name": "openweathermap",
+  "payload_format": "json",
+  "interval_seconds": 3600,
+  "request": {
+    "method": "GET",
+    "url_template": "https://api.openweathermap.org/data/2.5/{{config.endpoint}}",
+    "query_params": {
+      "q": "{{config.q}}",
+      "lat": "{{config.lat}}",
+      "lon": "{{config.lon}}",
+      "units": "{{config.units}}",
+      "lang": "{{config.lang}}",
+      "exclude": "{{config.exclude}}",
+      "appid": "{{env.OPENWEATHERMAP_API_KEY}}"
+    }
+  },
+  "items_path": "",
+  "item_id_path": "",
+  "mappings": [
+    { "field_key": "city", "json_path": "name", "type": "string", "optional": true },
+    { "field_key": "condition", "json_path": "weather[0].main", "type": "string", "optional": true },
+    { "field_key": "description", "json_path": "weather[0].description", "type": "string", "optional": true },
+    { "field_key": "temperature", "json_path": "main.temp", "type": "number", "optional": true },
+    { "field_key": "event", "json_path": "alerts[0].event", "type": "string", "optional": true },
+    { "field_key": "start", "json_path": "alerts[0].start", "type": "number", "optional": true },
+    { "field_key": "end", "json_path": "alerts[0].end", "type": "number", "optional": true },
+    { "field_key": "alert_description", "json_path": "alerts[0].description", "type": "string", "optional": true }
+  ]
+}

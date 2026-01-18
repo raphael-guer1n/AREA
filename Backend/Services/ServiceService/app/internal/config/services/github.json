@@ -1,0 +1,90 @@
+{
+  "provider": "github",
+  "name": "github",
+  "label": "GitHub",
+  "icon_url": "",
+  "logo_url": "https://cdn.simpleicons.org/github/181717",
+  "actions": [
+    {
+      "title": "repo_webhook",
+      "label": "Repository Webhook",
+      "type": "webhook",
+      "fields": [
+        {
+          "name": "repository",
+          "type": "text",
+          "label": "Repository (owner/name)",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "events",
+          "type": "text",
+          "label": "Events (select one or more, or * for all)",
+          "required": true,
+          "default": "push",
+          "selection": [
+            { "value": "*", "label": "All events" },
+            { "value": "push", "label": "Push" },
+            { "value": "pull_request", "label": "Pull Request" },
+            { "value": "pull_request_review", "label": "Pull Request Review" },
+            { "value": "pull_request_review_comment", "label": "Pull Request Review Comment" },
+            { "value": "pull_request_review_thread", "label": "Pull Request Review Thread" },
+            { "value": "issues", "label": "Issues" },
+            { "value": "issue_comment", "label": "Issue Comment" },
+            { "value": "commit_comment", "label": "Commit Comment" },
+            { "value": "release", "label": "Release" },
+            { "value": "create", "label": "Create" },
+            { "value": "delete", "label": "Delete" },
+            { "value": "fork", "label": "Fork" },
+            { "value": "gollum", "label": "Gollum" },
+            { "value": "member", "label": "Member" },
+            { "value": "public", "label": "Public" },
+            { "value": "deployment", "label": "Deployment" },
+            { "value": "deployment_status", "label": "Deployment Status" },
+            { "value": "status", "label": "Status" },
+            { "value": "repository", "label": "Repository" },
+            { "value": "repository_dispatch", "label": "Repository Dispatch" },
+            { "value": "check_run", "label": "Check Run" },
+            { "value": "check_suite", "label": "Check Suite" },
+            { "value": "workflow_job", "label": "Workflow Job" },
+            { "value": "workflow_run", "label": "Workflow Run" },
+            { "value": "page_build", "label": "Page Build" },
+            { "value": "project", "label": "Project" },
+            { "value": "project_card", "label": "Project Card" },
+            { "value": "project_column", "label": "Project Column" },
+            { "value": "label", "label": "Label" },
+            { "value": "milestone", "label": "Milestone" },
+            { "value": "discussion", "label": "Discussion" },
+            { "value": "discussion_comment", "label": "Discussion Comment" },
+            { "value": "watch", "label": "Watch" }
+          ],
+          "multiple": true
+        }
+      ],
+      "output_fields": [
+        {
+          "name": "repository",
+          "type": "text",
+          "label": "Repository"
+        },
+        {
+          "name": "action",
+          "type": "text",
+          "label": "Action"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "label": "Ref"
+        },
+        {
+          "name": "sender",
+          "type": "text",
+          "label": "Sender"
+        }
+      ]
+    }
+  ],
+  "reactions": []
+}

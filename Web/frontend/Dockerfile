@@ -8,7 +8,7 @@ FROM base AS deps
 ARG NODE_ENV=development
 ENV NODE_ENV=${NODE_ENV}
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 FROM base AS builder
 ARG NODE_ENV=production
@@ -33,7 +33,7 @@ FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+ENV PORT=8081
 ENV HOSTNAME=0.0.0.0
 
 RUN groupadd -r nextjs && useradd -r -g nextjs nextjs
@@ -43,5 +43,5 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
 USER nextjs
-EXPOSE 3000
+EXPOSE 8081
 CMD ["node", "server.js"]

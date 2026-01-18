@@ -1,0 +1,534 @@
+openapi: 3.1.0
+info:
+  title: Polling Service API
+  description: Polling service for AREA (API/RSS polling and event dispatch)
+  version: 1.0.0
+  contact:
+    name: AREA Team
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8087
+    description: Local development server
+  - url: http://api:8087
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the service
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /actions:
+    post:
+      summary: Create polling actions
+      description: Creates one or more polling subscriptions for AREA actions
+      operationId: createPollingActions
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionBatchRequest'
+      responses:
+        '201':
+          description: Actions created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionBatchResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Provider not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Action already has a subscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update polling actions
+      description: Updates one or more polling subscriptions by action_id
+      operationId: updatePollingActions
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionBatchRequest'
+      responses:
+        '200':
+          description: Actions updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionBatchResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found or provider not supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /actions/{actionId}:
+    get:
+      summary: Get polling action
+      description: Returns polling details by action_id
+      operationId: getPollingAction
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Action details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad request - Invalid action_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /activate/{actionId}:
+    post:
+      summary: Activate polling action
+      description: Activates a polling subscription by action_id
+      operationId: activatePollingAction
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Action activated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad request - Invalid action_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deactivate/{actionId}:
+    post:
+      summary: Deactivate polling action
+      description: Deactivates a polling subscription by action_id
+      operationId: deactivatePollingAction
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Action deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/ActionResponse'
+        '400':
+          description: Bad request - Invalid action_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete polling action
+      description: Deletes a polling subscription by action_id
+      operationId: deletePollingAction
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - Invalid action_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Action does not belong to user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Subscription not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: Invalid request
+
+    ActionBatchRequest:
+      type: object
+      required:
+        - actions
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionRequest'
+
+    ActionRequest:
+      type: object
+      required:
+        - action_id
+        - type
+        - provider
+        - input
+      properties:
+        active:
+          type: boolean
+          example: true
+        action_id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          example: polling
+        provider:
+          type: string
+          example: rss
+        service:
+          type: string
+          example: rss
+        title:
+          type: string
+          example: RSS feed polling
+        input:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionInput'
+
+    ActionInput:
+      type: object
+      required:
+        - name
+        - value
+      properties:
+        name:
+          type: string
+          example: feed_url
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: array
+            - type: object
+
+    ActionBatchResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            actions:
+              type: array
+              items:
+                $ref: '#/components/schemas/ActionResponse'
+
+    ActionResponse:
+      type: object
+      properties:
+        action_id:
+          type: integer
+          example: 1
+        active:
+          type: boolean
+          example: true
+        provider:
+          type: string
+          example: rss
+        service:
+          type: string
+          example: rss
+        interval_seconds:
+          type: integer
+          example: 300
+        next_run_at:
+          type: string
+          format: date-time
+          example: "2026-01-10T12:00:00Z"

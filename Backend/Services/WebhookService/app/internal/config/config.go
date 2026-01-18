@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -12,10 +13,12 @@ type Config struct {
 	DBUser            string
 	DBPass            string
 	DBName            string
+	InternalSecret    string
 	ServiceServiceURL string
 	AuthServiceURL    string
 	AreaServiceURL    string
 	PublicBaseURL     string
+	LogAllRequests    bool
 }
 
 func Load() Config {
@@ -26,16 +29,30 @@ func Load() Config {
 		DBUser:            getEnv("DB_USER", "postgres"),
 		DBPass:            getEnv("DB_PASSWORD", "postgres"),
 		DBName:            getEnv("DB_NAME", "webhook_service_db"),
-		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/service-service"),
-		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/auth-service"),
-		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area-service"),
-		PublicBaseURL:     getEnv("PUBLIC_BASE_URL", "http://gateway:8080/webhook-service"),
+		InternalSecret:    getEnv("INTERNAL_SECRET", ""),
+		ServiceServiceURL: getEnv("SERVICE_SERVICE_URL", "http://gateway:8080/area_service_api"),
+		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://gateway:8080/area_auth_api"),
+		AreaServiceURL:    getEnv("AREA_SERVICE_URL", "http://gateway:8080/area_area_api"),
+		PublicBaseURL:     getEnv("PUBLIC_BASE_URL", "http://gateway:8080/area_webhook_api"),
+		LogAllRequests:    getEnvBool("LOG_ALL_REQUESTS", false),
 	}
 }
 
 func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return def
+}
+
+func getEnvBool(key string, def bool) bool {
+	if v := os.Getenv(key); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "1", "true", "yes", "on":
+			return true
+		case "0", "false", "no", "off":
+			return false
+		}
 	}
 	return def
 }
@@ -60,9 +77,10 @@ type WebhookSignatureConfig struct {
 }
 
 type WebhookProviderAuthConfig struct {
-	Type   string `json:"type"`
-	Header string `json:"header"`
-	Prefix string `json:"prefix"`
+	Type     string `json:"type"`
+	Header   string `json:"header"`
+	Prefix   string `json:"prefix"`
+	Provider string `json:"provider,omitempty"`
 }
 
 type WebhookProviderSetupConfig struct {
@@ -71,15 +89,83 @@ type WebhookProviderSetupConfig struct {
 	Headers            map[string]string          `json:"headers,omitempty"`
 	Auth               *WebhookProviderAuthConfig `json:"auth,omitempty"`
 	BodyTemplate       json.RawMessage            `json:"body_template,omitempty"`
+	BodyEncoding       string                     `json:"body_encoding,omitempty"`
+	RepeatFor          string                     `json:"repeat_for,omitempty"`
 	ResponseIDJSONPath string                     `json:"response_id_json_path"`
 }
 
 type WebhookProviderConfig struct {
-	Name          string                      `json:"name"`
-	Signature     *WebhookSignatureConfig     `json:"signature,omitempty"`
-	EventHeader   string                      `json:"event_header"`
-	EventJSONPath string                      `json:"event_json_path"`
-	Mappings      []FieldConfig               `json:"mappings,omitempty"`
-	Setup         *WebhookProviderSetupConfig `json:"setup,omitempty"`
-	Teardown      *WebhookProviderSetupConfig `json:"teardown,omitempty"`
+	Name                            string                        `json:"name"`
+	PayloadFormat                   string                        `json:"payload_format,omitempty"`
+	OAuthProvider                   string                        `json:"oauth_provider,omitempty"`
+	TopicTemplate                   string                        `json:"topic_template,omitempty"`
+	Signature                       *WebhookSignatureConfig       `json:"signature,omitempty"`
+	EventHeader                     string                        `json:"event_header"`
+	EventJSONPath                   string                        `json:"event_json_path"`
+	EventAllowServiceConfigFilePath string                        `json:"event_allow_serviceConfigFile_path,omitempty"`
+	EventIgnore                     []string                      `json:"event_ignore,omitempty"`
+	Mappings                        []FieldConfig                 `json:"mappings,omitempty"`
+	Prepare                         []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+	Renewal                         *WebhookProviderRenewalConfig `json:"renewal,omitempty"`
+	Setup                           *WebhookProviderSetupConfig   `json:"setup,omitempty"`
+	Teardown                        *WebhookProviderSetupConfig   `json:"teardown,omitempty"`
+}
+
+type WebhookPrepareCondition struct {
+	JSONPath string   `json:"json_path"`
+	Equals   string   `json:"equals,omitempty"`
+	In       []string `json:"in,omitempty"`
+	Exists   *bool    `json:"exists,omitempty"`
+}
+
+type WebhookProviderPrepareStep struct {
+	When         *WebhookPrepareCondition           `json:"when,omitempty"`
+	Fetch        *WebhookProviderFetchConfig        `json:"fetch,omitempty"`
+	TemplateList *WebhookProviderTemplateListConfig `json:"template_list,omitempty"`
+	Extract      *WebhookProviderExtractConfig      `json:"extract,omitempty"`
+	Generate     *WebhookProviderGenerateConfig     `json:"generate,omitempty"`
+}
+
+type WebhookProviderFetchConfig struct {
+	Method           string                           `json:"method"`
+	URLTemplate      string                           `json:"url_template"`
+	Headers          map[string]string                `json:"headers,omitempty"`
+	Auth             *WebhookProviderAuthConfig       `json:"auth,omitempty"`
+	BodyTemplate     json.RawMessage                  `json:"body_template,omitempty"`
+	BodyEncoding     string                           `json:"body_encoding,omitempty"`
+	ResponseJSONPath string                           `json:"response_json_path,omitempty"`
+	ItemJSONPath     string                           `json:"item_json_path,omitempty"`
+	StorePath        string                           `json:"store_path"`
+	Pagination       *WebhookProviderPaginationConfig `json:"pagination,omitempty"`
+}
+
+type WebhookProviderPaginationConfig struct {
+	RequestParam     string `json:"request_param"`
+	ResponseJSONPath string `json:"response_json_path"`
+}
+
+type WebhookProviderTemplateListConfig struct {
+	RepeatFor string `json:"repeat_for"`
+	Template  string `json:"template"`
+	StorePath string `json:"store_path"`
+	Unique    bool   `json:"unique,omitempty"`
+}
+
+type WebhookProviderExtractConfig struct {
+	SourceJSONPath string `json:"source_json_path"`
+	Regex          string `json:"regex"`
+	Group          int    `json:"group,omitempty"`
+	StorePath      string `json:"store_path"`
+	Optional       bool   `json:"optional,omitempty"`
+}
+
+type WebhookProviderRenewalConfig struct {
+	AfterSeconds int `json:"after_seconds"`
+}
+
+type WebhookProviderGenerateConfig struct {
+	StorePath     string `json:"store_path"`
+	Length        int    `json:"length,omitempty"`
+	Encoding      string `json:"encoding,omitempty"`
+	OnlyIfMissing bool   `json:"only_if_missing,omitempty"`
 }

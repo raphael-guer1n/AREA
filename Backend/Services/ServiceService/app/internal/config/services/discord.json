@@ -1,0 +1,40 @@
+{
+  "provider": "",
+  "name": "discord",
+  "label": "Discord",
+  "icon_url": "",
+  "logo_url": "",
+  "actions": [],
+  "reactions": [
+    {
+      "title": "send_webhook_message",
+      "label": "Send Message (Incoming Webhook)",
+      "url": "{{webhook_url}}",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        {
+          "name": "webhook_url",
+          "type": "text",
+          "label": "Discord Webhook URL",
+          "required": true,
+          "default": ""
+        },
+        {
+          "name": "content",
+          "type": "text",
+          "label": "Message Content",
+          "required": true,
+          "default": "Hello from AREA"
+        }
+      ],
+      "body_struct": [
+        {
+          "path": "content",
+          "type": "text",
+          "value": "{{content}}"
+        }
+      ]
+    }
+  ]
+}

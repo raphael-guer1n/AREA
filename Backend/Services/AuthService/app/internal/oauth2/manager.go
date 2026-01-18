@@ -54,9 +54,9 @@ func (s *StateStore) Get(state string) (*StateData, bool) {
 }
 
 // NewManager creates a new OAuth2 manager with lazy loading from service-service
-func NewManager(serviceServiceURL string) *Manager {
+func NewManager(serviceServiceURL string, internalSecret string) *Manager {
 	return &Manager{
-		configLoader: NewConfigLoader(serviceServiceURL),
+		configLoader: NewConfigLoader(serviceServiceURL, internalSecret),
 		providers:    make(map[string]*Provider),
 		states:       NewStateStore(),
 	}

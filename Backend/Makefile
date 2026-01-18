@@ -1,13 +1,13 @@
 # Global Makefile for Backend
 # Runs common targets across subprojects
 
-.PHONY: help build run test clean docker-build docker-up docker-down docker-logs docker-restart dev init deps fmt lint
+.PHONY: help build run test test_run test_summary clean docker-build docker-up docker-down docker-logs docker-restart dev init deps fmt lint up
 
 SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 # Subprojects participating in global commands (relative to Backend/)
-PROJECTS := Gateway Services/AuthService Services/ServiceService Services/WebhookService Services/AreaService
+PROJECTS := Gateway Services/AuthService Services/ServiceService Services/WebhookService Services/AreaService Services/PollingService Services/MailService Services/CronService
 
 # Colors
 RESET  := \033[0m
@@ -46,6 +46,12 @@ run: ## Run all subprojects locally (may block)
 test: ## Run tests for all subprojects
 	$(call run_for_all,test)
 
+test_run: ## Run unit tests for all subprojects
+	$(call run_for_all,test_run)
+
+test_summary: ## Run unit tests with clean summary output
+	@$(MAKE) test_run 2>&1 | ./scripts/test_summary.sh
+
 clean: ## Clean build artifacts in all subprojects
 	$(call run_for_all,clean)
 
@@ -53,7 +59,10 @@ docker-build: ## Build Docker images for all subprojects
 	$(call run_for_all,docker-build)
 
 docker-up: ## Start Docker for all subprojects
+	@docker network create area_network >/dev/null 2>&1 || true
 	$(call run_for_all,docker-up)
+
+up: docker-up ## Alias for docker-up
 
 docker-down: ## Stop Docker for all subprojects
 	$(call run_for_all,docker-down)

@@ -1,41 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
-/// Typography configuration for AREA mobile.
-/// Modern sans-serif (Inter) with clarity and readability as core values.
-
-final AppTextTheme = TextTheme(
-  displayLarge: GoogleFonts.inter(
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
-    color: AppColors.almostBlack,
-  ),
-  titleLarge: GoogleFonts.inter(
-    fontSize: 22,
-    fontWeight: FontWeight.bold,
-    color: AppColors.deepBlue,
-  ),
-  titleMedium: GoogleFonts.inter(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: AppColors.deepBlue,
-  ),
-  bodyLarge: GoogleFonts.inter(
-    fontSize: 18,
-    color: AppColors.almostBlack,
-  ),
-  bodyMedium: GoogleFonts.inter(
-    fontSize: 16,
-    color: AppColors.almostBlack,
-  ),
-  bodySmall: GoogleFonts.inter(
-    fontSize: 14,
-    color: AppColors.darkGrey,
-  ),
-  labelLarge: GoogleFonts.inter(
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-    color: AppColors.deepBlue,
-  ),
-);
+/// Typography using Arial for mobile.
+TextTheme buildTextTheme(AppColorPalette palette) {
+  return TextTheme(
+    displayLarge: TextStyle(
+      fontSize: 32,
+      fontWeight: FontWeight.w700,
+      fontFamily: 'Arial',
+      color: palette.almostBlack,
+      letterSpacing: -0.5,
+    ),
+    titleLarge: TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      fontFamily: 'Arial',
+      color: palette.deepBlue,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      fontFamily: 'Arial',
+      color: palette.deepBlue,
+    ),
+    bodyLarge: TextStyle(
+      fontSize: 18,
+      fontFamily: 'Arial',
+      color: palette.almostBlack,
+      height: 1.35,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 16,
+      fontFamily: 'Arial',
+      color: palette.almostBlack,
+      height: 1.4,
+    ),
+    bodySmall: TextStyle(
+      fontSize: 14,
+      fontFamily: 'Arial',
+      color: palette.darkGrey,
+    ),
+    labelLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      fontFamily: 'Arial',
+      color: palette.deepBlue,
+      letterSpacing: 0.1,
+    ),
+  );
+}

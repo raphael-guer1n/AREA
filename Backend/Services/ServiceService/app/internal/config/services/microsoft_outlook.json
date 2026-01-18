@@ -1,0 +1,133 @@
+{
+  "provider": "microsoft",
+  "name": "microsoft_outlook",
+  "label": "Outlook Mail",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons.flaticon.com/svg/9768/9768517.svg?token=exp=1768583417~hmac=8ba9285f9eb3d1b482a977ee37363431",
+  "actions": [
+    {
+      "title": "outlook_new_email",
+      "label": "Nouveau mail reçu",
+      "type": "polling",
+      "fields": [
+        { "name": "folder", "type": "text", "label": "Dossier (ID ou nom standard, ex: inbox)", "required": false, "default": "inbox" },
+        { "name": "top", "type": "number", "label": "Nombre max de mails à scanner", "required": false, "default": "1" },
+        { "name": "filter", "type": "text", "label": "Filtre Graph (optionnel)", "required": false, "default": "" }
+      ],
+      "output_fields": [
+        { "name": "id", "type": "text", "label": "ID du message" },
+        { "name": "subject", "type": "text", "label": "Objet" },
+        { "name": "from", "type": "text", "label": "Expéditeur" },
+        { "name": "body_preview", "type": "text", "label": "Aperçu du contenu" },
+        { "name": "receivedDateTime", "type": "text", "label": "Réception le" },
+        { "name": "hasAttachments", "type": "boolean", "label": "Avec pièce jointe" }
+      ]
+    }
+  ],
+  "reactions": [
+    {
+      "title": "outlook_send_email",
+      "label": "Envoyer un mail Outlook",
+      "url": "https://graph.microsoft.com/v1.0/me/sendMail",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "to", "type": "text", "label": "Destinataire", "required": true, "default": "" },
+        { "name": "subject", "type": "text", "label": "Objet", "required": true, "default": "" },
+        { "name": "message", "type": "textarea", "label": "Message", "required": true, "default": "" },
+        {
+          "name": "content_type",
+          "type": "text",
+          "label": "Format de contenu",
+          "required": false,
+          "default": "Text",
+          "selection": [
+            { "value": "Text", "label": "Text" },
+            { "value": "HTML", "label": "HTML" }
+          ]
+        }
+      ],
+      "body_struct": [
+        { "path": "message.subject", "type": "text", "value": "{{subject}}" },
+        { "path": "message.body.contentType", "type": "text", "value": "{{content_type}}" },
+        { "path": "message.body.content", "type": "text", "value": "{{message}}" },
+        {
+          "path": "message.toRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{to}}" }]
+            }
+          ]
+        },
+        { "path": "saveToSentItems", "type": "boolean", "value": "true" }
+      ]
+    },
+    {
+      "title": "outlook_send_email_cc",
+      "label": "Envoyer un mail avec CC/CCI",
+      "url": "https://graph.microsoft.com/v1.0/me/sendMail",
+      "method": "POST",
+      "bodyType": "json",
+      "fields": [
+        { "name": "to", "type": "text", "label": "Destinataire", "required": true, "default": "" },
+        { "name": "cc", "type": "text", "label": "CC (séparés par ;)", "required": false, "default": "" },
+        { "name": "bcc", "type": "text", "label": "CCI (séparés par ;)", "required": false, "default": "" },
+        { "name": "subject", "type": "text", "label": "Objet", "required": true, "default": "" },
+        { "name": "message", "type": "textarea", "label": "Message", "required": true, "default": "" },
+        {
+          "name": "content_type",
+          "type": "text",
+          "label": "Format de contenu",
+          "required": false,
+          "default": "Text",
+          "selection": [
+            { "value": "Text", "label": "Text" },
+            { "value": "HTML", "label": "HTML" }
+          ]
+        }
+      ],
+      "body_struct": [
+        { "path": "message.subject", "type": "text", "value": "{{subject}}" },
+        { "path": "message.body.contentType", "type": "text", "value": "{{content_type}}" },
+        { "path": "message.body.content", "type": "text", "value": "{{message}}" },
+        {
+          "path": "message.toRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{to}}" }]
+            }
+          ]
+        },
+        {
+          "path": "message.ccRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{cc}}" }]
+            }
+          ]
+        },
+        {
+          "path": "message.bccRecipients",
+          "type": "array",
+          "value": [
+            {
+              "path": "",
+              "type": "object",
+              "value": [{ "path": "emailAddress.address", "type": "text", "value": "{{bcc}}" }]
+            }
+          ]
+        },
+        { "path": "saveToSentItems", "type": "boolean", "value": "true" }
+      ]
+    }
+  ]
+}

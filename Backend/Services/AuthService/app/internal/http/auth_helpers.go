@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/raphael-guer1n/AREA/AuthService/internal/auth"
+	"github.com/raphael-guer1n/AREA/AuthService/internal/service"
 )
 
 var (
@@ -31,4 +32,8 @@ func getUserIDFromRequest(req *http.Request) (int, error) {
 	}
 
 	return userID, nil
+}
+
+func getUserIDFromAuth(req *http.Request, authSvc *service.AuthService) (int, error) {
+	return getUserIDFromRequest(req)
 }

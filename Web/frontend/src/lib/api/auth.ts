@@ -14,13 +14,16 @@ function normalizeAuthBase(): string {
   const raw =
     process.env.API_BASE_URL ??
     process.env.NEXT_PUBLIC_API_BASE_URL ??
-    "http://localhost:8080/auth-service";
+    "http://localhost:8080/area_auth_api";
 
   const trimmed = raw.replace(/\/+$/, "");
-  if (/\/auth-service($|\/)/.test(trimmed)) {
+  if (trimmed.endsWith("/area_auth_api")) {
     return trimmed;
   }
-  return `${trimmed}/auth-service`;
+  if (trimmed.endsWith("/auth-service")) {
+    return `${trimmed.slice(0, -"/auth-service".length)}/area_auth_api`;
+  }
+  return `${trimmed}/area_auth_api`;
 }
 
 export const BACKEND_BASE_URL = normalizeAuthBase();

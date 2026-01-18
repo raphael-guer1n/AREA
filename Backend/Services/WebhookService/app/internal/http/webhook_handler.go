@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,17 +28,19 @@ const maxBodyBytes int64 = 1 << 20
 type WebhookHandler struct {
 	subscriptionSvc *service.SubscriptionService
 	providerSvc     *service.ProviderConfigService
+	areaTriggerSvc  *service.AreaTriggerService
 }
 
-func NewWebhookHandler(subscriptionSvc *service.SubscriptionService, providerSvc *service.ProviderConfigService) *WebhookHandler {
+func NewWebhookHandler(subscriptionSvc *service.SubscriptionService, providerSvc *service.ProviderConfigService, areaTriggerSvc *service.AreaTriggerService) *WebhookHandler {
 	return &WebhookHandler{
 		subscriptionSvc: subscriptionSvc,
 		providerSvc:     providerSvc,
+		areaTriggerSvc:  areaTriggerSvc,
 	}
 }
 
 func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
+	if req.Method != http.MethodPost && req.Method != http.MethodGet {
 		respondJSON(w, http.StatusMethodNotAllowed, map[string]any{
 			"success": false,
 			"error":   "method not allowed",
@@ -54,6 +57,39 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		return
 	}
 
+	if req.Method == http.MethodGet {
+		challenge := req.URL.Query().Get("hub.challenge")
+		if challenge == "" {
+			respondJSON(w, http.StatusBadRequest, map[string]any{
+				"success": false,
+				"error":   "missing hub.challenge",
+			})
+			return
+		}
+		subscription, err := h.subscriptionSvc.GetSubscriptionByHookID(hookID)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]any{
+				"success": false,
+				"error":   "failed to load subscription",
+			})
+			return
+		}
+		if subscription == nil || subscription.Service != provider {
+			mode := strings.ToLower(req.URL.Query().Get("hub.mode"))
+			if mode != "unsubscribe" {
+				respondJSON(w, http.StatusNotFound, map[string]any{
+					"success": false,
+					"error":   "webhook not found",
+				})
+				return
+			}
+		}
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(challenge))
+		return
+	}
+
 	subscription, err := h.subscriptionSvc.GetSubscriptionByHookID(hookID)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]any{
@@ -62,10 +98,27 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		})
 		return
 	}
-	if subscription == nil || subscription.Provider != provider {
+	if subscription == nil || subscription.Service != provider {
 		respondJSON(w, http.StatusNotFound, map[string]any{
 			"success": false,
 			"error":   "webhook not found",
+		})
+		return
+	}
+	if !subscription.Active {
+		_, _ = io.Copy(io.Discard, req.Body)
+		log.Printf(
+			"webhook ignored: hook_id=%s action_id=%d provider=%s inactive=true",
+			subscription.HookID,
+			subscription.ActionID,
+			subscription.Service,
+		)
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"hook_id":  subscription.HookID,
+				"inactive": true,
+			},
 		})
 		return
 	}
@@ -94,15 +147,13 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		return
 	}
 
-	var payload any = map[string]any{}
-	if len(body) > 0 {
-		if err := json.Unmarshal(body, &payload); err != nil {
-			respondJSON(w, http.StatusBadRequest, map[string]any{
-				"success": false,
-				"error":   "invalid JSON body",
-			})
-			return
-		}
+	payload, err := parsePayload(body, providerConfig.PayloadFormat)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
 	}
 
 	var subscriptionConfig any = map[string]any{}
@@ -118,7 +169,8 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 
 	if providerConfig.Signature != nil {
 		secretValue, ok := utils.ExtractJSONPath(subscriptionConfig, providerConfig.Signature.SecretJSONPath)
-		if !ok || fmt.Sprint(secretValue) == "" {
+		secret := strings.TrimSpace(fmt.Sprint(secretValue))
+		if !ok || secret == "" {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   "missing signature secret",
@@ -126,7 +178,7 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 			return
 		}
 
-		if err := validateSignature(providerConfig.Signature, req, fmt.Sprint(secretValue), body); err != nil {
+		if err := validateSignature(providerConfig.Signature, req, secret, body); err != nil {
 			respondJSON(w, http.StatusUnauthorized, map[string]any{
 				"success": false,
 				"error":   err.Error(),
@@ -145,6 +197,27 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		}
 	}
 
+	if ok, reason := shouldProcessEvent(eventType, providerConfig, subscriptionConfig); !ok {
+		log.Printf(
+			"webhook ignored: hook_id=%s action_id=%d provider=%s event=%s reason=%s",
+			subscription.HookID,
+			subscription.ActionID,
+			subscription.Service,
+			eventType,
+			reason,
+		)
+		respondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"hook_id": subscription.HookID,
+				"event":   eventType,
+				"ignored": true,
+				"reason":  reason,
+			},
+		})
+		return
+	}
+
 	mapped := map[string]any{}
 	if len(providerConfig.Mappings) > 0 {
 		mapped, err = buildMappings(payload, providerConfig.Mappings)
@@ -157,20 +230,18 @@ func (h *WebhookHandler) HandleReceiveWebhook(w http.ResponseWriter, req *http.R
 		}
 	}
 
-	event := map[string]any{
-		"hook_id":     subscription.HookID,
-		"user_id":     subscription.UserID,
-		"area_id":     subscription.AreaID,
-		"provider":    subscription.Provider,
-		"event":       eventType,
-		"mapped":      mapped,
-		"payload":     payload,
-		"config":      subscriptionConfig,
-		"received_at": time.Now().UTC(),
+	outputFields := buildOutputFields(providerConfig.Mappings, mapped)
+	if h.areaTriggerSvc != nil {
+		if err := h.areaTriggerSvc.Trigger(subscription.ActionID, outputFields); err != nil {
+			log.Printf(
+				"webhook dispatch failed: hook_id=%s action_id=%d provider=%s error=%v",
+				subscription.HookID,
+				subscription.ActionID,
+				subscription.Service,
+				err,
+			)
+		}
 	}
-
-	// TODO: dispatch event to AreaService using event payload
-	_ = event
 
 	respondJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -189,6 +260,83 @@ func parseWebhookPath(path string) (string, string) {
 		return "", ""
 	}
 	return parts[0], parts[1]
+}
+
+func shouldProcessEvent(eventType string, providerConfig *config.WebhookProviderConfig, subscriptionConfig any) (bool, string) {
+	if providerConfig == nil {
+		return true, ""
+	}
+
+	event := strings.ToLower(strings.TrimSpace(eventType))
+	if event == "" {
+		return true, ""
+	}
+
+	if len(providerConfig.EventIgnore) > 0 && eventInList(event, providerConfig.EventIgnore) {
+		return false, "ignored"
+	}
+
+	if providerConfig.EventAllowServiceConfigFilePath == "" || subscriptionConfig == nil {
+		return true, ""
+	}
+
+	path := strings.TrimSpace(providerConfig.EventAllowServiceConfigFilePath)
+	path = strings.TrimPrefix(path, "config.")
+	if path == "" {
+		return true, ""
+	}
+
+	value, ok := utils.ExtractJSONPath(subscriptionConfig, path)
+	if !ok {
+		return true, ""
+	}
+
+	allowed, ok := normalizeEventList(value)
+	if !ok {
+		return true, ""
+	}
+	if len(allowed) == 0 {
+		return false, "filtered"
+	}
+	if eventInList("*", allowed) {
+		return true, ""
+	}
+	if !eventInList(event, allowed) {
+		return false, "filtered"
+	}
+
+	return true, ""
+}
+
+func normalizeEventList(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = append(out, strings.TrimSpace(item))
+		}
+		return out, true
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = append(out, strings.TrimSpace(fmt.Sprint(item)))
+		}
+		return out, true
+	case string:
+		return []string{strings.TrimSpace(v)}, true
+	default:
+		return nil, false
+	}
+}
+
+func eventInList(event string, list []string) bool {
+	needle := strings.ToLower(strings.TrimSpace(event))
+	for _, item := range list {
+		if strings.ToLower(strings.TrimSpace(item)) == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func readBody(req *http.Request) ([]byte, error) {
@@ -402,6 +550,42 @@ func buildMappings(payload any, mappings []config.FieldConfig) (map[string]any, 
 	return mapped, nil
 }
 
+func buildOutputFields(mappings []config.FieldConfig, mapped map[string]any) []service.TriggerOutputField {
+	if len(mapped) == 0 {
+		return []service.TriggerOutputField{}
+	}
+	fields := make([]service.TriggerOutputField, 0, len(mapped))
+	for _, mapping := range mappings {
+		value, ok := mapped[mapping.FieldKey]
+		if !ok {
+			continue
+		}
+		fields = append(fields, service.TriggerOutputField{
+			Name:  mapping.FieldKey,
+			Value: stringifyOutputValue(value),
+		})
+	}
+	return fields
+}
+
+func stringifyOutputValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	default:
+		switch v.(type) {
+		case map[string]any, []any:
+			encoded, err := json.Marshal(v)
+			if err == nil {
+				return string(encoded)
+			}
+		}
+		return fmt.Sprint(v)
+	}
+}
+
 func coerceValue(value any, valueType string) (any, error) {
 	switch valueType {
 	case "string":
@@ -431,5 +615,28 @@ func coerceValue(value any, valueType string) (any, error) {
 		return value, nil
 	default:
 		return nil, fmt.Errorf("unsupported type")
+	}
+}
+
+func parsePayload(body []byte, format string) (any, error) {
+	if len(body) == 0 {
+		return map[string]any{}, nil
+	}
+
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "json":
+		var payload any
+		if err := json.Unmarshal(body, &payload); err != nil {
+			return nil, fmt.Errorf("invalid JSON body")
+		}
+		return payload, nil
+	case "xml":
+		payload, err := utils.ParseXMLToMap(body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid XML body")
+		}
+		return payload, nil
+	default:
+		return nil, fmt.Errorf("unsupported payload format")
 	}
 }

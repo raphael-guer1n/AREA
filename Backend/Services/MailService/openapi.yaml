@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Mail Service API
+  description: Internal SMTP mail sender for AREA reactions
+  version: 1.0.0
+servers:
+  - url: http://localhost:8088
+    description: Local development server
+  - url: http://area_mail_api:8088
+    description: Docker internal network
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /send:
+    post:
+      summary: Send email
+      description: Sends an email using configured SMTP credentials.
+      operationId: sendEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '200':
+          description: Email accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: SMTP error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SendEmailRequest:
+      type: object
+      required:
+        - to
+        - subject
+        - body
+      properties:
+        to:
+          description: Single recipient or list of recipients.
+          oneOf:
+            - type: string
+              example: user@example.com
+            - type: array
+              items:
+                type: string
+              example: ["user@example.com", "other@example.com"]
+        subject:
+          type: string
+          example: Notification from AREA
+        body:
+          type: string
+          example: This is a test email.
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: invalid request body
+    HealthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: healthy

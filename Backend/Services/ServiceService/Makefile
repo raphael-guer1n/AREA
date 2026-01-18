@@ -1,4 +1,4 @@
-.PHONY: help build run test clean docker-build docker-up docker-down docker-logs dev
+.PHONY: help build run test test_run clean docker-build docker-up docker-down docker-logs dev
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -15,21 +15,24 @@ run: ## Run the application locally
 test: ## Run tests
 	cd app && go test -v ./...
 
+test_run: ## Run unit tests with coverage
+	cd app && go test -v -cover ./internal/...
+
 clean: ## Remove build artifacts
 	rm -f app/main
 	cd app && go clean
 
 docker-build: ## Build Docker image
-	docker-compose build
+	docker compose build
 
 docker-up: ## Start Docker containers
-	docker-compose up -d
+	docker compose up -d
 
 docker-down: ## Stop Docker containers
-	docker-compose down
+	docker compose down
 
 docker-logs: ## View Docker logs
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-restart: docker-down docker-up ## Restart Docker containers
 

@@ -19,15 +19,17 @@ var (
 	ErrMissingSecret        = errors.New("missing signature secret")
 	ErrSubscriptionNotFound = errors.New("subscription not found")
 	ErrProviderHookMissing  = errors.New("provider hook id is missing")
+	ErrActionExists         = errors.New("action already has a webhook")
+	ErrUnauthorizedAction   = errors.New("action does not belong to user")
 )
 
 type SubscriptionService struct {
 	repo            domain.SubscriptionRepository
-	providerConfig  *ProviderConfigService
-	webhookSetupSvc *WebhookSetupService
+	providerConfig  ProviderConfigServiceInterface
+	webhookSetupSvc WebhookSetupServiceInterface
 }
 
-func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig *ProviderConfigService, webhookSetupSvc *WebhookSetupService) *SubscriptionService {
+func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig ProviderConfigServiceInterface, webhookSetupSvc WebhookSetupServiceInterface) *SubscriptionService {
 	return &SubscriptionService{
 		repo:            repo,
 		providerConfig:  providerConfig,
@@ -35,8 +37,26 @@ func NewSubscriptionService(repo domain.SubscriptionRepository, providerConfig *
 	}
 }
 
-func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider string, cfg json.RawMessage, webhookBaseURL string) (*domain.Subscription, error) {
-	providerConfig, err := s.providerConfig.GetProviderConfig(provider)
+func (s *SubscriptionService) CreateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+	if existing, err := s.repo.FindByActionID(actionID); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return nil, ErrActionExists
+	}
+
+	serviceName := strings.TrimSpace(service)
+	if serviceName == "" {
+		serviceName = strings.TrimSpace(provider)
+	}
+	if serviceName == "" {
+		return nil, ErrProviderNotSupported
+	}
+	providerName := strings.TrimSpace(provider)
+	if providerName == "" {
+		providerName = serviceName
+	}
+
+	providerConfig, err := s.providerConfig.GetProviderConfig(serviceName)
 	if err != nil {
 		if errors.Is(err, ErrProviderConfigNotFound) {
 			return nil, ErrProviderNotSupported
@@ -51,21 +71,34 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 		}
 	}
 
-	if _, ok := cfgPayload.(map[string]any); !ok {
+	cfgMap, ok := cfgPayload.(map[string]any)
+	if !ok {
 		return nil, ErrInvalidConfig
 	}
 
+	cfgMap, err = s.applyPrepareSteps(userID, providerConfig, cfgMap)
+	if err != nil {
+		return nil, err
+	}
+
 	if providerConfig.Signature != nil {
-		secretValue, ok := utils.ExtractJSONPath(cfgPayload, providerConfig.Signature.SecretJSONPath)
+		secretValue, ok := utils.ExtractJSONPath(cfgMap, providerConfig.Signature.SecretJSONPath)
 		if !ok || fmt.Sprint(secretValue) == "" {
 			return nil, ErrMissingSecret
 		}
 	}
 
+	cfg, err = json.Marshal(cfgMap)
+	if err != nil {
+		return nil, ErrInvalidConfig
+	}
+
 	sub := &domain.Subscription{
 		UserID:   userID,
-		AreaID:   areaID,
-		Provider: provider,
+		ActionID: actionID,
+		Provider: providerName,
+		Service:  serviceName,
+		Active:   active,
 		Config:   cfg,
 	}
 
@@ -73,11 +106,11 @@ func (s *SubscriptionService) CreateSubscription(userID, areaID int, provider st
 		sub.HookID = generateHookID()
 		created, err := s.repo.Create(sub)
 		if err == nil {
-			if s.webhookSetupSvc != nil && providerConfig.Setup != nil {
-				webhookURL := buildWebhookURL(webhookBaseURL, provider, created.HookID)
-				providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, created, webhookURL, cfgPayload)
+			if active && s.webhookSetupSvc != nil && providerConfig.Setup != nil {
+				webhookURL := buildWebhookURL(webhookBaseURL, serviceName, created.HookID)
+				providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, created, webhookURL, cfgMap)
 				if err != nil {
-					_ = s.repo.DeleteByHookID(created.HookID)
+					_ = s.repo.DeleteByActionID(created.ActionID)
 					return nil, err
 				}
 				if providerHookID != "" {
@@ -102,8 +135,203 @@ func (s *SubscriptionService) GetSubscriptionByHookID(hookID string) (*domain.Su
 	return s.repo.FindByHookID(hookID)
 }
 
-func (s *SubscriptionService) DeleteSubscription(hookID, webhookBaseURL string) error {
-	subscription, err := s.repo.FindByHookID(hookID)
+func (s *SubscriptionService) GetSubscriptionByActionID(actionID int) (*domain.Subscription, error) {
+	return s.repo.FindByActionID(actionID)
+}
+
+func (s *SubscriptionService) UpdateSubscription(userID, actionID int, provider, service string, cfg json.RawMessage, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+	subscription, err := s.repo.FindByActionID(actionID)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	if subscription.UserID != userID {
+		return nil, ErrUnauthorizedAction
+	}
+
+	serviceName := strings.TrimSpace(service)
+	if serviceName == "" {
+		serviceName = strings.TrimSpace(provider)
+	}
+	if serviceName == "" {
+		return nil, ErrProviderNotSupported
+	}
+	providerName := strings.TrimSpace(provider)
+	if providerName == "" {
+		providerName = serviceName
+	}
+
+	newProviderConfig, err := s.providerConfig.GetProviderConfig(serviceName)
+	if err != nil {
+		if errors.Is(err, ErrProviderConfigNotFound) {
+			return nil, ErrProviderNotSupported
+		}
+		return nil, err
+	}
+
+	var cfgPayload any = map[string]any{}
+	if len(cfg) > 0 {
+		if err := json.Unmarshal(cfg, &cfgPayload); err != nil {
+			return nil, ErrInvalidConfig
+		}
+	}
+
+	cfgMap, ok := cfgPayload.(map[string]any)
+	if !ok {
+		return nil, ErrInvalidConfig
+	}
+
+	cfgMap, err = s.applyPrepareSteps(userID, newProviderConfig, cfgMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if newProviderConfig.Signature != nil {
+		secretValue, ok := utils.ExtractJSONPath(cfgMap, newProviderConfig.Signature.SecretJSONPath)
+		if !ok || fmt.Sprint(secretValue) == "" {
+			return nil, ErrMissingSecret
+		}
+	}
+
+	newConfig, err := json.Marshal(cfgMap)
+	if err != nil {
+		return nil, ErrInvalidConfig
+	}
+
+	if subscription.Active && s.webhookSetupSvc != nil {
+		oldProviderConfig, err := s.providerConfig.GetProviderConfig(subscription.Service)
+		if err == nil && oldProviderConfig.Teardown != nil {
+			var oldCfgPayload any = map[string]any{}
+			if len(subscription.Config) > 0 {
+				if err := json.Unmarshal(subscription.Config, &oldCfgPayload); err == nil {
+					webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+					_ = s.webhookSetupSvc.DeleteWebhook(oldProviderConfig, subscription, webhookURL, oldCfgPayload)
+				}
+			}
+		}
+	}
+
+	updatedSub := *subscription
+	updatedSub.Provider = providerName
+	updatedSub.Service = serviceName
+	updatedSub.Config = newConfig
+	updatedSub.Active = active
+	updatedSub.ProviderHookID = subscription.ProviderHookID
+
+	if active && s.webhookSetupSvc != nil && newProviderConfig.Setup != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, serviceName, updatedSub.HookID)
+		providerHookID, err := s.webhookSetupSvc.RegisterWebhook(newProviderConfig, &updatedSub, webhookURL, cfgMap)
+		if err != nil {
+			return nil, err
+		}
+		updatedSub.ProviderHookID = providerHookID
+	} else {
+		updatedSub.ProviderHookID = ""
+	}
+
+	saved, err := s.repo.UpdateByActionID(&updatedSub)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	return saved, nil
+}
+
+func (s *SubscriptionService) ActivateSubscription(userID, actionID int, webhookBaseURL string) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, true, webhookBaseURL)
+}
+
+func (s *SubscriptionService) DeactivateSubscription(userID, actionID int, webhookBaseURL string) (*domain.Subscription, error) {
+	return s.setSubscriptionActive(userID, actionID, false, webhookBaseURL)
+}
+
+func (s *SubscriptionService) setSubscriptionActive(userID, actionID int, active bool, webhookBaseURL string) (*domain.Subscription, error) {
+	subscription, err := s.repo.FindByActionID(actionID)
+	if err != nil {
+		return nil, err
+	}
+	if subscription == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	if subscription.UserID != userID {
+		return nil, ErrUnauthorizedAction
+	}
+	if subscription.Active == active {
+		return subscription, nil
+	}
+
+	providerConfig, err := s.providerConfig.GetProviderConfig(subscription.Service)
+	if err != nil {
+		if errors.Is(err, ErrProviderConfigNotFound) {
+			return nil, ErrProviderNotSupported
+		}
+		return nil, err
+	}
+
+	cfgMap, err := decodeSubscriptionConfig(subscription.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	if active && providerConfig.Signature != nil {
+		secretValue, ok := utils.ExtractJSONPath(cfgMap, providerConfig.Signature.SecretJSONPath)
+		if !ok || fmt.Sprint(secretValue) == "" {
+			return nil, ErrMissingSecret
+		}
+	}
+
+	if subscription.Active && !active && s.webhookSetupSvc != nil && providerConfig.Teardown != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		if err := s.webhookSetupSvc.DeleteWebhook(providerConfig, subscription, webhookURL, cfgMap); err != nil {
+			return nil, err
+		}
+	}
+
+	updatedSub := *subscription
+	updatedSub.Active = active
+
+	if active && s.webhookSetupSvc != nil && providerConfig.Setup != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
+		providerHookID, err := s.webhookSetupSvc.RegisterWebhook(providerConfig, &updatedSub, webhookURL, cfgMap)
+		if err != nil {
+			return nil, err
+		}
+		updatedSub.ProviderHookID = providerHookID
+	} else if !active {
+		updatedSub.ProviderHookID = ""
+	}
+
+	saved, err := s.repo.UpdateByActionID(&updatedSub)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, ErrSubscriptionNotFound
+	}
+	return saved, nil
+}
+
+func decodeSubscriptionConfig(raw json.RawMessage) (map[string]any, error) {
+	if len(raw) == 0 {
+		return map[string]any{}, nil
+	}
+	var cfgPayload any
+	if err := json.Unmarshal(raw, &cfgPayload); err != nil {
+		return nil, ErrInvalidConfig
+	}
+	cfgMap, ok := cfgPayload.(map[string]any)
+	if !ok {
+		return nil, ErrInvalidConfig
+	}
+	return cfgMap, nil
+}
+
+func (s *SubscriptionService) DeleteSubscription(actionID int, webhookBaseURL string) error {
+	subscription, err := s.repo.FindByActionID(actionID)
 	if err != nil {
 		return err
 	}
@@ -111,7 +339,7 @@ func (s *SubscriptionService) DeleteSubscription(hookID, webhookBaseURL string) 
 		return ErrSubscriptionNotFound
 	}
 
-	providerConfig, err := s.providerConfig.GetProviderConfig(subscription.Provider)
+	providerConfig, err := s.providerConfig.GetProviderConfig(subscription.Service)
 	if err != nil {
 		if errors.Is(err, ErrProviderConfigNotFound) {
 			return ErrProviderNotSupported
@@ -129,14 +357,14 @@ func (s *SubscriptionService) DeleteSubscription(hookID, webhookBaseURL string) 
 		return ErrInvalidConfig
 	}
 
-	if s.webhookSetupSvc != nil && providerConfig.Teardown != nil {
-		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Provider, subscription.HookID)
+	if subscription.Active && s.webhookSetupSvc != nil && providerConfig.Teardown != nil {
+		webhookURL := buildWebhookURL(webhookBaseURL, subscription.Service, subscription.HookID)
 		if err := s.webhookSetupSvc.DeleteWebhook(providerConfig, subscription, webhookURL, cfgPayload); err != nil {
 			return err
 		}
 	}
 
-	return s.repo.DeleteByHookID(hookID)
+	return s.repo.DeleteByActionID(actionID)
 }
 
 func generateHookID() string {

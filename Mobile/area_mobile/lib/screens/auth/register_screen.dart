@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/colors.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -48,6 +49,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final colors = context.appColors;
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -55,8 +57,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.almostBlack),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: Icon(Icons.arrow_back, color: colors.almostBlack),
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => LoginScreen()),
+            );
+          },
         ),
       ),
       body: SafeArea(
@@ -73,15 +79,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Créer un compte',
-                        style: theme.textTheme.displayLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Commencez à automatiser gratuitement',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: AppColors.darkGrey,
+                      Center(
+                        child: Column(
+                          children: [
+                            Image.asset(
+                              'assets/logo.png',
+                              height: 72,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Créer un compte',
+                              style: theme.textTheme.displayLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Commencez à automatiser gratuitement',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colors.darkGrey,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 32),

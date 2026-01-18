@@ -5,15 +5,20 @@ import (
 	"net/http"
 
 	"github.com/raphael-guer1n/AREA/AreaService/internal/config"
+	"github.com/raphael-guer1n/AREA/AreaService/internal/db"
 	httphandler "github.com/raphael-guer1n/AREA/AreaService/internal/http"
+	"github.com/raphael-guer1n/AREA/AreaService/internal/repository"
 	"github.com/raphael-guer1n/AREA/AreaService/internal/service"
 )
 
 func main() {
 	cfg := config.Load()
+	dbConn := db.Connect(cfg)
 
-	areaSvc := service.NewAreaService()
-	areaHandler := httphandler.NewAreaHandler(areaSvc)
+	areaRepository := repository.NewAreaRepository(dbConn)
+
+	areaSvc := service.NewAreaService(areaRepository, cfg.InternalSecret)
+	areaHandler := httphandler.NewAreaHandler(areaSvc, cfg)
 	router := httphandler.NewRouter(areaHandler)
 
 	addr := ":" + cfg.HTTPPort

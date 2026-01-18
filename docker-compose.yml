@@ -1,197 +1,303 @@
-name: area
-
 services:
-  auth-db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${AUTH_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${AUTH_DB_NAME:-auth_service_db}
-    ports:
-      - "${AUTH_DB_EXTERNAL_PORT:-5433}:5432"
-    volumes:
-      - auth_postgres_data:/var/lib/postgresql/data
-      - ./Backend/Services/AuthService/db/init:/docker-entrypoint-initdb.d
-    networks:
-      - area_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AUTH_DB_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  auth-service:
-    build:
-      context: ./Backend/Services/AuthService
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      auth-db:
-        condition: service_healthy
-    env_file:
-      - ./Backend/Services/AuthService/.env
-    environment:
-      DB_HOST: auth-db
-      DB_PORT: ${AUTH_DB_INTERNAL_PORT:-5432}
-      DB_USER: ${AUTH_DB_USER:-postgres}
-      DB_PASSWORD: ${AUTH_DB_PASSWORD:-postgres}
-      DB_NAME: ${AUTH_DB_NAME:-auth_service_db}
-      SERVER_PORT: ${AUTH_SERVER_PORT:-8083}
-      SERVICE_SERVICE_URL: ${SERVICE_SERVICE_URL:-http://service-service:8084}
-    ports:
-      - "${AUTH_SERVER_PORT:-8083}:${AUTH_SERVER_PORT:-8083}"
-    networks:
-      - area_network
-
-  service-db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${SERVICE_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${SERVICE_DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${SERVICE_DB_NAME:-service_service_db}
-    ports:
-      - "${SERVICE_DB_EXTERNAL_PORT:-5434}:5432"
-    volumes:
-      - service_postgres_data:/var/lib/postgresql/data
-      - ./Backend/Services/ServiceService/db/init:/docker-entrypoint-initdb.d
-    networks:
-      - area_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${SERVICE_DB_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  service-service:
-    build:
-      context: ./Backend/Services/ServiceService
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      service-db:
-        condition: service_healthy
-    env_file:
-      - ./Backend/Services/ServiceService/.env
-    environment:
-      DB_HOST: service-db
-      DB_PORT: ${SERVICE_DB_INTERNAL_PORT:-5432}
-      DB_USER: ${SERVICE_DB_USER:-postgres}
-      DB_PASSWORD: ${SERVICE_DB_PASSWORD:-postgres}
-      DB_NAME: ${SERVICE_DB_NAME:-service_service_db}
-      SERVER_PORT: ${SERVICE_SERVER_PORT:-8084}
-    ports:
-      - "${SERVICE_SERVER_PORT:-8084}:${SERVICE_SERVER_PORT:-8084}"
-    networks:
-      - area_network
-
-  area-db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${AREA_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${AREA_DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${AREA_DB_NAME:-area_service_db}
-    ports:
-      - "${AREA_DB_EXTERNAL_PORT:-5435}:5432"
-    volumes:
-      - area_postgres_data:/var/lib/postgresql/data
-      - ./Backend/Services/AreaService/db/init:/docker-entrypoint-initdb.d
-    networks:
-      - area_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AREA_DB_USER:-postgres}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  area-service:
-    build:
-      context: ./Backend/Services/AreaService
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    depends_on:
-      area-db:
-        condition: service_healthy
-    env_file:
-      - ./Backend/Services/AreaService/.env
-    environment:
-      DB_HOST: area-db
-      DB_PORT: ${AREA_DB_INTERNAL_PORT:-5432}
-      DB_USER: ${AREA_DB_USER:-postgres}
-      DB_PASSWORD: ${AREA_DB_PASSWORD:-postgres}
-      DB_NAME: ${AREA_DB_NAME:-area_service_db}
-      SERVER_PORT: ${AREA_SERVER_PORT:-8085}
-    ports:
-      - "${AREA_SERVER_PORT:-8085}:${AREA_SERVER_PORT:-8085}"
-    networks:
-      - area_network
-
   gateway:
     build:
       context: ./Backend/Gateway
       dockerfile: Dockerfile
-    restart: unless-stopped
     env_file:
       - ./Backend/Gateway/configs/gateway.env
     ports:
-      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+      - "8080:8080"
     volumes:
       - ./Backend/Gateway/services-config:/root/services-config:ro
       - ./Backend/Gateway/configs:/root/configs:ro
-    depends_on:
-      - auth-service
-      - service-service
-      - area-service
-    networks:
-      - area_network
-
-  frontend:
-    build:
-      context: ./Web/frontend
-      dockerfile: Dockerfile
-      args:
-        API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/auth-service}
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
-        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area-service}
-        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
-        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/service-service}
-        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
-    environment:
-      API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/auth-service}
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/auth-service}
-      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area-service}
-      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area-service}
-      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/service-service}
-      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/service-service}
-    depends_on:
-      - gateway
-    ports:
-      - "3000:3000"
     networks:
       - area_network
     restart: unless-stopped
 
-  mobile:
+  area_auth_api:
+    build:
+      context: ./Backend/Services/AuthService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/AuthService/.env
+    environment:
+      DB_HOST: area_auth_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_auth_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_auth_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_service_db
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/AuthService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_service_api:
+    build:
+      context: ./Backend/Services/ServiceService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/ServiceService/.env
+    environment:
+      DB_HOST: area_service_db
+      DB_PORT: 5432
+    depends_on:
+      area_service_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_service_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: service_service_db
+    volumes:
+      - service_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/ServiceService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_area_api:
+    build:
+      context: ./Backend/Services/AreaService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/AreaService/.env
+    environment:
+      DB_HOST: area_area_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_area_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_area_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: area_area_db
+    volumes:
+      - area_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/AreaService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_webhook_api:
+    build:
+      context: ./Backend/Services/WebhookService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/WebhookService/.env
+    environment:
+      DB_HOST: area_webhook_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_webhook_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_webhook_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webhook_service_db
+    volumes:
+      - webhook_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/WebhookService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_polling_api:
+    build:
+      context: ./Backend/Services/PollingService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/PollingService/.env
+    environment:
+      DB_HOST: area_polling_db
+      DB_PORT: 5432
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_polling_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_polling_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: polling_service_db
+    volumes:
+      - polling_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/PollingService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_cron_api:
+    build:
+      context: ./Backend/Services/CronService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/CronService/.env
+    environment:
+      DB_HOST: area_cron_db
+      DB_PORT: 5432
+      SERVER_PORT: 8088
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-secret123}
+    depends_on:
+      area_cron_db:
+        condition: service_healthy
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  area_cron_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cron_service_db
+    volumes:
+      - cron_db_data:/var/lib/postgresql/data
+      - ./Backend/Services/CronService/db/init:/docker-entrypoint-initdb.d
+    networks:
+      - area_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  area_mail_api:
+    build:
+      context: ./Backend/Services/MailService
+      dockerfile: Dockerfile
+    env_file:
+      - ./Backend/Services/MailService/.env
+    networks:
+      - area_network
+    restart: unless-stopped
+
+  client_mobile:
     build:
       context: ./Mobile/area_mobile
       dockerfile: Dockerfile
       args:
-        BASE_URL: ${MOBILE_BASE_URL:-http://10.0.2.2:8080/auth-service}
-    container_name: area_mobile
-    profiles: ["mobile"]
+        BASE_URL: ${MOBILE_BASE_URL:-http://gateway:8080}
     environment:
-      BASE_URL: ${MOBILE_BASE_URL:-http://10.0.2.2:8080/auth-service}
-    command: ["sleep", "infinity"]
+      BASE_URL: ${MOBILE_BASE_URL:-http://gateway:8080}
+      APK_OUTPUT_PATH: /apk/client.apk
+      EXIT_AFTER_BUILD: "true"
+    volumes:
+      - apk_dist:/apk
+    networks:
+      - area_network
     restart: "no"
+
+  client_web:
+    build:
+      context: ./Web/frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+        API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
+        AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
+        NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
+        SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
+        NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-8081}
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: ${API_BASE_URL:-http://gateway:8080/area_auth_api}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080/area_auth_api}
+      AREA_API_BASE_URL: ${AREA_API_BASE_URL:-http://gateway:8080/area_area_api}
+      NEXT_PUBLIC_AREA_API_BASE_URL: ${NEXT_PUBLIC_AREA_API_BASE_URL:-http://localhost:8080/area_area_api}
+      SERVICES_API_BASE_URL: ${SERVICES_API_BASE_URL:-http://gateway:8080/area_service_api}
+      NEXT_PUBLIC_SERVICES_API_BASE_URL: ${NEXT_PUBLIC_SERVICES_API_BASE_URL:-http://localhost:8080/area_service_api}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:8081}
+      NEXT_PUBLIC_OAUTH_CALLBACK_BASE: ${NEXT_PUBLIC_OAUTH_CALLBACK_BASE:-http://localhost:8081}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      NEXT_FONT_GOOGLE_DISABLE: ${NEXT_FONT_GOOGLE_DISABLE:-1}
+      APK_FILE_PATH: /apk/client.apk
+    depends_on:
+      - client_mobile
+      - gateway
+    ports:
+      - "${WEB_PORT:-8081}:${WEB_PORT:-8081}"
+    volumes:
+      - apk_dist:/apk
+    networks:
+      - area_network
+    restart: unless-stopped
+
+volumes:
+  apk_dist:
+  auth_db_data:
+  service_db_data:
+  area_db_data:
+  webhook_db_data:
+  polling_db_data:
+  cron_db_data:
 
 networks:
   area_network:
     name: area_network
-    external: true
-
-volumes:
-  auth_postgres_data:
-  service_postgres_data:
-  area_postgres_data:
