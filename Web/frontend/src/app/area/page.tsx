@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { AreaCard as AreaTileCard } from "@/components/area/AreaCard";
@@ -409,11 +409,19 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
 }
 
 function AreaPageContent() {
-  const { token, user } = useAuth();
+  const { token, user, status: authStatus } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
-  const { status, error } = useOAuthCallback("/area", { enabled: hasOAuthParams });
-  const isProcessingOAuth = hasOAuthParams && status !== "error";
+  const { status: oauthStatus, error } = useOAuthCallback("/area", { enabled: hasOAuthParams });
+  const isProcessingOAuth = hasOAuthParams && oauthStatus !== "error";
+
+  useEffect(() => {
+    if (isProcessingOAuth) return;
+    if (authStatus === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [authStatus, isProcessingOAuth, router]);
   const [rawAreas, setRawAreas] = useState<BackendArea[]>([]);
   const [areasError, setAreasError] = useState<string | null>(null);
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);

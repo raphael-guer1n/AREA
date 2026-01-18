@@ -114,6 +114,12 @@ export function ProfileClient({ initialUser, initialSession }: ProfileClientProp
   const [notifications, setNotifications] = useState<ProfileNotification[]>([]);
 
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
     setLocalProfile(user);
     setProfileDraft({
       avatarUrl: user?.avatarUrl ?? "",
