@@ -1,41 +1,36 @@
-# Code de conduite
+# Code of Conduct
 
-Ce projet cherche à offrir un environnement accueillant et inclusif pour toutes les personnes qui y participent. Ce code de conduite sert de référence pour rappeler nos attentes et la façon de gérer les problèmes éventuels.
+This project aims to provide a welcoming and inclusive environment for everyone who participates. This code of conduct describes our expectations and how we handle issues that may arise.
 
-## Engagement
+## Commitment
+- Work with respect, kindness, and open-mindedness.
+- Encourage collaboration, knowledge sharing, and mutual support.
+- Accept constructive feedback and acknowledge each other's contributions.
 
-- Travailler avec respect, bienveillance et ouverture d'esprit.
-- Favoriser la collaboration, le partage d'information et l'entraide.
-- Accepter les retours constructifs et reconnaître les contributions de chacun.
+## Expected Behavior
+- Use respectful and inclusive language.
+- Seek alignment rather than conflict when technical disagreements occur.
+- Help new contributors understand how the project works.
+- Respect the confidentiality of information shared within the project.
 
-## Comportements attendus
+## Unacceptable Behavior
+- Any form of harassment, discrimination, or offensive behavior.
+- Derogatory comments related to gender, identity, origin, religion, disability, age, or any personal characteristic.
+- Sharing someone else's private information without explicit consent.
+- Any action that intentionally disrupts project discussions or activities.
 
-- Utiliser un langage respectueux et inclusif.
-- Rechercher l'alignement plutôt que le conflit lors des désaccords techniques.
-- Aider les nouveaux contributeurs à comprendre le fonctionnement du projet.
-- Respecter la confidentialité des informations partagées dans le cadre du projet.
+## Reporting
+If you witness or experience behavior that violates this code of conduct:
 
-## Comportements non tolérés
+1. Document the facts (date, place, conversation, participants).
+2. Contact the project lead or the teaching staff as soon as possible.
+3. If needed, pause your participation until the situation is clarified.
 
-- Toute forme de harcèlement, de discrimination ou de comportement offensant.
-- Les commentaires dégradants liés au genre, à l'identité, à l'origine, à la religion, au handicap, à l'âge ou à toute caractéristique personnelle.
-- La publication d'informations privées d'autrui sans consentement explicite.
-- Toute action qui perturbe volontairement les discussions ou les activités du projet.
+Reports will be handled discreetly, and appropriate measures will be taken to ensure safety and respect for everyone.
 
-## Signalement
-
-Si vous êtes témoin ou victime d'un comportement non conforme à ce code de conduite :
-
-1. Documentez les faits (date, lieu, conversation, participants).
-2. Contactez le responsable du projet ou l'équipe pédagogique dès que possible.
-3. Si la situation l'exige, interrompez immédiatement votre participation jusqu'à ce que la situation soit clarifiée.
-
-Les signalements seront traités avec discrétion et les mesures appropriées seront prises pour garantir la sécurité et le respect de chacun.
-
-## Application
-
-Les mainteneurs du projet sont responsables de faire respecter ce code. Ils peuvent, à leur discrétion, prendre toute mesure jugée appropriée, y compris des avertissements ou l'exclusion du projet. Les mainteneurs doivent toujours justifier leurs décisions et rester exemplaires dans leur propre comportement.
+## Enforcement
+Project maintainers are responsible for enforcing this code. They may, at their discretion, take any measure deemed appropriate, including warnings or removal from the project. Maintainers should justify their decisions and remain exemplary in their own behavior.
 
 ---
 
-Merci de contribuer à faire de ce projet un espace accueillant et respectueux.
+Thank you for helping make this project welcoming and respectful.

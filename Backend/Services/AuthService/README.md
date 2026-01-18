@@ -79,16 +79,17 @@ docker-compose up -d
 make docker-up
 ```
 
-The API will be available at `http://localhost:8080`
+Access the service through the gateway at `http://localhost:8080/area_auth_api`.
+If you run it directly, it listens on `http://localhost:8083`.
 
 ### 3. Test the API
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:8080/area_auth_api/health
 
 # Register a new user
-curl -X POST http://localhost:8080/auth/register \
+curl -X POST http://localhost:8080/area_auth_api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"john@example.com","username":"johndoe","password":"securepass123"}'
 
@@ -108,12 +109,12 @@ curl -X POST http://localhost:8080/auth/register \
 # }
 
 # Login with email or username
-curl -X POST http://localhost:8080/auth/login \
+curl -X POST http://localhost:8080/area_auth_api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"emailOrUsername":"johndoe","password":"securepass123"}'
 
 # Get current user profile (requires authentication)
-curl http://localhost:8080/auth/me \
+curl http://localhost:8080/area_auth_api/auth/me \
   -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
 ```
 
@@ -187,6 +188,18 @@ make lint           # Run linter
   - **Headers**: `Authorization: Bearer <token>`
   - **Returns**: User profile
   - **Status Codes**: 200 (OK), 401 (Unauthorized), 404 (Not Found), 500 (Server Error)
+
+### OAuth2
+- **GET** `/oauth2/providers` - List available OAuth2 providers
+- **GET** `/oauth2/authorize` - Build the provider authorization URL (requires auth)
+- **GET** `/oauth2/callback` - OAuth2 redirect endpoint
+- **POST** `/oauth2/store` - Store an OAuth2 token (for mobile flows)
+- **POST** `/oauth2/disconnect` - Disconnect a provider (requires auth)
+- **GET** `/oauth2/providers/{userId}` - List connected providers for a user
+
+Internal-only endpoints (gateway requires `X-Internal-Secret`):
+- **GET** `/oauth2/provider/token/` - Fetch an OAuth2 token
+- **GET** `/oauth2/provider/profile/` - Fetch OAuth2 profile data
 
 ### Response Format
 

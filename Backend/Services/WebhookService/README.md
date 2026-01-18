@@ -26,15 +26,18 @@ Environment variables can be configured in `.env`:
 
 ```env
 DB_HOST=localhost
-DB_PORT=5432
+DB_INTERNAL_PORT=5432
+DB_EXTERNAL_PORT=5436
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=webhook_service_db
-SERVER_PORT=8085
+SERVER_PORT=8086
+INTERNAL_SECRET=secret123
 SERVICE_SERVICE_URL=http://gateway:8080/area_service_api
 AUTH_SERVICE_URL=http://gateway:8080/area_auth_api
 AREA_SERVICE_URL=http://gateway:8080/area_area_api
 PUBLIC_BASE_URL=https://api.example.com/area_webhook_api
+LOG_ALL_REQUESTS=false
 ```
 
 ## Provider Configs

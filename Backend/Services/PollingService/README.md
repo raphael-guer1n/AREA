@@ -24,15 +24,18 @@ Environment variables can be configured in `.env`:
 
 ```env
 DB_HOST=localhost
-DB_PORT=5432
+DB_INTERNAL_PORT=5432
+DB_EXTERNAL_PORT=5437
 DB_USER=postgres
 DB_PASSWORD=postgres
-DB_NAME=polling_service_db
+DB_NAME=area_polling_db
 SERVER_PORT=8087
+INTERNAL_SECRET=secret123
 SERVICE_SERVICE_URL=http://gateway:8080/area_service_api
 AUTH_SERVICE_URL=http://gateway:8080/area_auth_api
 AREA_SERVICE_URL=http://gateway:8080/area_area_api
 POLLING_TICK_SECONDS=60
+LOG_PROVIDER_REQUESTS=false
 ```
 
 ## Provider Configs
