@@ -6,23 +6,28 @@
     "method": "GET",
     "url_template": "https://api.coinbase.com/v2/exchange-rates?currency={{config.base_currency}}"
   },
-  "items_path": "",
-  "item_id_path": "data.rates.{{config.currency}}",
-  "change_detection": {
-    "value_json_path": "data.rates.{{config.currency}}",
-    "min_percent": "{{config.min_change_percent}}"
-  },
-  "mappings": [
+  "item_sources": [
     {
-      "field_key": "base",
-      "json_path": "data.currency",
-      "type": "string"
-    },
-    {
-      "field_key": "rate",
-      "json_path": "data.rates.{{config.currency}}",
-      "type": "string",
-      "optional": true
+      "name": "rates",
+      "items_path": "",
+      "item_id_path": "data.rates.{{config.currency}}",
+      "change_detection": {
+        "value_json_path": "data.rates.{{config.currency}}",
+        "min_percent": "{{config.min_change_percent}}"
+      },
+      "mappings": [
+        {
+          "field_key": "base",
+          "json_path": "data.currency",
+          "type": "string"
+        },
+        {
+          "field_key": "rate",
+          "json_path": "data.rates.{{config.currency}}",
+          "type": "string",
+          "optional": true
+        }
+      ]
     }
   ]
 }

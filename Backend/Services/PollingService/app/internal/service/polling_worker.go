@@ -106,66 +106,79 @@ func (w *PollingWorker) processSubscription(sub *domain.Subscription) error {
 		return w.finishWithError(sub, providerConfig, err)
 	}
 
-	itemsPath, err := renderTemplatePath(providerConfig.ItemsPath, ctx)
-	if err != nil {
-		return w.finishWithError(sub, providerConfig, err)
-	}
-	itemIDPath, err := renderTemplatePath(providerConfig.ItemIDPath, ctx)
-	if err != nil {
-		return w.finishWithError(sub, providerConfig, err)
-	}
+	itemSources := resolveItemSources(providerConfig)
+	useItemSources := len(providerConfig.ItemSources) > 0
+	lastState := parseLastItemState(sub.LastItemID, itemSources, useItemSources)
+	firstPoll := providerConfig.SkipFirst && sub.LastItemID == "" && (sub.LastPolledAt == nil || sub.LastPolledAt.IsZero())
 
-	items, err := extractItemsFromPayload(payload, itemsPath)
-	if err != nil {
-		return w.finishWithError(sub, providerConfig, err)
-	}
+	newState := make(map[string]string, len(itemSources))
+	for idx, source := range itemSources {
+		sourceName := normalizeItemSourceName(source.Name, idx)
+		lastID := lastState[sourceName]
+		newState[sourceName] = lastID
 
-	filtered := filterItems(items, providerConfig.Filters)
-	var newItems []any
-	var newLastID string
-	if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
-		newItems, newLastID = selectICalChanges(filtered, sub.LastItemID)
-	} else {
-		newItems, newLastID, err = selectNewItemsWithConfig(filtered, sub.LastItemID, itemIDPath, providerConfig.ChangeDetection, ctx)
+		itemsPath, err := renderTemplatePath(source.ItemsPath, ctx)
 		if err != nil {
 			return w.finishWithError(sub, providerConfig, err)
 		}
-	}
-
-	if providerConfig.SkipFirst && sub.LastItemID == "" && (sub.LastPolledAt == nil || sub.LastPolledAt.IsZero()) {
-		if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
-			return w.finishWithSuccess(sub, providerConfig, newLastID)
+		itemIDPath, err := renderTemplatePath(source.ItemIDPath, ctx)
+		if err != nil {
+			return w.finishWithError(sub, providerConfig, err)
 		}
-		if newLastID == "" && len(filtered) > 0 {
+
+		items, err := extractItemsFromPayload(payload, itemsPath)
+		if err != nil {
+			return w.finishWithError(sub, providerConfig, err)
+		}
+
+		items, err = injectItemContext(items, payload, source.Context, ctx)
+		if err != nil {
+			return w.finishWithError(sub, providerConfig, err)
+		}
+
+		filtered := filterItems(items, source.Filters)
+		var newItems []any
+		var newLastID string
+		if strings.EqualFold(providerConfig.PayloadFormat, "ical") {
+			newItems, newLastID = selectICalChanges(filtered, lastID)
+		} else {
+			newItems, newLastID, err = selectNewItemsWithConfig(filtered, lastID, itemIDPath, source.ChangeDetection, ctx)
+			if err != nil {
+				return w.finishWithError(sub, providerConfig, err)
+			}
+		}
+
+		if newLastID == "" && len(filtered) > 0 && !strings.EqualFold(providerConfig.PayloadFormat, "ical") {
 			if id, err := resolveItemID(filtered[0], itemIDPath); err == nil {
 				newLastID = id
 			}
 		}
-		return w.finishWithSuccess(sub, providerConfig, newLastID)
-	}
+		if newLastID != "" {
+			newState[sourceName] = newLastID
+		}
 
-	if len(newItems) > 0 && w.areaTriggerSvc != nil {
-		for i := len(newItems) - 1; i >= 0; i-- {
-			item := newItems[i]
-			mapped, err := buildMappings(item, providerConfig.Mappings, ctx)
-			if err != nil {
-				log.Printf("polling: mapping error action_id=%d provider=%s err=%v", sub.ActionID, sub.Service, err)
-				continue
-			}
-			outputFields := buildOutputFields(providerConfig.Mappings, mapped)
-			if err := w.areaTriggerSvc.Trigger(sub.ActionID, outputFields); err != nil {
-				log.Printf("polling: trigger failed action_id=%d provider=%s err=%v", sub.ActionID, sub.Service, err)
+		if firstPoll {
+			continue
+		}
+
+		if len(newItems) > 0 && w.areaTriggerSvc != nil {
+			for i := len(newItems) - 1; i >= 0; i-- {
+				item := newItems[i]
+				mapped, err := buildMappings(item, source.Mappings, ctx)
+				if err != nil {
+					log.Printf("polling: mapping error action_id=%d provider=%s err=%v", sub.ActionID, sub.Service, err)
+					continue
+				}
+				outputFields := buildOutputFields(source.Mappings, mapped)
+				if err := w.areaTriggerSvc.Trigger(sub.ActionID, outputFields); err != nil {
+					log.Printf("polling: trigger failed action_id=%d provider=%s err=%v", sub.ActionID, sub.Service, err)
+				}
 			}
 		}
 	}
 
-	if newLastID == "" && len(filtered) > 0 && !strings.EqualFold(providerConfig.PayloadFormat, "ical") {
-		if id, err := resolveItemID(filtered[0], itemIDPath); err == nil {
-			newLastID = id
-		}
-	}
-
-	return w.finishWithSuccess(sub, providerConfig, newLastID)
+	lastItemID := encodeLastItemState(newState, useItemSources)
+	return w.finishWithSuccess(sub, providerConfig, lastItemID)
 }
 
 func (w *PollingWorker) finishWithSuccess(sub *domain.Subscription, providerConfig *config.PollingProviderConfig, lastItemID string) error {
@@ -254,6 +267,138 @@ func extractItemsFromPayload(payload any, path string) ([]any, error) {
 	default:
 		return []any{v}, nil
 	}
+}
+
+func injectItemContext(items []any, payload any, context map[string]string, ctx utils.TemplateContext) ([]any, error) {
+	if len(items) == 0 || len(context) == 0 {
+		return items, nil
+	}
+
+	resolved := make(map[string]any, len(context))
+	for key, rawPath := range context {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(rawPath) == "" {
+			continue
+		}
+		path, err := renderTemplatePath(rawPath, ctx)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+		value, ok := utils.ExtractJSONPath(payload, path)
+		if !ok {
+			continue
+		}
+		resolved[key] = value
+	}
+
+	if len(resolved) == 0 {
+		return items, nil
+	}
+
+	for i, item := range items {
+		mapped, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		for key, value := range resolved {
+			if _, exists := mapped[key]; exists {
+				continue
+			}
+			mapped[key] = value
+		}
+		items[i] = mapped
+	}
+	return items, nil
+}
+
+func resolveItemSources(providerConfig *config.PollingProviderConfig) []config.PollingItemSourceConfig {
+	if providerConfig == nil {
+		return nil
+	}
+	if len(providerConfig.ItemSources) == 0 {
+		return []config.PollingItemSourceConfig{
+			{
+				Name:            "default",
+				ItemsPath:       providerConfig.ItemsPath,
+				ItemIDPath:      providerConfig.ItemIDPath,
+				ChangeDetection: providerConfig.ChangeDetection,
+				Filters:         providerConfig.Filters,
+				Mappings:        providerConfig.Mappings,
+			},
+		}
+	}
+	out := make([]config.PollingItemSourceConfig, len(providerConfig.ItemSources))
+	for idx, source := range providerConfig.ItemSources {
+		if strings.TrimSpace(source.Name) == "" {
+			source.Name = normalizeItemSourceName("", idx)
+		}
+		out[idx] = source
+	}
+	return out
+}
+
+func normalizeItemSourceName(name string, idx int) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed != "" {
+		return trimmed
+	}
+	return fmt.Sprintf("source_%d", idx+1)
+}
+
+func parseLastItemState(raw string, sources []config.PollingItemSourceConfig, useSources bool) map[string]string {
+	if !useSources {
+		return map[string]string{"default": strings.TrimSpace(raw)}
+	}
+
+	state := make(map[string]string)
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return state
+	}
+
+	var decoded map[string]string
+	if err := json.Unmarshal([]byte(trimmed), &decoded); err == nil {
+		for key, value := range decoded {
+			key = strings.TrimSpace(key)
+			if key == "" || strings.TrimSpace(value) == "" {
+				continue
+			}
+			state[key] = value
+		}
+		return state
+	}
+
+	if len(sources) > 0 {
+		state[normalizeItemSourceName(sources[0].Name, 0)] = trimmed
+	}
+	return state
+}
+
+func encodeLastItemState(state map[string]string, useSources bool) string {
+	if !useSources {
+		if state == nil {
+			return ""
+		}
+		return state["default"]
+	}
+
+	compact := make(map[string]string)
+	for key, value := range state {
+		if strings.TrimSpace(key) == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		compact[key] = value
+	}
+	if len(compact) == 0 {
+		return ""
+	}
+	raw, err := json.Marshal(compact)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
 
 func filterItems(items []any, filters *config.PollingFilterConfig) []any {
@@ -539,14 +684,14 @@ func resolveItemID(item any, itemIDPath string) (string, error) {
 	return fmt.Sprintf("%x", sum[:]), nil
 }
 
-func buildMappings(payload any, mappings []config.MappingConfig, ctx utils.TemplateContext) (map[string]any, error) {
+func buildMappings(item any, mappings []config.MappingConfig, ctx utils.TemplateContext) (map[string]any, error) {
 	mapped := make(map[string]any, len(mappings))
 	for _, mapping := range mappings {
 		jsonPath, err := renderTemplatePath(mapping.JSONPath, ctx)
 		if err != nil {
 			return nil, err
 		}
-		value, ok := utils.ExtractJSONPath(payload, jsonPath)
+		value, ok := utils.ExtractJSONPath(item, jsonPath)
 		if !ok {
 			if mapping.Optional {
 				continue

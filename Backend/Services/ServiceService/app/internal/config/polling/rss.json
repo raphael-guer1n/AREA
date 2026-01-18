@@ -6,12 +6,35 @@
     "method": "GET",
     "url_template": "{{ config.feed_url }}"
   },
-  "items_path": "rss.channel.item",
-  "item_id_path": "link",
-  "mappings": [
-    { "field_key": "title", "json_path": "title", "type": "string" },
-    { "field_key": "link", "json_path": "link", "type": "string" },
-    { "field_key": "description", "json_path": "description", "type": "string", "optional": true },
-    { "field_key": "pub_date", "json_path": "pubDate", "type": "string", "optional": true }
+  "item_sources": [
+    {
+      "name": "items",
+      "items_path": "rss.channel.item",
+      "item_id_path": "link",
+      "mappings": [
+        {
+          "field_key": "title",
+          "json_path": "title",
+          "type": "string"
+        },
+        {
+          "field_key": "link",
+          "json_path": "link",
+          "type": "string"
+        },
+        {
+          "field_key": "description",
+          "json_path": "description",
+          "type": "string",
+          "optional": true
+        },
+        {
+          "field_key": "pub_date",
+          "json_path": "pubDate",
+          "type": "string",
+          "optional": true
+        }
+      ]
+    }
   ]
 }

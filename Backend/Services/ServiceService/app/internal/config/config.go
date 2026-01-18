@@ -217,7 +217,18 @@ type PollingProviderConfig struct {
 	ChangeDetection *PollingChangeDetectionConfig `json:"change_detection,omitempty"`
 	Filters         *PollingFilterConfig          `json:"filters,omitempty"`
 	Mappings        []MappingConfig               `json:"mappings,omitempty"`
+	ItemSources     []PollingItemSourceConfig     `json:"item_sources,omitempty"`
 	Prepare         []WebhookProviderPrepareStep  `json:"prepare,omitempty"`
+}
+
+type PollingItemSourceConfig struct {
+	Name            string                        `json:"name,omitempty"`
+	ItemsPath       string                        `json:"items_path,omitempty"`
+	ItemIDPath      string                        `json:"item_id_path,omitempty"`
+	ChangeDetection *PollingChangeDetectionConfig `json:"change_detection,omitempty"`
+	Filters         *PollingFilterConfig          `json:"filters,omitempty"`
+	Mappings        []MappingConfig               `json:"mappings,omitempty"`
+	Context         map[string]string             `json:"context,omitempty"`
 }
 
 type PollingChangeDetectionConfig struct {
@@ -488,30 +499,66 @@ func LoadPollingProviderConfigs(dir string) (map[string]PollingProviderConfig, e
 			return nil, err
 		}
 
-		for _, f := range cfg.Mappings {
+		validateMapping := func(scope string, f MappingConfig) error {
 			if f.FieldKey == "" {
-				return nil, fmt.Errorf("polling provider %s: mapping missing field_key", cfg.Name)
+				return fmt.Errorf("%s: mapping missing field_key", scope)
 			}
 			if f.JSONPath == "" {
-				return nil, fmt.Errorf("polling provider %s: mapping %s missing json_path", cfg.Name, f.FieldKey)
+				return fmt.Errorf("%s: mapping %s missing json_path", scope, f.FieldKey)
 			}
 			switch f.Type {
 			case "string", "number", "boolean", "json":
 			default:
-				return nil, fmt.Errorf("polling provider %s: field %s has invalid type %q", cfg.Name, f.FieldKey, f.Type)
+				return fmt.Errorf("%s: field %s has invalid type %q", scope, f.FieldKey, f.Type)
 			}
+			return nil
 		}
 
-		if cfg.Filters != nil {
-			for idx, rule := range cfg.Filters.Rules {
+		validateFilters := func(scope string, filters *PollingFilterConfig) error {
+			if filters == nil {
+				return nil
+			}
+			for idx, rule := range filters.Rules {
 				if strings.TrimSpace(rule.JSONPath) == "" {
-					return nil, fmt.Errorf("polling provider %s: filters.rules[%d] json_path is required", cfg.Name, idx)
+					return fmt.Errorf("%s: filters.rules[%d] json_path is required", scope, idx)
 				}
 				switch strings.ToLower(strings.TrimSpace(rule.Operator)) {
 				case "", "equals", "contains", "in", "regex", "exists", "gt", "gte", "lt", "lte":
 				default:
-					return nil, fmt.Errorf("polling provider %s: filters.rules[%d] unsupported operator %q", cfg.Name, idx, rule.Operator)
+					return fmt.Errorf("%s: filters.rules[%d] unsupported operator %q", scope, idx, rule.Operator)
 				}
+			}
+			return nil
+		}
+
+		if len(cfg.ItemSources) > 0 {
+			for idx, source := range cfg.ItemSources {
+				if strings.TrimSpace(source.Name) == "" {
+					return nil, fmt.Errorf("polling provider %s: item_sources[%d] name is required", cfg.Name, idx)
+				}
+				scope := fmt.Sprintf("polling provider %s: item_sources[%d]", cfg.Name, idx)
+				for _, f := range source.Mappings {
+					if err := validateMapping(scope, f); err != nil {
+						return nil, err
+					}
+				}
+				for key, path := range source.Context {
+					if strings.TrimSpace(key) == "" || strings.TrimSpace(path) == "" {
+						return nil, fmt.Errorf("%s: context keys and paths are required", scope)
+					}
+				}
+				if err := validateFilters(scope, source.Filters); err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			for _, f := range cfg.Mappings {
+				if err := validateMapping(fmt.Sprintf("polling provider %s", cfg.Name), f); err != nil {
+					return nil, err
+				}
+			}
+			if err := validateFilters(fmt.Sprintf("polling provider %s", cfg.Name), cfg.Filters); err != nil {
+				return nil, err
 			}
 		}
 
