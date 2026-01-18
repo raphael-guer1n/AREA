@@ -2,10 +2,12 @@
 
 Internal SMTP mail sender for AREA reactions. Exposes a simple HTTP API consumed by AreaService via the gateway.
 
+Access it through the gateway at `http://localhost:8080/area_mail_api`.
+
 ## Endpoints
 
 - **GET** `/health` — Health check
-- **POST** `/send` — Send an email
+- **POST** `/send` — Send an email (internal-only via `X-Internal-Secret`)
 
 Request body:
 ```json

@@ -12,16 +12,24 @@ flowchart TB
     Services[ServiceService]
     Area[AreaService]
     Webhooks[WebhookService]
+    Polling[PollingService]
+    Cron[CronService]
+    Mail[MailService]
   end
   Client --> Gateway
   Gateway --> Auth
   Gateway --> Services
   Gateway --> Area
   Gateway --> Webhooks
+  Gateway --> Polling
+  Gateway --> Cron
+  Gateway --> Mail
   Auth --> AuthDB[(Postgres)]
   Services --> ServicesDB[(Postgres)]
   Area --> AreaDB[(Postgres)]
   Webhooks --> WebhooksDB[(Postgres)]
+  Polling --> PollingDB[(Postgres)]
+  Cron --> CronDB[(Postgres)]
   Services --> Configs[(Service, Provider, Webhook JSON configs)]
 ```
 
@@ -31,6 +39,9 @@ flowchart TB
 - **ServiceService**: Serves provider metadata, OAuth2 config, and action/reaction definitions for the UI.
 - **AreaService**: Stores AREA definitions and triggers (minimal stub today).
 - **WebhookService**: Manages webhook subscriptions and receives inbound events.
+- **PollingService**: Polls provider APIs and RSS feeds based on config.
+- **CronService**: Schedules timer-based actions.
+- **MailService**: Internal SMTP sender for email reactions.
 
 ## Routing model
 Routes are defined per service in `Gateway/services-config/**/service.config.json`.
