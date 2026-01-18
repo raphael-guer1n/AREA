@@ -8,7 +8,6 @@
         "GET"
       ],
       "auth_required": false,
-      "permissions": [],
       "internal_only": false
     }
   ]

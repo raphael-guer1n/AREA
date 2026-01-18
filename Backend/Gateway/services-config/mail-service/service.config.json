@@ -6,14 +6,12 @@
       "path": "/health",
       "methods": ["GET"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": false
     },
     {
       "path": "/send",
       "methods": ["POST"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     }
   ]

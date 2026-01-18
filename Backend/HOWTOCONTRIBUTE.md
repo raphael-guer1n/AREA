@@ -57,7 +57,6 @@ flowchart LR
            "path": "/health",
            "methods": ["GET"],
            "auth_required": false,
-           "permissions": [],
            "internal_only": false
          }
        ]

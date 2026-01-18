@@ -6,35 +6,30 @@
       "path": "/health",
       "methods": ["GET"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": false
     },
     {
       "path": "/actions",
       "methods": ["POST"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     },
     {
       "path": "/activate/{actionId}",
       "methods": ["POST"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     },
     {
       "path": "/deactivate/{actionId}",
       "methods": ["POST"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     },
     {
       "path": "/actions/{actionId}",
       "methods": ["DELETE"],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     }
   ]
