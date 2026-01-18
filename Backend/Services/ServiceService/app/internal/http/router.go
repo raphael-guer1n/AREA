@@ -31,6 +31,7 @@ func (r *Router) routes() {
 	r.mux.HandleFunc("/providers/services", r.providerHandler.HandleGetProviders)
 	r.mux.HandleFunc("/providers/oauth2-config", r.providerHandler.HandleGetOAuth2Config)
 	r.mux.HandleFunc("/providers/config", r.providerHandler.HandleGetProviderConfig)
+	r.mux.HandleFunc("/about.json", r.providerHandler.HandleGetAboutJSON)
 
 	// Webhook provider configuration endpoints
 	r.mux.HandleFunc("/webhooks/providers", r.webhookProviderHandler.HandleGetProviders)
