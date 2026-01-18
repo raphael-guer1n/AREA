@@ -8,7 +8,6 @@
         "GET"
       ],
       "auth_required": false,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -17,7 +16,6 @@
         "POST"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -26,7 +24,6 @@
         "POST"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -35,7 +32,6 @@
         "GET"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -44,7 +40,6 @@
         "POST"
       ],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     },
     {
@@ -53,7 +48,6 @@
         "POST"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -62,7 +56,6 @@
         "POST"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -71,7 +64,6 @@
         "POST"
       ],
       "auth_required": true,
-      "permissions": [],
       "internal_only": false
     },
     {
@@ -80,7 +72,6 @@
         "POST"
       ],
       "auth_required": false,
-      "permissions": [],
       "internal_only": true
     }
   ]
