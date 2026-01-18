@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { AreaNavigation } from "@/components/navigation/AreaNavigation";
 import { ServiceCard } from "@/components/service/ServiceCard";
@@ -107,7 +107,8 @@ function mapBackendService(
 }
 
 export function ServicesClient() {
-  const { token, user, startOAuthConnect } = useAuth();
+  const { token, user, startOAuthConnect, status: authStatus } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const hasOAuthParams = Boolean(searchParams.get("code") && searchParams.get("state"));
   const { status: oauthStatus, error: oauthError } = useOAuthCallback("/services", {
@@ -120,6 +121,13 @@ export function ServicesClient() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalSearch, setModalSearch] = useState("");
+
+  useEffect(() => {
+    if (isProcessingOAuth) return;
+    if (authStatus === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [authStatus, isProcessingOAuth, router]);
 
   const loadServices = useCallback(async () => {
     setIsLoading(true);
