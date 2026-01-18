@@ -8,7 +8,7 @@ FROM base AS deps
 ARG NODE_ENV=development
 ENV NODE_ENV=${NODE_ENV}
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 
 FROM base AS builder
 ARG NODE_ENV=production

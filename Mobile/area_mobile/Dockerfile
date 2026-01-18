@@ -1,19 +1,42 @@
-# Image Flutter Android (Docker Hub)
-FROM cirruslabs/flutter:3.24.0-android
+FROM ghcr.io/cirruslabs/flutter:latest
 
 WORKDIR /app
 
-# Adresse par défaut vers le gateway depuis un émulateur Android (10.0.2.2 = host)
-ARG BASE_URL=http://10.0.2.2:8080/auth-service
+# Base URL injected into the generated .env (used by scripts/build-apk.sh)
+ARG BASE_URL=http://gateway:8080
 ENV BASE_URL=${BASE_URL}
 
+# Where the APK will be copied inside the container (shared via volume)
+ENV APK_OUTPUT_PATH=/apk/client.apk
+ENV EXIT_AFTER_BUILD=true
+
+# Prime dependencies early for better layer caching
+COPY pubspec.* ./
+RUN flutter pub get
+
+# Copy the full project
 COPY . .
 
-# Génère le fichier .env consommé par flutter_dotenv
-RUN printf "BASE_URL=%s\n" "$BASE_URL" > .env
+# Ensure build script is executable
+RUN chmod +x scripts/build-apk.sh
 
-RUN flutter pub get
-RUN flutter build apk --release
+# Regenerate local.properties with container SDK paths to avoid host-specific values
+RUN FLUTTER_ROOT="$(dirname "$(dirname "$(which flutter)")")" && \
+    ANDROID_SDK_ROOT="${ANDROID_HOME:-/opt/android-sdk}" && \
+    echo "flutter.sdk=${FLUTTER_ROOT}" > android/local.properties && \
+    echo "sdk.dir=${ANDROID_SDK_ROOT}" >> android/local.properties && \
+    echo "flutter.buildMode=release" >> android/local.properties && \
+    echo "flutter.versionName=1.0.0" >> android/local.properties && \
+    echo "flutter.versionCode=1" >> android/local.properties && \
+    echo "flutter.compileSdkVersion=34" >> android/local.properties && \
+    echo "flutter.minSdkVersion=19" >> android/local.properties && \
+    echo "flutter.targetSdkVersion=34" >> android/local.properties
 
-# Conteneur qui reste vivant pour pouvoir docker cp l'APK
-CMD ["sleep", "infinity"]
+# Accept Android licenses non-interactively (best effort)
+RUN yes | flutter doctor --android-licenses || true
+
+# Clean and prepare a fresh build
+RUN flutter clean
+
+# Build the APK and copy it to /apk (volume-mounted in compose)
+CMD ["sh", "-c", "./scripts/build-apk.sh"]
