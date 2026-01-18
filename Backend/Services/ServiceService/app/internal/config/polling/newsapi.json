@@ -1,0 +1,28 @@
+{
+  "name": "newsapi",
+  "payload_format": "json",
+  "interval_seconds": 3600,
+  "request": {
+    "method": "GET",
+    "url_template": "https://newsapi.org/v2/{{config.endpoint}}",
+    "query_params": {
+      "apiKey": "{{env.NEWSAPI_API_KEY}}",
+      "country": "{{config.country}}",
+      "category": "{{config.category}}",
+      "q": "{{config.query}}",
+      "language": "{{config.language}}",
+      "from": "{{config.from}}",
+      "sortBy": "{{config.sort_by}}",
+      "pageSize": "{{config.page_size}}"
+    }
+  },
+  "items_path": "articles",
+  "item_id_path": "url",
+  "mappings": [
+    { "field_key": "title", "json_path": "title", "type": "string" },
+    { "field_key": "description", "json_path": "description", "type": "string", "optional": true },
+    { "field_key": "url", "json_path": "url", "type": "string" },
+    { "field_key": "source", "json_path": "source.name", "type": "string", "optional": true },
+    { "field_key": "publishedAt", "json_path": "publishedAt", "type": "string", "optional": true }
+  ]
+}

@@ -9,7 +9,14 @@ import { Card } from "@/components/ui/AreaCard";
 import { cn, normalizeSearchValue } from "@/lib/helpers";
 import { useAuth } from "@/hooks/useAuth";
 import { useOAuthCallback } from "@/hooks/useOAuthCallback";
-import { activateArea, deactivateArea, deleteArea, fetchAreas, saveArea, type BackendArea } from "@/lib/api/area";
+import {
+  activateArea,
+  deactivateArea,
+  deleteArea,
+  fetchAreas,
+  saveArea,
+  type BackendArea,
+} from "@/lib/api/area";
 import {
   fetchServiceConfig,
   fetchServiceNames,
@@ -85,6 +92,13 @@ type CreatedArea = {
   reactionName: string;
   gradient: AreaGradient;
   active: boolean;
+  actionFields: Array<{ label: string; value: string; required: boolean }>;
+  reactionsSummary: Array<{
+    id: string;
+    serviceName: string;
+    reactionLabel: string;
+    fields: Array<{ label: string; value: string; required: boolean }>;
+  }>;
 };
 
 function formatServiceNameFromId(serviceId: string) {
@@ -340,6 +354,13 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
   const actionServiceName = resolveServiceName(services, action?.service);
   const reactionServiceName = resolveServiceName(services, reaction?.service);
   const actionServiceId = action?.service ?? "";
+  const actionService = resolveServiceById(services, action?.service);
+  const actionConfig = actionService?.actions.find((item) => item.title === action?.title);
+  const actionFields = (actionConfig?.fields ?? []).map((field) => ({
+    label: field.label,
+    value: actionInputs[field.name] ?? "",
+    required: Boolean(field.required),
+  }));
   const reactionServiceIds = (area.reactions ?? [])
     .map((item) => item.service)
     .filter((serviceId): serviceId is string => Boolean(serviceId));
@@ -348,6 +369,21 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
   const delay = Number.isFinite(delayValue) ? delayValue : 0;
   const summary = (reactionInputs.summary ?? "").trim() || area.name;
   const reactionCount = area.reactions?.length ?? 0;
+  const reactionsSummary = (area.reactions ?? []).map((reactionItem) => {
+    const service = resolveServiceById(services, reactionItem.service);
+    const reactionConfig = service?.reactions.find((item) => item.title === reactionItem.title);
+    const inputs = inputFieldsToRecord(reactionItem.input);
+    return {
+      id: String(reactionItem.id ?? reactionItem.title),
+      serviceName: resolveServiceName(services, reactionItem.service) || reactionItem.service,
+      reactionLabel: reactionConfig?.label ?? reactionItem.title ?? "Réaction",
+      fields: (reactionConfig?.fields ?? []).map((field) => ({
+        label: field.label,
+        value: inputs[field.name] ?? "",
+        required: Boolean(field.required),
+      })),
+    };
+  });
 
   return {
     id: String(area.id),
@@ -367,6 +403,8 @@ function mapBackendArea(area: BackendArea, services: AreaService[]): CreatedArea
     reactionName: resolveReactionLabel(reaction, services),
     gradient: resolveGradient(services, action?.service ?? reaction?.service ?? area.name),
     active: area.active,
+    actionFields,
+    reactionsSummary,
   };
 }
 
@@ -411,7 +449,6 @@ function AreaPageContent() {
     () => services.some((service) => service.connected),
     [services],
   );
-
   const renderFieldInputs = (
     fields: FieldDefinition[],
     values: Record<string, FieldValue>,
@@ -538,6 +575,26 @@ function AreaPageContent() {
                 onChange={(e) => onChange(field.name, e.target.value)}
                 className={baseClasses}
               />
+            </label>
+          );
+        }
+
+        if (field.type === "boolean") {
+          return (
+            <label key={field.name} className="space-y-1 text-sm">
+              <span className="text-[var(--muted)]">
+                {field.label}
+                {field.required ? " *" : ""}
+              </span>
+              <select
+                value={value}
+                onChange={(e) => onChange(field.name, e.target.value)}
+                className={baseClasses}
+              >
+                <option value="">Sélectionner...</option>
+                <option value="true">Oui</option>
+                <option value="false">Non</option>
+              </select>
             </label>
           );
         }
@@ -1876,63 +1933,94 @@ function AreaPageContent() {
                   </div>
                 </div>
 
-                <div className="space-y-4 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Vue d&apos;ensemble
-                  </p>
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
+                <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-5 sm:p-6 shadow-[0_10px_40px_rgba(10,25,45,0.05)] ring-1 ring-[rgba(28,61,99,0.18)]">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--blue-primary-3)]">
+                      Récapitulatif
+                    </p>
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]">Vue globale</h3>
+                    <p className="text-sm text-[var(--muted)]">
+                      Action, réactions et paramètres essentiels regroupés ici.
+                    </p>
+                  </div>
+                  <div className="mt-4 space-y-4 text-sm">
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3">
                       <p className="text-[var(--muted)] text-xs">Déclencheur</p>
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {selectedAreaDetail.actionService || "—"}
+                      <p className="text-base font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.actionService || "Non défini"}
                       </p>
-                      <p className="text-[var(--muted)] text-xs">{selectedAreaDetail.actionName || "—"}</p>
-                    </div>
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Réaction principale</p>
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {selectedAreaDetail.reactionService || "—"}
+                      <p className="text-[var(--muted)] text-xs">
+                        {selectedAreaDetail.actionName || "Aucun déclencheur sélectionné"}
                       </p>
-                      <p className="text-[var(--muted)] text-xs">{selectedAreaDetail.reactionName || "—"}</p>
+                      {selectedAreaDetail.actionFields.length ? (
+                        selectedAreaDetail.actionFields.map((field) => (
+                          <p key={`detail-action-${field.label}`} className="text-xs text-[var(--muted)]">
+                            {field.label}:{" "}
+                            <span className="text-[var(--foreground)]">
+                              {field.value || "—"}
+                            </span>
+                          </p>
+                        ))
+                      ) : (
+                        <p className="text-xs text-[var(--muted)]">Aucun paramètre de déclencheur.</p>
+                      )}
                     </div>
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Service associé</p>
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {selectedAreaDetail.serviceName || selectedAreaDetail.actionService || "—"}
-                      </p>
-                      <p className="text-[var(--muted)] text-xs">Résumé: {selectedAreaDetail.summary || "—"}</p>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Début</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.startTime || "—"}</p>
-                    </div>
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Fin</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.endTime || "—"}</p>
-                    </div>
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Délai</p>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{selectedAreaDetail.delay}s</p>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
-                    Récapitulatif
-                  </p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Titre</p>
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {selectedAreaDetail.summary || selectedAreaDetail.name}
-                      </p>
+                    <div className="space-y-2">
+                      <p className="text-[var(--muted)] text-xs">Réactions</p>
+                      {selectedAreaDetail.reactionsSummary.length ? (
+                        <div className="space-y-2">
+                          {selectedAreaDetail.reactionsSummary.map((reactionSummary, index) => {
+                            const isComplete = reactionSummary.fields.every(
+                              (field) => !field.required || Boolean(field.value),
+                            );
+                            return (
+                              <div
+                                key={`detail-recap-${reactionSummary.id}`}
+                                className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-xs font-semibold text-[var(--muted)]">#{index + 1}</p>
+                                    <p className="text-sm font-semibold text-[var(--foreground)]">
+                                      {reactionSummary.serviceName || "Service non défini"}
+                                    </p>
+                                    <p className="text-[var(--muted)] text-xs">
+                                      {reactionSummary.reactionLabel || "Aucune action sélectionnée"}
+                                    </p>
+                                  </div>
+                                  <span className="text-[var(--muted)] text-xs">
+                                    {isComplete ? "Prête" : "Incomplète"}
+                                  </span>
+                                </div>
+                                {reactionSummary.fields.length ? (
+                                  reactionSummary.fields.map((field) => (
+                                    <p key={`detail-${reactionSummary.id}-${field.label}`} className="text-xs text-[var(--muted)]">
+                                      {field.label}:{" "}
+                                      <span className="text-[var(--foreground)]">
+                                        {field.value || "—"}
+                                      </span>
+                                    </p>
+                                  ))
+                                ) : (
+                                  <p className="text-xs text-[var(--muted)]">Aucun paramètre de réaction.</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[var(--surface-border)] bg-[var(--background)] px-3 py-2 text-[var(--muted)]">
+                          Ajoutez au moins une réaction pour finaliser.
+                        </div>
+                      )}
                     </div>
-                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] p-3 text-sm">
-                      <p className="text-[var(--muted)] text-xs">Nom interne</p>
-                      <p className="font-semibold text-[var(--foreground)]">{selectedAreaDetail.name}</p>
+
+                    <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--background)] px-3 py-2">
+                      <p className="text-[var(--muted)] text-xs">Nom de l&apos;area</p>
+                      <p className="text-base font-semibold text-[var(--foreground)]">
+                        {selectedAreaDetail.name || "Non renseigné"}
+                      </p>
                     </div>
                   </div>
                 </div>

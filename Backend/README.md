@@ -10,10 +10,15 @@ flowchart LR
   Gateway --> Services[ServiceService]
   Gateway --> Area[AreaService]
   Gateway --> Webhooks[WebhookService]
+  Gateway --> Polling[PollingService]
+  Gateway --> Cron[CronService]
+  Gateway --> Mail[MailService]
   Auth --> AuthDB[(Postgres)]
   Services --> ServicesDB[(Postgres)]
   Area --> AreaDB[(Postgres)]
   Webhooks --> WebhooksDB[(Postgres)]
+  Polling --> PollingDB[(Postgres)]
+  Cron --> CronDB[(Postgres)]
   Services --> Configs[(Service, Provider, Webhook configs)]
 ```
 
@@ -25,6 +30,9 @@ flowchart LR
 | ServiceService | Provider catalog and action/reaction metadata | 8084 | Postgres on 5434 by default |
 | AreaService | AREA creation and automation data | 8085 | Postgres on 5435 by default |
 | WebhookService | Webhook subscriptions and inbound webhook receiver | 8086 | Optional, not started by root compose |
+| PollingService | Polling-based actions (RSS/APIs) | 8087 | Optional, Postgres on 5437 by default |
+| MailService | SMTP email reaction | 8088 | Optional internal-only sender |
+| CronService | Timer/cron-based actions | 8089 | Optional, Postgres on 5438 by default |
 
 ## Directory layout
 ```
@@ -37,23 +45,27 @@ Backend/
 |   `-- WebhookService/
 |-- Template/           # Microservice starter
 |-- services.yaml       # High-level service catalog (example)
-`-- docker-compose.yml  # Root compose for gateway + core services
+`-- Makefile            # Global helpers for running all services
 ```
 
 ## Quick start (Docker)
 ```bash
 cd Backend
 
+# Create the shared Docker network once
+docker network create area_network || true
+
 # Seed env files if missing
 cp Services/AuthService/.env.example Services/AuthService/.env
 cp Services/ServiceService/.env.example Services/ServiceService/.env
 cp Services/AreaService/.env.example Services/AreaService/.env
+# Ensure Gateway/configs/gateway.env exists and matches your environment
 
-# Launch gateway + core services + their DBs
-docker compose up -d --build
+# Launch gateway + services + their DBs
+make docker-up
 
-# Shut everything down (and drop DB volumes)
-docker compose down -v
+# Shut everything down
+make docker-down
 ```
 Default host ports:
 - Gateway: `8080`
@@ -61,7 +73,7 @@ Default host ports:
 - ServiceService: `8084` (Postgres `5434`)
 - AreaService: `8085` (Postgres `5435`)
 
-If you want to run WebhookService, start it separately from `Backend/Services/WebhookService` and align its `SERVER_PORT` with the gateway config.
+If you want to run optional services (Webhook, Polling, Mail, Cron), start them from their service folders or use `make docker-up` for all of them.
 
 ## Running a single service manually
 Each service ships with:

@@ -11,11 +11,13 @@ This guide covers how to run the backend locally and how to extend services, act
 ```bash
 cd Backend
 
+docker network create area_network || true
+
 cp Services/AuthService/.env.example Services/AuthService/.env
 cp Services/ServiceService/.env.example Services/ServiceService/.env
 cp Services/AreaService/.env.example Services/AreaService/.env
 
-docker compose up -d --build
+make docker-up
 ```
 
 ## Development loop

@@ -14,6 +14,9 @@ This document lists every route currently loaded by the API gateway from `Gatewa
 | area_service_api | Gateway/services-config/service-service/service.config.json | http://area_service_api:8084 | /area_service_api |
 | area_area_api | Gateway/services-config/area-service/service.config.json | http://area_area_api:8085 | /area_area_api |
 | area_webhook_api | Gateway/services-config/webhook-service/service.config.json | http://area_webhook_api:8086 | /area_webhook_api |
+| area_polling_api | Gateway/services-config/polling-service/service.config.json | http://area_polling_api:8087 | /area_polling_api |
+| area_cron_api | Gateway/services-config/cron-service/service.config.json | http://area_cron_api:8088 | /area_cron_api |
+| area_mail_api | Gateway/services-config/mail-service/service.config.json | http://area_mail_api:8088 | /area_mail_api |
 | example-service | Gateway/services-config/example-service/service.config.json | http://localhost:9999/api | /example-service |
 
 ## area_auth_api
@@ -60,6 +63,30 @@ This document lists every route currently loaded by the API gateway from `Gatewa
 | /area_webhook_api/actions | POST, PUT | yes | no | none | Create or update webhook subscriptions |
 | /area_webhook_api/actions/{actionId} | GET, DELETE | yes | no | none | Fetch or delete subscription |
 | /area_webhook_api/webhooks/{provider}/{hookId} | GET, POST | no | no | none | Inbound webhook receiver |
+
+## area_polling_api
+| Route (prefixed) | Methods | Auth | Internal | Permissions | Notes |
+| --- | --- | --- | --- | --- | --- |
+| /area_polling_api/health | GET | no | no | none | Health check |
+| /area_polling_api/actions | POST, PUT | yes | no | none | Create or update polling subscriptions |
+| /area_polling_api/actions/{actionId} | GET, DELETE | yes | no | none | Fetch or delete polling subscription |
+| /area_polling_api/activate/{actionId} | POST | no | yes | none | Activate polling action |
+| /area_polling_api/deactivate/{actionId} | POST | no | yes | none | Deactivate polling action |
+
+## area_cron_api
+| Route (prefixed) | Methods | Auth | Internal | Permissions | Notes |
+| --- | --- | --- | --- | --- | --- |
+| /area_cron_api/health | GET | no | no | none | Health check |
+| /area_cron_api/actions | POST | no | yes | none | Create cron action |
+| /area_cron_api/actions/{actionId} | DELETE | no | yes | none | Delete cron action |
+| /area_cron_api/activate/{actionId} | POST | no | yes | none | Activate cron action |
+| /area_cron_api/deactivate/{actionId} | POST | no | yes | none | Deactivate cron action |
+
+## area_mail_api
+| Route (prefixed) | Methods | Auth | Internal | Permissions | Notes |
+| --- | --- | --- | --- | --- | --- |
+| /area_mail_api/health | GET | no | no | none | Health check |
+| /area_mail_api/send | POST | no | yes | none | Send SMTP email |
 
 ## example-service
 | Route (prefixed) | Methods | Auth | Internal | Permissions | Notes |

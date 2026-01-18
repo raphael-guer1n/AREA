@@ -1,0 +1,48 @@
+{
+  "provider": "",
+  "name": "newsapi",
+  "label": "NewsAPI",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons-png.flaticon.com/512/21/21601.png",
+  "actions": [
+    {
+      "title": "news_breaking_headline",
+      "label": "News - Dernières actualités (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "country", "type": "text", "label": "Code pays (ex: us, fr)", "required": false, "default": "us" },
+        { "name": "category", "type": "text", "label": "Catégorie (business, sports...)", "required": false, "default": "general" },
+        { "name": "page_size", "type": "number", "label": "Nombre max d'articles", "required": false, "default": "10" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NewsAPI (ne pas modifier)", "required": true, "default": "top-headlines" }
+      ],
+      "output_fields": [
+        { "name": "title", "type": "text", "label": "Titre" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "url", "type": "text", "label": "Lien" },
+        { "name": "source", "type": "text", "label": "Source" },
+        { "name": "publishedAt", "type": "text", "label": "Publié le" }
+      ]
+    },
+    {
+      "title": "news_keyword_match",
+      "label": "News - Nouvel article sur un sujet (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "query", "type": "text", "label": "Mot-clé ou requête", "required": true, "default": "" },
+        { "name": "language", "type": "text", "label": "Langue (ex: en, fr)", "required": false, "default": "fr" },
+        { "name": "from", "type": "date", "label": "Date de début (YYYY-MM-DD)", "required": false, "default": "" },
+        { "name": "sort_by", "type": "text", "label": "Tri (publishedAt, relevance)", "required": false, "default": "publishedAt" },
+        { "name": "page_size", "type": "number", "label": "Nombre max d'articles", "required": false, "default": "10" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NewsAPI (ne pas modifier)", "required": true, "default": "everything" }
+      ],
+      "output_fields": [
+        { "name": "title", "type": "text", "label": "Titre" },
+        { "name": "description", "type": "text", "label": "Description" },
+        { "name": "url", "type": "text", "label": "Lien" },
+        { "name": "publishedAt", "type": "text", "label": "Publié le" },
+        { "name": "source", "type": "text", "label": "Source" }
+      ]
+    }
+  ],
+  "reactions": []
+}

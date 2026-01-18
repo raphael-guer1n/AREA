@@ -1,0 +1,32 @@
+{
+  "name": "dropbox",
+  "payload_format": "json",
+  "interval_seconds": 120,
+  "request": {
+    "method": "POST",
+    "url_template": "https://api.dropboxapi.com/2/files/list_folder",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "auth": {
+      "type": "oauth2",
+      "header": "Authorization",
+      "prefix": "Bearer ",
+      "provider": "dropbox"
+    },
+    "body_template": {
+      "path": "{{config.folder}}",
+      "recursive": false,
+      "include_deleted": false
+    },
+    "body_encoding": "json"
+  },
+  "items_path": "entries",
+  "item_id_path": "id",
+  "mappings": [
+    { "field_key": "file_name", "json_path": "name", "type": "string", "optional": true },
+    { "field_key": "folder_name", "json_path": "name", "type": "string", "optional": true },
+    { "field_key": "path", "json_path": "path_display", "type": "string", "optional": true },
+    { "field_key": "updated_at", "json_path": "server_modified", "type": "string", "optional": true }
+  ]
+}

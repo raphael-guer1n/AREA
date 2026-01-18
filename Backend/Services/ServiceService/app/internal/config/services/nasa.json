@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "name": "nasa",
+  "label": "NASA",
+  "icon_url": "",
+  "logo_url": "https://cdn-icons-png.flaticon.com/512/321/321795.png",
+  "actions": [
+    {
+      "title": "nasa_apod_ready",
+      "label": "NASA - Astronomy Picture of the Day (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "date", "type": "date", "label": "Date (YYYY-MM-DD, optional)", "required": false, "default": "" },
+        { "name": "hd", "type": "boolean", "label": "HD image", "required": false, "default": "false" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NASA (ne pas modifier)", "required": true, "default": "planetary/apod" }
+      ],
+      "output_fields": [
+        { "name": "date", "type": "text", "label": "Date" },
+        { "name": "title", "type": "text", "label": "Title" },
+        { "name": "url", "type": "text", "label": "Image URL" },
+        { "name": "hdurl", "type": "text", "label": "HD Image URL" },
+        { "name": "media_type", "type": "text", "label": "Media Type" },
+        { "name": "explanation", "type": "text", "label": "Explanation" }
+      ]
+    },
+    {
+      "title": "nasa_neo_feed",
+      "label": "NASA - Near Earth Objects Feed (polling)",
+      "type": "polling",
+      "fields": [
+        { "name": "start_date", "type": "date", "label": "Start date (YYYY-MM-DD)", "required": true, "default": "" },
+        { "name": "end_date", "type": "date", "label": "End date (YYYY-MM-DD)", "required": true, "default": "" },
+        { "name": "endpoint", "type": "text", "label": "Endpoint NASA (ne pas modifier)", "required": true, "default": "neo/rest/v1/feed" }
+      ],
+      "output_fields": [
+        { "name": "name", "type": "text", "label": "Asteroid Name" },
+        { "name": "close_approach_date", "type": "text", "label": "Close Approach Date" },
+        { "name": "miss_distance_km", "type": "text", "label": "Miss Distance (km)" }
+      ]
+    }
+  ],
+  "reactions": []
+}

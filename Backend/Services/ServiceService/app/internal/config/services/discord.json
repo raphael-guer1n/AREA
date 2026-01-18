@@ -1,68 +1,22 @@
 {
-  "provider": "discord",
+  "provider": "",
   "name": "discord",
   "label": "Discord",
   "icon_url": "",
   "logo_url": "",
-  "actions": [
-    {
-      "title": "new_message",
-      "label": "New Message in Channel",
-      "type": "webhook",
-      "fields": [
-        {
-          "name": "guild_id",
-          "type": "text",
-          "label": "Server ID",
-          "required": true,
-          "default": ""
-        },
-        {
-          "name": "channel_id",
-          "type": "text",
-          "label": "Channel ID",
-          "required": true,
-          "default": ""
-        }
-      ],
-      "output_fields": [
-        { "name": "author", "type": "text", "label": "Message Author" },
-        { "name": "content", "type": "text", "label": "Message Content" },
-        { "name": "channel_id", "type": "text", "label": "Channel ID" },
-        { "name": "message_id", "type": "text", "label": "Message ID" }
-      ]
-    },
-    {
-      "title": "user_joins_guild",
-      "label": "User Joins Server",
-      "type": "webhook",
-      "fields": [
-        {
-          "name": "guild_id",
-          "type": "text",
-          "label": "Server ID",
-          "required": true,
-          "default": ""
-        }
-      ],
-      "output_fields": [
-        { "name": "user_id", "type": "text", "label": "User ID" },
-        { "name": "username", "type": "text", "label": "Username" }
-      ]
-    }
-  ],
+  "actions": [],
   "reactions": [
     {
-      "title": "send_message",
-      "label": "Send Message to Channel",
-      "url": "https://discord.com/api/v10/channels/{{channel_id}}/messages",
+      "title": "send_webhook_message",
+      "label": "Send Message (Incoming Webhook)",
+      "url": "{{webhook_url}}",
       "method": "POST",
       "bodyType": "json",
       "fields": [
         {
-          "name": "channel_id",
+          "name": "webhook_url",
           "type": "text",
-          "label": "Channel ID",
+          "label": "Discord Webhook URL",
           "required": true,
           "default": ""
         },

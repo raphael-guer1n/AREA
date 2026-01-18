@@ -1,43 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
-/// Typography using Josefin Sans to mirror the Web globals.css.
+/// Typography using Arial for mobile.
 TextTheme buildTextTheme(AppColorPalette palette) {
   return TextTheme(
-    displayLarge: GoogleFonts.josefinSans(
+    displayLarge: TextStyle(
       fontSize: 32,
       fontWeight: FontWeight.w700,
+      fontFamily: 'Arial',
       color: palette.almostBlack,
       letterSpacing: -0.5,
     ),
-    titleLarge: GoogleFonts.josefinSans(
+    titleLarge: TextStyle(
       fontSize: 22,
       fontWeight: FontWeight.w700,
+      fontFamily: 'Arial',
       color: palette.deepBlue,
     ),
-    titleMedium: GoogleFonts.josefinSans(
+    titleMedium: TextStyle(
       fontSize: 18,
       fontWeight: FontWeight.w600,
+      fontFamily: 'Arial',
       color: palette.deepBlue,
     ),
-    bodyLarge: GoogleFonts.josefinSans(
+    bodyLarge: TextStyle(
       fontSize: 18,
+      fontFamily: 'Arial',
       color: palette.almostBlack,
       height: 1.35,
     ),
-    bodyMedium: GoogleFonts.josefinSans(
+    bodyMedium: TextStyle(
       fontSize: 16,
+      fontFamily: 'Arial',
       color: palette.almostBlack,
       height: 1.4,
     ),
-    bodySmall: GoogleFonts.josefinSans(
+    bodySmall: TextStyle(
       fontSize: 14,
+      fontFamily: 'Arial',
       color: palette.darkGrey,
     ),
-    labelLarge: GoogleFonts.josefinSans(
+    labelLarge: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w600,
+      fontFamily: 'Arial',
       color: palette.deepBlue,
       letterSpacing: 0.1,
     ),

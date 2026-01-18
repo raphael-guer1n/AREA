@@ -168,7 +168,10 @@ class _AreaScreenState extends State<AreaScreen> {
                       Expanded(
                         child: Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -178,11 +181,10 @@ class _AreaScreenState extends State<AreaScreen> {
                                     color: colors.darkGrey,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 2),
                                 Text(
                                   activeCount.toString(),
-                                  style: theme.textTheme.headlineMedium
-                                      ?.copyWith(
+                                  style: theme.textTheme.titleMedium?.copyWith(
                                     color: colors.midBlue,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -196,7 +198,10 @@ class _AreaScreenState extends State<AreaScreen> {
                       Expanded(
                         child: Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -206,11 +211,10 @@ class _AreaScreenState extends State<AreaScreen> {
                                     color: colors.darkGrey,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 2),
                                 Text(
                                   totalCount.toString(),
-                                  style: theme.textTheme.headlineMedium
-                                      ?.copyWith(
+                                  style: theme.textTheme.titleMedium?.copyWith(
                                     color: colors.midBlue,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -320,13 +324,9 @@ class _AreaCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = context.appColors;
 
-    final action = area.actions.isNotEmpty ? area.actions.first : null;
-    final reaction = area.reactions.isNotEmpty ? area.reactions.first : null;
-
     final title = area.name;
-    final subtitle = '${action?.title ?? '—'} → ${reaction?.title ?? '—'}';
-
     final gradient = _gradientFor(area.id);
+    final badge = _buildBadge(title);
 
     return InkWell(
       onTap: onOpenDetail,
@@ -342,71 +342,98 @@ class _AreaCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: colors.grey.withOpacity(0.2),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: colors.grey.withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                _statusDot(area.active),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white.withOpacity(0.18),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
                 const Spacer(),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'toggle') {
-                      onToggle();
-                    } else if (value == 'delete') {
-                      onDelete();
-                    } else if (value == 'detail') {
-                      onOpenDetail();
-                    }
-                  },
-                  icon: const Icon(Icons.more_horiz, color: Colors.white),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'toggle',
-                      child: Text(area.active ? 'Désactiver' : 'Activer'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'detail',
-                      child: Text('Voir le détail'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Supprimer'),
-                    ),
-                  ],
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.16),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.35)),
+                  ),
+                  child: PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    onSelected: (value) {
+                      if (value == 'toggle') {
+                        onToggle();
+                      } else if (value == 'delete') {
+                        onDelete();
+                      } else if (value == 'detail') {
+                        onOpenDetail();
+                      }
+                    },
+                    icon: const Icon(Icons.more_horiz, color: Colors.white, size: 18),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'toggle',
+                        child: Text(area.active ? 'Désactiver' : 'Activer'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'detail',
+                        child: Text('Voir le détail'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Supprimer'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomLeft,
+              child: _statusDot(area.active),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _buildBadge(String name) {
+    final parts = name.trim().split(' ').where((part) => part.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty
+        ? name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase()
+        : 'A';
   }
 
   List<Color> _gradientFor(int id) {
@@ -438,6 +465,7 @@ class _AreaCard extends StatelessWidget {
       ),
     );
   }
+
 }
 
 class _EmptyState extends StatelessWidget {
