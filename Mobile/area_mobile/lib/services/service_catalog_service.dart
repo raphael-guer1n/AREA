@@ -113,6 +113,8 @@ class ServiceConfigDto {
   final String provider;
   final String name;
   final String label;
+  final String logoUrl;
+  final String iconUrl;
   final List<ActionConfigDto> actions;
   final List<ReactionConfigDto> reactions;
 
@@ -120,6 +122,8 @@ class ServiceConfigDto {
     required this.provider,
     required this.name,
     required this.label,
+    required this.logoUrl,
+    required this.iconUrl,
     required this.actions,
     required this.reactions,
   });
@@ -129,6 +133,8 @@ class ServiceConfigDto {
       provider: json['provider'] as String? ?? '',
       name: json['name'] as String? ?? '',
       label: json['label'] as String? ?? '',
+      logoUrl: json['logo_url'] as String? ?? '',
+      iconUrl: json['icon_url'] as String? ?? '',
       actions: ((json['actions'] as List?) ?? [])
           .map((e) => ActionConfigDto.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
