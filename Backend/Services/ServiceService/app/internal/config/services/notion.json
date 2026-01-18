@@ -1,5 +1,5 @@
 {
-  "provider": "notion",
+  "provider": "",
   "name": "notion",
   "label": "Notion",
   "icon_url": "",
@@ -16,28 +16,11 @@
           "label": "Database ID",
           "required": true,
           "default": ""
-        }
-      ],
-      "output_fields": [
-        { "name": "page_id", "type": "text", "label": "Page ID" },
-        { "name": "title", "type": "text", "label": "Page Title" },
-        { "name": "created_time", "type": "text", "label": "Created Time" },
+        },
         {
-          "name": "last_edited_time",
+          "name": "token",
           "type": "text",
-          "label": "Last Edited Time"
-        }
-      ]
-    },
-    {
-      "title": "page_updated",
-      "label": "Page Updated in Database",
-      "type": "polling",
-      "fields": [
-        {
-          "name": "database_id",
-          "type": "text",
-          "label": "Database ID",
+          "label": "Notion Token",
           "required": true,
           "default": ""
         }
@@ -45,11 +28,9 @@
       "output_fields": [
         { "name": "page_id", "type": "text", "label": "Page ID" },
         { "name": "title", "type": "text", "label": "Page Title" },
-        {
-          "name": "last_edited_time",
-          "type": "text",
-          "label": "Last Edited Time"
-        }
+        { "name": "created_time", "type": "text", "label": "Created Time" },
+        { "name": "last_edited_time", "type": "text", "label": "Last Edited Time" },
+        { "name": "url", "type": "text", "label": "Page URL" }
       ]
     }
   ],
